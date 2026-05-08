@@ -85,11 +85,23 @@ app.get('/api/profile', (req, res) => {
 // =============================================
 // INICIALIZACIÓN DE BASE DE DATOS
 // =============================================
-import { db } from './database/index.js';
+import { db, AppDatabase } from './database/index.js';
 
 console.log('🔄 Inicializando base de datos...');
-// Aquí llamaremos a initSchema() en el siguiente paso
+AppDatabase.initSchema();
 
+// =============================================
+// RUTAS BÁSICAS (mantener las que ya teníamos)
+// =============================================
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    version: '1.0.0',
+    profile: profile.businessName,
+    dbPath: 'connected',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // =============================================
 // INICIO DEL SERVIDOR
