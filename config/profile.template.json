@@ -1,7 +1,11 @@
 {
-  "businessName": "Vantek Reformas",
-  "profileType": "reformas",
   "version": "1.0.0",
+  "businessName": "Vantek Reformas",
+  "nif": "B12345678",
+  "profileType": "reformas",
+  "direccionFiscal": "Calle Ejemplo 123, 28001 Madrid",
+  "telefono": "600 123 456",
+  "emailEmpresa": "info@vantek.es",
 
   "entities": {
     "cliente": "Cliente",
@@ -13,7 +17,8 @@
     "albaranes": true,
     "seguimiento": true,
     "matriculas": false,
-    "ocr": true
+    "ocr": true,
+    "firmasDigitales": false
   },
 
   "defaults": {
@@ -23,7 +28,8 @@
     "diasValidezPresupuesto": 30,
     "conceptosPorDefecto": [
       { "nombre": "Mano de obra", "precio": 35, "unidad": "hora" },
-      { "nombre": "Desplazamiento", "precio": 45, "unidad": "viaje" }
+      { "nombre": "Desplazamiento", "precio": 45, "unidad": "viaje" },
+      { "nombre": "Material varios", "precio": 0, "unidad": "ud" }
     ]
   },
 
@@ -32,42 +38,70 @@
     "footerPresupuesto": "Presupuesto válido durante 30 días. Precios sin IVA. Sujeto a medición final.",
     "marcaAguaFactura": "FACTURA",
     "marcaAguaPresupuesto": "PRESUPUESTO",
-    "textoSelloPagada": "PAGADA"
+    "textoSelloPagada": "PAGADA",
+    "mostrarLogo": true,
+    "mostrarCIFEnCabecera": true
   },
 
   "numeracion": {
     "facturas": {
       "prefijo": "",
       "ultimoNumero": 0,
-      "reiniciarCadaAno": true
+      "reiniciarCadaAno": true,
+      "ultimoAnoReinicio": 2026
     }
   },
 
+  "seguimiento": {
+    "camposPersonalizados": [],
+    "diasCaducidadPresupuesto": 45,
+    "recordatorioAutomatico": true
+  },
+
   "email": {
-    "notificacionesErrores": "admin@tuempresa.es",
+    "notificacionesErrores": "admin@vantek.es",
     "smtp": {
-      "host": "",
+      "host": "smtp.gmail.com",
       "port": 587,
+      "secure": false,
       "user": "",
       "pass": "",
-      "from": ""
+      "from": "Vantek CRM <no-reply@vantek.es>"
     }
   },
 
   "actualizaciones": {
+    "auto": true,
     "ventanaInicio": 15,
     "ventanaFin": 16,
-    "auto": true
+    "reintentarSiBorradorSucio": true,
+    "minutosReintento": 15
   },
 
   "ui": {
     "primaryColor": "#2563eb",
-    "title": "Vantek CRM",
-    "logo": "logo.png"
+    "title": "Vantek CRM - Gestión de Obras",
+    "logo": "logo.png",
+    "mostrarSemáforos": true
   },
 
   "system": {
     "backupAutomatico": true,
-    "backupDiasRetencion": 30
+    "backupFrecuenciaHoras": 24,
+    "backupDiasRetencion": 30,
+    "maxLogDias": 90
+  },
+
+  "permisos": {
+    "roles": {
+      "admin": ["all"],
+      "usuario": ["lectura", "escritura", "facturacion", "presupuestos"]
+    }
+  },
+
+  "ocr": {
+    "idioma": "spa",
+    "umbralConfianza": 60,
+    "proveedoresFrecuentes": []
   }
 }
