@@ -10,15 +10,13 @@
   },
   "dependencies": {
     "express": "^4.21.0",
-    "sqlite3": "^5.1.7",
-    "better-sqlite3": "^11.0.0",        // Recomiendo este en vez de sqlite3 puro
+    "better-sqlite3": "^12.9.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "jsonwebtoken": "^9.0.2",
     "bcryptjs": "^3.0.0",
-    "puppeteer": "^23.0.0",             // Para PDFs
+    "puppeteer": "^23.0.0",
     "nodemailer": "^6.9.0"
-    // tesseract.js lo añadiremos más adelante (Fase 5)
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
