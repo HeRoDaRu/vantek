@@ -133,6 +133,22 @@ CREATE TABLE IF NOT EXISTS documento_versiones (
     FOREIGN KEY (documento_id) REFERENCES documentos(id) ON DELETE CASCADE
 );
 
+-- ====================== USUARIOS ======================
+CREATE TABLE IF NOT EXISTS usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    nombre TEXT,
+    rol TEXT DEFAULT 'usuario',              -- 'admin' o 'usuario'
+    activo BOOLEAN DEFAULT 1,
+    ultimo_acceso DATETIME,
+    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Usuario admin por defecto (cambiar contraseña en primer uso)
+INSERT OR IGNORE INTO usuarios (username, password_hash, nombre, rol) 
+VALUES ('admin', '$2a$10$examplehash1234567890abcdefghijklmnopqrstuvwxyz', 'Administrador', 'admin');
+
 -- Índices para mejorar rendimiento
 CREATE INDEX idx_clientes_nif ON clientes(nif_cif);
 CREATE INDEX idx_trabajos_cliente ON trabajos(cliente_id);
