@@ -1,0 +1,29 @@
+{
+  "name": "vantek-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "sqlite3": "^5.1.7",
+    "better-sqlite3": "^11.0.0",        // Recomiendo este en vez de sqlite3 puro
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^3.0.0",
+    "puppeteer": "^23.0.0",             // Para PDFs
+    "nodemailer": "^6.9.0"
+    // tesseract.js lo añadiremos más adelante (Fase 5)
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.0"
+  }
+}
