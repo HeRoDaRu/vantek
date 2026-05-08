@@ -66,7 +66,17 @@ Puedes activar/desactivar módulos (albaranes, seguimiento, etc.) mediante un ar
 ---
 
 ## 📁 Estructura del proyecto
-/Vantek/ ├── data/                  # Base de datos y archivos del cliente ├── config/                # Perfiles de negocio y configuración ├── releases/              # Paquetes de actualizaciones ├── app/                   # Código fuente (monorepo) ├── Vantek.exe             # Launcher principal └── …                    # Archivos de servicio y logs
+
+```text
+Vantek/
+├── data/                  # Base de datos y archivos del cliente
+├── config/                # Perfiles de negocio y configuración
+├── releases/              # Paquetes de actualizaciones
+├── app/                   # Código fuente (monorepo)
+├── Vantek.exe             # Launcher principal
+├── logs/                  # Archivos de logs (opcional)
+└── config.json            # Configuración general
+```
 ---
 
 ## 🛣️ Roadmap / Fases
