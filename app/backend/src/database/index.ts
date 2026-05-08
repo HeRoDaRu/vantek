@@ -49,6 +49,7 @@ export class AppDatabase {
     } catch (error) {
       console.error('❌ Error al inicializar esquema:', error);
     }
+      runMigrations();
   }
 
   /** Tablas mínimas por si falla la carga del schema.sql (seguridad) */
