@@ -1,0 +1,39 @@
+{
+  "businessName": "Vantek Reformas",
+  "profileType": "reformas",                    // "reformas" o "taller"
+  
+  "entities": {
+    "cliente": "Cliente",
+    "agrupador": "Dirección",
+    "trabajo": "Obra"
+  },
+  
+  "modules": {
+    "albaranes": true,
+    "seguimiento": true,
+    "matriculas": false
+  },
+  
+  "defaults": {
+    "iva": 21,
+    "margen": 30,
+    "versionesPorDocumento": 10,
+    "diasValidezPresupuesto": 30
+  },
+  
+  "documentos": {
+    "footerFactura": "Gracias por confiar en Vantek Reformas. Para cualquier duda contacte con nosotros.",
+    "footerPresupuesto": "Presupuesto válido durante 30 días. Precios sin IVA.",
+    "textoMarcaAguaFactura": "FACTURA",
+    "textoMarcaAguaPresupuesto": "PRESUPUESTO"
+  },
+  
+  "email": {
+    "notificacionesErrores": "admin@vantek.es"
+  },
+  
+  "ui": {
+    "primaryColor": "#2563eb",
+    "title": "Vantek CRM - Gestión de Obras"
+  }
+}
