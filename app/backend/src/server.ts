@@ -83,6 +83,15 @@ app.get('/api/profile', (req, res) => {
 });
 
 // =============================================
+// INICIALIZACIÓN DE BASE DE DATOS
+// =============================================
+import { db } from './database/index.js';
+
+console.log('🔄 Inicializando base de datos...');
+// Aquí llamaremos a initSchema() en el siguiente paso
+
+
+// =============================================
 // INICIO DEL SERVIDOR
 // =============================================
 app.listen(PORT, () => {
