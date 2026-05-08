@@ -1,39 +1,73 @@
 {
   "businessName": "Vantek Reformas",
-  "profileType": "reformas",                    // "reformas" o "taller"
-  
+  "profileType": "reformas",
+  "version": "1.0.0",
+
   "entities": {
     "cliente": "Cliente",
     "agrupador": "Dirección",
     "trabajo": "Obra"
   },
-  
+
   "modules": {
     "albaranes": true,
     "seguimiento": true,
-    "matriculas": false
+    "matriculas": false,
+    "ocr": true
   },
-  
+
   "defaults": {
     "iva": 21,
-    "margen": 30,
+    "margenGlobal": 30,
     "versionesPorDocumento": 10,
-    "diasValidezPresupuesto": 30
+    "diasValidezPresupuesto": 30,
+    "conceptosPorDefecto": [
+      { "nombre": "Mano de obra", "precio": 35, "unidad": "hora" },
+      { "nombre": "Desplazamiento", "precio": 45, "unidad": "viaje" }
+    ]
   },
-  
+
   "documentos": {
     "footerFactura": "Gracias por confiar en Vantek Reformas. Para cualquier duda contacte con nosotros.",
-    "footerPresupuesto": "Presupuesto válido durante 30 días. Precios sin IVA.",
-    "textoMarcaAguaFactura": "FACTURA",
-    "textoMarcaAguaPresupuesto": "PRESUPUESTO"
+    "footerPresupuesto": "Presupuesto válido durante 30 días. Precios sin IVA. Sujeto a medición final.",
+    "marcaAguaFactura": "FACTURA",
+    "marcaAguaPresupuesto": "PRESUPUESTO",
+    "textoSelloPagada": "PAGADA"
   },
-  
+
+  "numeracion": {
+    "facturas": {
+      "prefijo": "",
+      "ultimoNumero": 0,
+      "reiniciarCadaAno": true
+    }
+  },
+
   "email": {
-    "notificacionesErrores": "admin@vantek.es"
+    "notificacionesErrores": "admin@tuempresa.es",
+    "smtp": {
+      "host": "",
+      "port": 587,
+      "user": "",
+      "pass": "",
+      "from": ""
+    }
   },
-  
+
+  "actualizaciones": {
+    "ventanaInicio": 15,
+    "ventanaFin": 16,
+    "auto": true
+  },
+
   "ui": {
     "primaryColor": "#2563eb",
-    "title": "Vantek CRM - Gestión de Obras"
+    "title": "Vantek CRM",
+    "logo": "logo.png"
+  },
+
+  "system": {
+    "backupAutomatico": true,
+    "backupDiasRetencion": 30
   }
 }
