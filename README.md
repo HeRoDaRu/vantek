@@ -1,62 +1,105 @@
 # Vantek
 
-**[span_0](start_span)[span_1](start_span)Vantek** es una plataforma de gestión empresarial (ERP/CRM) técnica diseñada específicamente para sectores de servicios y obras, como talleres mecánicos y empresas de reformas[span_0](end_span)[span_1](end_span). [span_2](start_span)[span_3](start_span)[span_4](start_span)El sistema destaca por su arquitectura **portable**, su capacidad de **configuración por perfil de negocio** y una gestión integral del flujo de trabajo: desde el seguimiento inicial hasta la facturación final[span_2](end_span)[span_3](end_span)[span_4](end_span).
+**Gestión portable de facturas, albaranes, presupuestos y órdenes de trabajo**
+
+Sistema CRM / ERP ligero y altamente adaptable pensado para pequeños negocios (reformas, talleres mecánicos, servicios, etc.).  
+Un único código base que se configura por perfil según el tipo de cliente.
 
 ---
 
-## 🚀 Características Principales
+## ✨ Características principales
 
-* **[span_5](start_span)Arquitectura Zero-Dependency**: Ejecución mediante Node.js portable sin necesidad de instalación en el sistema operativo[span_5](end_span).
-* **[span_6](start_span)[span_7](start_span)Motor Multiperfil**: Un único código base que adapta terminología (ej. "Matrícula" o "Dirección") y módulos activos mediante un sistema de flags equivalente al i18n[span_6](end_span)[span_7](end_span).
-* **Gestión Documental de Precisión**:
-    * [span_8](start_span)[span_9](start_span)[span_10](start_span)Generación de presupuestos y facturas en PDF mediante **Puppeteer**[span_8](end_span)[span_9](end_span)[span_10](end_span).
-    * [span_11](start_span)[span_12](start_span)Sistema de **autoguardado silencioso** y control de versiones históricas (hasta 10 versiones con sus respectivos PDFs)[span_11](end_span)[span_12](end_span).
-    * [span_13](start_span)[span_14](start_span)Integración de **OCR (Tesseract.js)** para la extracción de datos en albaranes de proveedores[span_13](end_span)[span_14](end_span).
-* **[span_15](start_span)Trazabilidad Total**: Vinculación de líneas de albaranes a trabajos específicos para el cálculo automático de costes y márgenes de beneficio[span_15](end_span).
-* **Automatización Industrial**:
-    * [span_16](start_span)Actualizaciones automáticas desatendidas vía **GitHub Releases** con verificación de inactividad[span_16](end_span).
-    * [span_17](start_span)Servicio de Windows gestionado por **NSSM** que arranca automáticamente sin interacción del usuario[span_17](end_span).
-
----
-
-## 🛠️ Stack Tecnológico
-
-| Componente | Tecnología |
-| :--- | :--- |
-| **Runtime** | [span_18](start_span)Node.js portable[span_18](end_span) |
-| **Backend** | [span_19](start_span)Express + TypeScript[span_19](end_span) |
-| **Frontend** | [span_20](start_span)Vite + React + TypeScript[span_20](end_span) |
-| **Base de Datos** | [span_21](start_span)SQLite con WAL (Write-Ahead Logging)[span_21](end_span) |
-| **Servicio Windows** | [span_22](start_span)NSSM (Non-Sucking Service Manager)[span_22](end_span) |
-| **Generación PDF** | [span_23](start_span)Puppeteer (HTML/CSS → PDF)[span_23](end_span) |
-| **OCR** | [span_24](start_span)Tesseract.js[span_24](end_span) |
-| **Email** | [span_25](start_span)Nodemailer[span_25](end_span) |
+- **Totalmente portable**: No requiere instalación, Docker ni dependencias del sistema. Todo dentro de una carpeta.
+- **Multi-perfil / Multi-negocio**: Un mismo programa sirve para reformas, talleres, fontanería, etc. cambiando solo la configuración.
+- **Flujo completo**:
+  - Seguimiento de leads → Presupuesto → Aceptación → Orden de trabajo → Albaranes de proveedor → Facturación
+- **Albaranes de proveedores con OCR** (Tesseract.js)
+- **Generación profesional de PDFs** (Puppeteer) con versiones e historial
+- **Estados visuales** y semáforos en presupuestos, facturas y seguimientos
+- **Autoguardado + versiones** de documentos (evita pérdida de datos)
+- **Actualizaciones automáticas** seguras (GitHub Releases)
+- **Servicio Windows** que se inicia automáticamente
+- **Acceso móvil** vía VPN + Wake-on-LAN
 
 ---
 
-## 📂 Estructura del Modelo de Datos
+## 🛠️ Arquitectura Técnica
 
-[span_26](start_span)El sistema organiza la información de forma jerárquica para garantizar la integridad operativa[span_26](end_span):
+- **Backend**: Node.js + Express + TypeScript
+- **Frontend**: Vite + React + TypeScript
+- **Base de datos**: SQLite (con WAL)
+- **PDF**: Puppeteer (HTML → PDF)
+- **OCR**: Tesseract.js
+- **Servicio Windows**: NSSM
+- **Actualizaciones**: GitHub Releases + sistema propio de fallback
 
-1.  **[span_27](start_span)Cliente**: Entidad principal con datos fiscales y de contacto[span_27](end_span).
-2.  **[span_28](start_span)[span_29](start_span)Agrupador**: El activo sobre el que se trabaja, configurado por perfil (ej: Dirección en reformas o Matrícula en talleres)[span_28](end_span)[span_29](end_span).
-3.  **[span_30](start_span)Trabajo**: La unidad operativa (Obra o Reparación) donde se consolidan presupuestos, albaranes y facturas[span_30](end_span).
+**Principios clave**:
+- Un solo proceso, un solo puerto
+- Sin Docker, sin instalaciones complejas
+- Todo portable y fácil de respaldar (una carpeta)
+
+---
+
+## 📋 Cómo funciona (por perfil)
+
+El sistema usa **entidades genéricas** que se renombran según el cliente:
+
+| Entidad en código | Reformas          | Taller Mecánico     |
+|-------------------|-------------------|---------------------|
+| Agrupador         | Dirección         | Matrícula           |
+| Trabajo           | Obra / Reparación | Reparación / OT     |
+
+Puedes activar/desactivar módulos (albaranes, seguimiento, etc.) mediante un archivo de configuración.
 
 ---
 
-## ⚙️ Configuración y Perfiles
+## 🚀 Instalación (para el administrador)
 
-[span_31](start_span)[span_32](start_span)Vantek utiliza un patrón de configuración por instalación que define la terminología y activa o desactiva módulos (albaranes, seguimiento, matrículas)[span_31](end_span)[span_32](end_span). [span_33](start_span)El usuario final nunca interactúa con esta configuración, la cual es gestionada por el administrador para asegurar la coherencia del perfil de negocio[span_33](end_span).
+1. Descarga la última release desde GitHub
+2. Descomprime en la carpeta deseada
+3. Ejecuta `Vantek.exe` (o el launcher correspondiente)
+4. El servicio se instala y arranca automáticamente con Windows
+5. Configura el perfil del cliente en el archivo de configuración
+
+> **Nota**: El usuario final nunca toca código ni configuración técnica.
+
+---
+
+## 📁 Estructura del proyecto
+/Vantek/ ├── data/                  # Base de datos y archivos del cliente ├── config/                # Perfiles de negocio y configuración ├── releases/              # Paquetes de actualizaciones ├── app/                   # Código fuente (monorepo) ├── Vantek.exe             # Launcher principal └── …                    # Archivos de servicio y logs
+---
+
+## 🛣️ Roadmap / Fases
+
+- [x] Fase 1 – Base y autenticación
+- [x] Fase 2 – Núcleo (clientes, trabajos, documentos)
+- [x] Fase 3 – PDFs y versiones
+- [x] Fase 4 – Actualizaciones automáticas
+- [ ] Fase 5 – OCR completo + mejoras de seguimiento y dashboard
 
 ---
 
-## 📅 Hoja de Ruta (Roadmap)
+## 🔧 Configuración
 
-* **[span_34](start_span)Fase 1 — Base**: Estructura monorepo, Node portable + NSSM, SQLite y autenticación[span_34](end_span).
-* **[span_35](start_span)Fase 2 — Núcleo**: Gestión de clientes, agrupadores, trabajos, albaranes manuales y lógica de facturación[span_35](end_span).
-* **[span_36](start_span)Fase 3 — Documentos**: Generación de PDF con Puppeteer, gestión de versiones y envío por email[span_36](end_span).
-* **[span_37](start_span)Fase 4 — Automatización**: Sistema de actualizaciones automáticas, launcher con fallback y notificaciones de error[span_37](end_span).
-* **[span_38](start_span)Fase 5 — OCR y Ajustes**: Integración de Tesseract.js, módulo de seguimiento y dashboard económico[span_38](end_span).
+Todo se personaliza mediante perfiles:
+- Datos de la empresa
+- Textos de documentos (footers)
+- Módulos activos
+- Conceptos por defecto (mano de obra, etc.)
+- Porcentajes de IVA y margen
 
 ---
-**Vantek** — *Gestión, Flujo y Trazabilidad.*
+
+## Contribuir
+
+Este proyecto es **privado/comercial** por el momento, pero acepto sugerencias y reportes de bugs vía Issues.
+
+---
+
+## Licencia
+
+© 2026 Vantek – Uso con licencia comercial por cliente.
+
+---
+
+**¿Necesitas ayuda para implantarlo en tu negocio?** Contacta con el desarrollador.
