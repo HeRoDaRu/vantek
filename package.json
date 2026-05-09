@@ -1,20 +1,17 @@
 {
   "name": "vantek-crm",
-  "version": "1.0.0",
-  "description": "CRM Facturas, Presupuestos y Gestión de Obras - Vantek",
+  "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/backend",
+    "packages/frontend"
+  ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix app/backend\" \"npm run dev --prefix app/frontend\"",
-    "build": "npm run build --prefix app/frontend && npm run build --prefix app/backend",
-    "build:frontend": "npm run build --prefix app/frontend",
-    "build:backend": "npm run build --prefix app/backend",
-    "start:prod": "node app/backend/dist/server.js",
-    "clean": "rimraf app/frontend/dist app/backend/dist",
-    "lint": "eslint app --ext .ts,.tsx"
+    "dev": "npm run dev --workspace=packages/backend & npm run dev --workspace=packages/frontend",
+    "build": "npm run build --workspace=packages/frontend && npm run build --workspace=packages/backend",
+    "start": "npm run start --workspace=packages/backend"
   },
-  "devDependencies": {
-    "concurrently": "^8.2.2",
-    "rimraf": "^6.0.1",
-    "eslint": "^9.0.0"
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
