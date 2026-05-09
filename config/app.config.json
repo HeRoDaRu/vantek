@@ -1,0 +1,36 @@
+{
+  "empresa": {
+    "nombre": "",
+    "cif": "",
+    "direccion": "",
+    "telefono": "",
+    "email": "",
+    "logo": ""
+  },
+  "documentos": {
+    "iva": 21,
+    "margen_defecto": 20,
+    "max_versiones": 10,
+    "numeracion_factura": {
+      "contador": 0,
+      "anno": 2026,
+      "reinicio_pendiente": false
+    }
+  },
+  "conceptos_defecto": [
+    {
+      "id": "mano_obra",
+      "label": "Mano de obra",
+      "precio_hora": 0,
+      "unidad": "hora"
+    }
+  ],
+  "sistema": {
+    "email_errores": "",
+    "actualizacion": {
+      "hora_inicio": "15:00",
+      "hora_fin": "16:00",
+      "inactividad_minutos": 15
+    }
+  }
+}
