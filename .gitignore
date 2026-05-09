@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+logs/
+node/
+*.db
+*.db-wal
+*.db-shm
+.env
+config/app.config.json
+packages/frontend/dist/
