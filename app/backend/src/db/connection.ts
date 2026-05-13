@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-const DB_PATH = path.resolve(process.cwd(), '../../data/crm.db');
+const DB_PATH = path.resolve(process.cwd(), '../../data/vantek.db');
 
 let db: Database.Database;
 
@@ -16,5 +16,7 @@ export function getDb(): Database.Database {
 }
 
 export function closeDb(): void {
-  if (db) db.close();
+  if (db) {
+    db.close();
+  }
 }

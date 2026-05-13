@@ -112,6 +112,7 @@ const migrations: { version: number; sql: string }[] = [
         margen_porcentaje REAL,
         unidad TEXT,
         tipo TEXT NOT NULL DEFAULT 'manual' CHECK(tipo IN ('material','manual','concepto')),
+        es_libre INTEGER NOT NULL DEFAULT 0,
         orden INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -172,13 +173,19 @@ const migrations: { version: number; sql: string }[] = [
         direccion TEXT,
         dni_cif TEXT,
         accion_peticion TEXT,
-        estado TEXT NOT NULL DEFAULT 'nuevo'
-          CHECK(estado IN ('nuevo','contactado','visita_agendada','pendiente_presupuesto',
-                           'a_la_espera','en_curso','pendiente_facturar','entregada','pagada')),
+        estado TEXT NOT NULL DEFAULT 'nuevo' CHECK(estado IN (
+          'nuevo','contactado','visita_agendada','pendiente_presupuesto',
+          'a_la_espera','en_curso','pendiente_facturar','entregada','pagada'
+        )),
         trabajo_id TEXT REFERENCES trabajos(id),
         notas TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS _migraciones (
+        version INTEGER PRIMARY KEY,
+        ejecutada_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `
   }
@@ -199,14 +206,14 @@ export function runMigrations(): void {
   const pending = migrations.filter(m => m.version > currentVersion);
 
   if (pending.length === 0) {
-    console.log('[DB] Sin migraciones pendientes.');
+    console.log('[DB] Schema actualizado, no hay migraciones pendientes.');
     return;
   }
 
   for (const migration of pending) {
-    console.log(`[DB] Migración v${migration.version}...`);
+    console.log(`[DB] Ejecutando migración v${migration.version}...`);
     db.exec(migration.sql);
     db.prepare('INSERT INTO _migraciones (version) VALUES (?)').run(migration.version);
-    console.log(`[DB] Migración v${migration.version} OK.`);
+    console.log(`[DB] Migración v${migration.version} completada.`);
   }
 }

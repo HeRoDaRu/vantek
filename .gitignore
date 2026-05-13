@@ -7,5 +7,10 @@ node/
 *.db-wal
 *.db-shm
 .env
+.env.local
+
+# La config de la app la gestiona el instalador, no va al repo
 config/app.config.json
-packages/frontend/dist/
+
+# Frontend build
+app/frontend/dist/
