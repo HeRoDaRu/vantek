@@ -6,6 +6,8 @@ import path from 'path';
 import { runMigrations } from './db/migrate';
 import { getAppConfig, getProfileConfig } from './utils/config';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import clientesRouter from './routes/clientes.router';
+import albanesRouter from './routes/albaranes.router';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,32 +26,23 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ─── Config endpoints ─────────────────────────────────────────────────────────
-app.get('/api/config/profile', (_req, res) => {
-  res.json(getProfileConfig());
-});
-
-app.get('/api/config/app', (_req, res) => {
-  res.json(getAppConfig());
-});
+app.get('/api/config/profile', (_req, res) => { res.json(getProfileConfig()); });
+app.get('/api/config/app', (_req, res) => { res.json(getAppConfig()); });
 
 // ─── Status (usado por el launcher para verificar borrador sucio) ─────────────
 app.get('/api/status', (_req, res) => {
   res.json({ ok: true, version: process.env.npm_package_version || '0.1.0' });
 });
+// En Fase 3 se añadirá /api/status/draft para verificar borradores activos
 
-// ─── API Routes (se añaden por fases) ────────────────────────────────────────
-// Fase 2:
-// import clientesRouter from './routes/clientes.router';
-// import albanesRouter from './routes/albaranes.router';
-// app.use('/api/clientes', clientesRouter);
-// app.use('/api/albaranes', albanesRouter);
-//
+// ─── API Routes ───────────────────────────────────────────────────────────────
+app.use('/api/clientes', clientesRouter);
+app.use('/api/albaranes', albanesRouter);
 // Fase 3:
 // import presupuestosRouter from './routes/presupuestos.router';
 // import facturasRouter from './routes/facturas.router';
 // app.use('/api/presupuestos', presupuestosRouter);
 // app.use('/api/facturas', facturasRouter);
-//
 // Fase 5:
 // import seguimientoRouter from './routes/seguimiento.router';
 // app.use('/api/seguimiento', seguimientoRouter);
@@ -72,7 +65,7 @@ function start() {
     runMigrations();
     console.log('[Vantek] Base de datos lista.');
     app.listen(PORT, () => {
-      console.log(`[Vantek] Servidor corriendo en http://localhost:${PORT}`);
+      console.log(`[Vantek] Servidor en http://localhost:${PORT}`);
     });
   } catch (err) {
     console.error('[Vantek] Error al iniciar:', err);
@@ -81,5 +74,4 @@ function start() {
 }
 
 start();
-
 export default app;
