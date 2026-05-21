@@ -3,11 +3,16 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
+import asyncHandler from 'express-async-handler';
 import { runMigrations } from './db/migrate';
 import { getAppConfig, getProfileConfig } from './utils/config';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import clientesRouter from './routes/clientes.router';
 import albanesRouter from './routes/albaranes.router';
+import setupRouter from './routes/setup.router';
+import presupuestosRouter from './routes/presupuestos.router';
+import facturasRouter from './routes/facturas.router';
+import { hayBorradorSucio } from './services/facturas.service';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,16 +38,19 @@ app.get('/api/config/app', (_req, res) => { res.json(getAppConfig()); });
 app.get('/api/status', (_req, res) => {
   res.json({ ok: true, version: process.env.npm_package_version || '0.1.0' });
 });
-// En Fase 3 se añadirá /api/status/draft para verificar borradores activos
+
+app.get('/api/status/draft', asyncHandler(async (_req, res) => {
+  const sucio = await hayBorradorSucio();
+  res.json({ dirty: sucio });
+}));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
+app.use('/api/setup', setupRouter);
 app.use('/api/clientes', clientesRouter);
 app.use('/api/albaranes', albanesRouter);
-// Fase 3:
-// import presupuestosRouter from './routes/presupuestos.router';
-// import facturasRouter from './routes/facturas.router';
-// app.use('/api/presupuestos', presupuestosRouter);
-// app.use('/api/facturas', facturasRouter);
+app.use('/api/presupuestos', presupuestosRouter);
+app.use('/api/facturas', facturasRouter);
+
 // Fase 5:
 // import seguimientoRouter from './routes/seguimiento.router';
 // app.use('/api/seguimiento', seguimientoRouter);

@@ -9,8 +9,5 @@ node/
 .env
 .env.local
 
-# La config de la app la gestiona el instalador, no va al repo
-config/app.config.json
-
 # Frontend build
 app/frontend/dist/

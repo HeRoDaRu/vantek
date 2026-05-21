@@ -1,0 +1,26 @@
+{
+  "name": "Vantek Dev",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:24-bookworm",
+  "forwardPorts": [3000, 5173],
+  "portsAttributes": {
+    "3000": {
+      "label": "Backend API",
+      "onAutoForward": "silent"
+    },
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "postCreateCommand": "npm install --ignore-scripts && cd node_modules/better-sqlite3 && npm install --ignore-scripts=false && cd /workspaces/vantek",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next"
+      ]
+    }
+  },
+  "remoteUser": "node"
+}

@@ -32,5 +32,15 @@
       "hora_fin": "16:00",
       "inactividad_minutos": 15
     }
+  },
+  "email": {
+    "smtp": {
+      "host": "smtp.tuservidor.com",
+      "port": 587,
+      "secure": false,
+      "user": "tu@email.com",
+      "pass": "contraseña",
+      "from": "tu@email.com"
+    }
   }
 }

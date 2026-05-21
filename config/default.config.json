@@ -1,21 +1,21 @@
 {
-  "perfil": "reformas",
+  "perfil": "",
   "version": "1.0.0",
   "entidades": {
-    "cliente": "Cliente",
-    "clientes": "Clientes",
-    "agrupador": "Dirección",
-    "agrupadores": "Direcciones",
-    "trabajo": "Obra",
-    "trabajos": "Obras"
+    "cliente": "",
+    "clientes": "",
+    "agrupador": "",
+    "agrupadores": "",
+    "trabajo": "",
+    "trabajos": ""
   },
   "menu": {
     "dashboard": "Dashboard",
-    "clientes": "Clientes",
+    "clientes": "",
     "facturas": "Facturas",
     "presupuestos": "Presupuestos",
     "albaranes": "Albaranes",
-    "seguimiento": "Seguimiento",
+    "seguimiento": "",
     "configuracion": "Configuración"
   },
   "documentos": {
@@ -32,11 +32,11 @@
     "matriculas": false
   },
   "seguimiento": {
-    "tipo": "reformas",
-    "label": "Seguimiento"
+    "tipo": "",
+    "label": ""
   },
   "footer": {
-    "factura": "Garantía de 2 años en todos los trabajos realizados.",
-    "presupuesto": "Precios sin IVA. Presupuesto válido por 30 días desde la fecha de emisión."
+    "factura": "",
+    "presupuesto": ""
   }
 }

@@ -248,3 +248,105 @@ export interface Seguimiento extends BaseEntity {
   trabajo_id?: string;
   notas?: string;
 }
+
+// ─── Setup ───────────────────────────────────────────────────────────────────
+
+export type PerfilNegocio = 'reformas' | 'taller' | 'otro';
+
+export interface SetupPayload {
+  perfil: PerfilNegocio;
+  entidades_custom?: {
+    cliente: string;
+    clientes: string;
+    agrupador: string;
+    agrupadores: string;
+    trabajo: string;
+    trabajos: string;
+  };
+  empresa: {
+    nombre: string;
+    cif: string;
+    direccion?: string;
+    telefono?: string;
+    email?: string;
+    logo?: string;
+  };
+}
+
+export interface DefaultConfig {
+  perfil: string;
+  version: string;
+  entidades: {
+    cliente: string;
+    clientes: string;
+    agrupador: string;
+    agrupadores: string;
+    trabajo: string;
+    trabajos: string;
+  };
+  menu: {
+    dashboard: string;
+    clientes: string;
+    facturas: string;
+    presupuestos: string;
+    albaranes: string;
+    seguimiento: string;
+    configuracion: string;
+  };
+  documentos: {
+    albaran: string;
+    albaranes: string;
+    presupuesto: string;
+    presupuestos: string;
+    factura: string;
+    facturas: string;
+  };
+  modulos: {
+    albaranes: boolean;
+    seguimiento: boolean;
+    matriculas: boolean;
+  };
+  seguimiento: {
+    tipo: string;
+    label: string;
+  };
+  footer: {
+    factura: string;
+    presupuesto: string;
+  };
+}
+
+export interface AppConfig {
+  empresa: {
+    nombre: string;
+    cif: string;
+    direccion: string;
+    telefono: string;
+    email: string;
+    logo: string;
+  };
+  documentos: {
+    iva: number;
+    margen_defecto: number;
+    max_versiones: number;
+    numeracion_factura: {
+      contador: number;
+      anno: number;
+      reinicio_pendiente: boolean;
+    };
+  };
+  conceptos_defecto: Array<{
+    id: string;
+    label: string;
+    precio_hora: number;
+    unidad: string;
+  }>;
+  sistema: {
+    email_errores: string;
+    actualizacion: {
+      hora_inicio: string;
+      hora_fin: string;
+      inactividad_minutos: number;
+    };
+  };
+}
