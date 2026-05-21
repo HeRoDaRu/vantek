@@ -1,0 +1,219 @@
+import { getDb } from './connection';
+
+const migrations: { version: number; sql: string }[] = [
+  {
+    version: 1,
+    sql: `
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id TEXT PRIMARY KEY,
+        nombre TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        rol TEXT NOT NULL CHECK(rol IN ('admin', 'usuario')),
+        activo INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS clientes (
+        id TEXT PRIMARY KEY,
+        nombre TEXT NOT NULL,
+        empresa TEXT,
+        dni_cif TEXT,
+        telefono TEXT,
+        email TEXT,
+        notas TEXT,
+        activo INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS agrupadores (
+        id TEXT PRIMARY KEY,
+        cliente_id TEXT NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+        label TEXT NOT NULL,
+        descripcion TEXT,
+        activo INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS trabajos (
+        id TEXT PRIMARY KEY,
+        agrupador_id TEXT NOT NULL REFERENCES agrupadores(id) ON DELETE CASCADE,
+        nombre TEXT NOT NULL,
+        descripcion TEXT,
+        margen_porcentaje REAL NOT NULL DEFAULT 20,
+        estado TEXT NOT NULL DEFAULT 'activo' CHECK(estado IN ('activo','completado','cancelado')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS proveedores (
+        id TEXT PRIMARY KEY,
+        nombre TEXT NOT NULL,
+        telefono TEXT,
+        email TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS albaranes (
+        id TEXT PRIMARY KEY,
+        proveedor_id TEXT REFERENCES proveedores(id),
+        proveedor_nombre TEXT,
+        numero TEXT,
+        fecha TEXT NOT NULL,
+        imagen_path TEXT,
+        ocr_procesado INTEGER NOT NULL DEFAULT 0,
+        notas TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS albaran_lineas (
+        id TEXT PRIMARY KEY,
+        albaran_id TEXT NOT NULL REFERENCES albaranes(id) ON DELETE CASCADE,
+        descripcion TEXT NOT NULL,
+        cantidad REAL NOT NULL DEFAULT 1,
+        precio_unitario REAL NOT NULL DEFAULT 0,
+        unidad TEXT,
+        orden INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS albaran_linea_trabajo (
+        id TEXT PRIMARY KEY,
+        albaran_linea_id TEXT NOT NULL REFERENCES albaran_lineas(id) ON DELETE CASCADE,
+        trabajo_id TEXT NOT NULL REFERENCES trabajos(id) ON DELETE CASCADE,
+        UNIQUE(albaran_linea_id, trabajo_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS presupuestos (
+        id TEXT PRIMARY KEY,
+        trabajo_id TEXT NOT NULL REFERENCES trabajos(id) ON DELETE CASCADE,
+        numero TEXT,
+        estado TEXT NOT NULL DEFAULT 'borrador'
+          CHECK(estado IN ('borrador','enviado','aceptado','rechazado','caducado')),
+        notas TEXT,
+        borrador_data TEXT,
+        borrador_updated_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS presupuesto_lineas (
+        id TEXT PRIMARY KEY,
+        presupuesto_id TEXT NOT NULL REFERENCES presupuestos(id) ON DELETE CASCADE,
+        descripcion TEXT NOT NULL,
+        cantidad REAL NOT NULL DEFAULT 1,
+        precio_unitario REAL NOT NULL DEFAULT 0,
+        coste_unitario REAL,
+        margen_porcentaje REAL,
+        unidad TEXT,
+        tipo TEXT NOT NULL DEFAULT 'manual' CHECK(tipo IN ('material','manual','concepto')),
+        es_libre INTEGER NOT NULL DEFAULT 0,
+        orden INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS presupuesto_versiones (
+        id TEXT PRIMARY KEY,
+        presupuesto_id TEXT NOT NULL REFERENCES presupuestos(id) ON DELETE CASCADE,
+        numero_version INTEGER NOT NULL,
+        datos TEXT NOT NULL,
+        pdf_path TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS facturas (
+        id TEXT PRIMARY KEY,
+        trabajo_id TEXT NOT NULL REFERENCES trabajos(id) ON DELETE CASCADE,
+        presupuesto_id TEXT REFERENCES presupuestos(id),
+        numero TEXT,
+        estado TEXT NOT NULL DEFAULT 'borrador'
+          CHECK(estado IN ('borrador','cerrada','entregada','pendiente_pago','pagada')),
+        notas TEXT,
+        borrador_data TEXT,
+        borrador_updated_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS factura_lineas (
+        id TEXT PRIMARY KEY,
+        factura_id TEXT NOT NULL REFERENCES facturas(id) ON DELETE CASCADE,
+        albaran_linea_id TEXT REFERENCES albaran_lineas(id),
+        descripcion TEXT NOT NULL,
+        cantidad REAL NOT NULL DEFAULT 1,
+        precio_unitario REAL NOT NULL DEFAULT 0,
+        coste_unitario REAL,
+        margen_porcentaje REAL,
+        unidad TEXT,
+        tipo TEXT NOT NULL DEFAULT 'material' CHECK(tipo IN ('material','manual','concepto')),
+        es_libre INTEGER NOT NULL DEFAULT 0,
+        orden INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS factura_versiones (
+        id TEXT PRIMARY KEY,
+        factura_id TEXT NOT NULL REFERENCES facturas(id) ON DELETE CASCADE,
+        numero_version INTEGER NOT NULL,
+        datos TEXT NOT NULL,
+        pdf_path TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS seguimiento (
+        id TEXT PRIMARY KEY,
+        cliente_id TEXT REFERENCES clientes(id),
+        nombre TEXT NOT NULL,
+        telefono TEXT,
+        direccion TEXT,
+        dni_cif TEXT,
+        accion_peticion TEXT,
+        estado TEXT NOT NULL DEFAULT 'nuevo' CHECK(estado IN (
+          'nuevo','contactado','visita_agendada','pendiente_presupuesto',
+          'a_la_espera','en_curso','pendiente_facturar','entregada','pagada'
+        )),
+        trabajo_id TEXT REFERENCES trabajos(id),
+        notas TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS _migraciones (
+        version INTEGER PRIMARY KEY,
+        ejecutada_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `
+  }
+];
+
+export function runMigrations(): void {
+  const db = getDb();
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _migraciones (
+      version INTEGER PRIMARY KEY,
+      ejecutada_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  const row = db.prepare('SELECT MAX(version) as version FROM _migraciones').get() as { version: number | null };
+  const currentVersion = row.version ?? 0;
+  const pending = migrations.filter(m => m.version > currentVersion);
+
+  if (pending.length === 0) {
+    console.log('[DB] Schema actualizado, no hay migraciones pendientes.');
+    return;
+  }
+
+  for (const migration of pending) {
+    console.log(`[DB] Ejecutando migración v${migration.version}...`);
+    db.exec(migration.sql);
+    db.prepare('INSERT INTO _migraciones (version) VALUES (?)').run(migration.version);
+    console.log(`[DB] Migración v${migration.version} completada.`);
+  }
+}

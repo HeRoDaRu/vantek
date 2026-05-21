@@ -1,0 +1,42 @@
+{
+  "perfil": "",
+  "version": "1.0.0",
+  "entidades": {
+    "cliente": "",
+    "clientes": "",
+    "agrupador": "",
+    "agrupadores": "",
+    "trabajo": "",
+    "trabajos": ""
+  },
+  "menu": {
+    "dashboard": "Dashboard",
+    "clientes": "",
+    "facturas": "Facturas",
+    "presupuestos": "Presupuestos",
+    "albaranes": "Albaranes",
+    "seguimiento": "",
+    "configuracion": "Configuración"
+  },
+  "documentos": {
+    "albaran": "Albarán",
+    "albaranes": "Albaranes",
+    "presupuesto": "Presupuesto",
+    "presupuestos": "Presupuestos",
+    "factura": "Factura",
+    "facturas": "Facturas"
+  },
+  "modulos": {
+    "albaranes": true,
+    "seguimiento": true,
+    "matriculas": false
+  },
+  "seguimiento": {
+    "tipo": "",
+    "label": ""
+  },
+  "footer": {
+    "factura": "",
+    "presupuesto": ""
+  }
+}

@@ -1,115 +1,58 @@
 # Vantek
 
-**Gestión portable de facturas, albaranes, presupuestos y órdenes de trabajo**
+Sistema local de gestión de facturas, presupuestos y obras.
 
-Sistema CRM / ERP ligero y altamente adaptable pensado para pequeños negocios (reformas, talleres mecánicos, servicios, etc.).  
-Un único código base que se configura por perfil según el tipo de cliente.
+## Estructura
 
----
-
-## ✨ Características principales
-
-- **Totalmente portable**: No requiere instalación, Docker ni dependencias del sistema. Todo dentro de una carpeta.
-- **Multi-perfil / Multi-negocio**: Un mismo programa sirve para reformas, talleres, fontanería, etc. cambiando solo la configuración.
-- **Flujo completo**:
-  - Seguimiento de leads → Presupuesto → Aceptación → Orden de trabajo → Albaranes de proveedor → Facturación
-- **Albaranes de proveedores con OCR** (Tesseract.js)
-- **Generación profesional de PDFs** (Puppeteer) con versiones e historial
-- **Estados visuales** y semáforos en presupuestos, facturas y seguimientos
-- **Autoguardado + versiones** de documentos (evita pérdida de datos)
-- **Actualizaciones automáticas** seguras (GitHub Releases)
-- **Servicio Windows** que se inicia automáticamente
-- **Acceso móvil** vía VPN + Wake-on-LAN
-
----
-
-## 🛠️ Arquitectura Técnica
-
-- **Backend**: Node.js + Express + TypeScript
-- **Frontend**: Vite + React + TypeScript
-- **Base de datos**: SQLite (con WAL)
-- **PDF**: Puppeteer (HTML → PDF)
-- **OCR**: Tesseract.js
-- **Servicio Windows**: NSSM
-- **Actualizaciones**: GitHub Releases + sistema propio de fallback
-
-**Principios clave**:
-- Un solo proceso, un solo puerto
-- Sin Docker, sin instalaciones complejas
-- Todo portable y fácil de respaldar (una carpeta)
-
----
-
-## 📋 Cómo funciona (por perfil)
-
-El sistema usa **entidades genéricas** que se renombran según el cliente:
-
-| Entidad en código | Reformas          | Taller Mecánico     |
-|-------------------|-------------------|---------------------|
-| Agrupador         | Dirección         | Matrícula           |
-| Trabajo           | Obra / Reparación | Reparación / OT     |
-
-Puedes activar/desactivar módulos (albaranes, seguimiento, etc.) mediante un archivo de configuración.
-
----
-
-## 🚀 Instalación (para el administrador)
-
-1. Descarga la última release desde GitHub
-2. Descomprime en la carpeta deseada
-3. Ejecuta `Vantek.exe` (o el launcher correspondiente)
-4. El servicio se instala y arranca automáticamente con Windows
-5. Configura el perfil del cliente en el archivo de configuración
-
-> **Nota**: El usuario final nunca toca código ni configuración técnica.
-
----
-
-## 📁 Estructura del proyecto
-
-```text
-Vantek/
-├── data/                  # Base de datos y archivos del cliente
-├── config/                # Perfiles de negocio y configuración
-├── releases/              # Paquetes de actualizaciones
-├── app/                   # Código fuente (monorepo)
-├── Vantek.exe             # Launcher principal
-├── logs/                  # Archivos de logs (opcional)
-└── config.json            # Configuración general
 ```
----
+vantek/
+├── app/
+│   ├── backend/     Express + TypeScript + SQLite
+│   └── frontend/    Vite + React + TypeScript
+├── launcher/        Arranque automático y actualizaciones
+├── config/          Configuración del perfil y la app
+├── data/            Base de datos SQLite (generada automáticamente)
+├── logs/            Logs del servicio
+├── node/            Node.js portable (producción)
+└── version.json     Versión actual
+```
 
-## 🛣️ Roadmap / Fases
+## Requisitos (desarrollo)
 
-- [x] Fase 1 – Base y autenticación
-- [x] Fase 2 – Núcleo (clientes, trabajos, documentos)
-- [x] Fase 3 – PDFs y versiones
-- [x] Fase 4 – Actualizaciones automáticas
-- [ ] Fase 5 – OCR completo + mejoras de seguimiento y dashboard
+- Node.js 18+
+- npm 8+
 
----
+## Desarrollo
 
-## 🔧 Configuración
+```bash
+npm install
+npm run dev
+```
 
-Todo se personaliza mediante perfiles:
-- Datos de la empresa
-- Textos de documentos (footers)
-- Módulos activos
-- Conceptos por defecto (mano de obra, etc.)
-- Porcentajes de IVA y margen
+## Compilar para producción
 
----
+```bash
+npm run build
+```
 
-## Contribuir
+## Instalación en producción (Windows)
 
-Este proyecto es **privado/comercial** por el momento, pero acepto sugerencias y reportes de bugs vía Issues.
+1. Copiar la carpeta completa al equipo destino
+2. Asegurarse de que `node/node.exe` existe (Node.js portable)
+3. Compilar el proyecto: `npm run build`
+4. Configurar `config/app.config.json`
+5. Ejecutar como Administrador: `launcher/install-service.bat`
 
----
+## Perfiles disponibles
 
-## Licencia
+El perfil de negocio se configura en `config/default.config.json`.
 
-© 2026 Vantek – Uso con licencia comercial por cliente.
+| Perfil | agrupador | trabajo |
+|--------|-----------|---------|
+| reformas | Dirección | Obra |
+| taller | Matrícula | Reparación |
 
----
+## Actualización de la app
 
-**¿Necesitas ayuda para implantarlo en tu negocio?** Contacta con el desarrollador.
+Las actualizaciones son automáticas (descarga desde GitHub Releases).
+También se pueden aplicar manualmente desde Configuración > Sistema.

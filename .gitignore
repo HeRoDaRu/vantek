@@ -1,0 +1,13 @@
+node_modules/
+dist/
+data/
+logs/
+node/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.local
+
+# Frontend build
+app/frontend/dist/

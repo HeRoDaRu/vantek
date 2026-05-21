@@ -1,0 +1,17 @@
+{
+  "name": "vantek",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "app/backend",
+    "app/frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=app/backend & npm run dev --workspace=app/frontend",
+    "build": "npm run build --workspace=app/frontend && npm run build --workspace=app/backend",
+    "start": "npm run start --workspace=app/backend"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
