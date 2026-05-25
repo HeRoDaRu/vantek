@@ -13,6 +13,8 @@ import setupRouter from './routes/setup.router';
 import presupuestosRouter from './routes/presupuestos.router';
 import facturasRouter from './routes/facturas.router';
 import { hayBorradorSucio } from './services/facturas.service';
+import dashboardRouter from './routes/dashboard.router';
+import configRouter from './routes/config.router';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,15 +26,16 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+
 // ─── Estáticos (producción) ───────────────────────────────────────────────────
 const FRONTEND_DIST = path.resolve(process.cwd(), '../../dist/public');
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(FRONTEND_DIST));
 }
+app.use('/pdfs', express.static(path.resolve(process.cwd(), '../../data/pdfs')));
 
 // ─── Config endpoints ─────────────────────────────────────────────────────────
-app.get('/api/config/profile', (_req, res) => { res.json(getProfileConfig()); });
-app.get('/api/config/app', (_req, res) => { res.json(getAppConfig()); });
+app.use('/api/config', configRouter);
 
 // ─── Status (usado por el launcher para verificar borrador sucio) ─────────────
 app.get('/api/status', (_req, res) => {
@@ -50,6 +53,7 @@ app.use('/api/clientes', clientesRouter);
 app.use('/api/albaranes', albanesRouter);
 app.use('/api/presupuestos', presupuestosRouter);
 app.use('/api/facturas', facturasRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 // Fase 5:
 // import seguimientoRouter from './routes/seguimiento.router';
@@ -61,6 +65,11 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
   });
 }
+
+// ─── placeholders de actualización ────────────────────────────────────────────
+app.get('/api/status/update', (_req, res) => { res.json({ hay_update: false }); });
+app.post('/api/status/update/apply', (_req, res) => { res.json({ ok: true }); });
+
 
 // ─── Error handlers (siempre al final) ───────────────────────────────────────
 app.use(notFoundHandler);

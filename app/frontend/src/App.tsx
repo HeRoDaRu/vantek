@@ -11,6 +11,8 @@ import FacturasListPage from './pages/Documentos/FacturasListPage';
 import PresupuestosListPage from './pages/Documentos/PresupuestosListPage';
 import FacturaPage from './pages/Documentos/FacturaPage';
 import PresupuestoPage from './pages/Documentos/PresupuestoPage';
+import DashboardPage from './pages/Dashboard/DashboardPage';
+import ConfigPage from './pages/Config/ConfigPage';
 
 export default function App() {
   const { load } = useConfigStore();
@@ -64,7 +66,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/clientes" replace />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="clientes" element={<ClientesPage />} />
           <Route path="clientes/:id" element={<ClienteFichaPage />} />
           <Route path="albaranes" element={<AlbaranesPage />} />
@@ -73,6 +75,8 @@ export default function App() {
           <Route path="/facturas/:id" element={<FacturaPage />} />
           <Route path="/presupuestos" element={<PresupuestosListPage />} />
           <Route path="/presupuestos/:id" element={<PresupuestoPage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="configuracion" element={<ConfigPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
