@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
+import fs from 'fs';
 import asyncHandler from 'express-async-handler';
 import { runMigrations } from './db/migrate';
 import { getAppConfig, getProfileConfig } from './utils/config';
@@ -44,7 +45,7 @@ app.get('/api/status', (_req, res) => {
 
 app.get('/api/status/draft', asyncHandler(async (_req, res) => {
   const sucio = await hayBorradorSucio();
-  res.json({ dirty: sucio });
+  res.json({ sucio });
 }));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
@@ -67,8 +68,43 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ─── placeholders de actualización ────────────────────────────────────────────
-app.get('/api/status/update', (_req, res) => { res.json({ hay_update: false }); });
-app.post('/api/status/update/apply', (_req, res) => { res.json({ ok: true }); });
+const UPDATE_STATE_PATH = path.join(process.cwd(), 'data', 'update-state.json');
+ 
+function readUpdateState(): any {
+  try {
+    return JSON.parse(fs.readFileSync(UPDATE_STATE_PATH, 'utf-8'));
+  } catch {
+    return { phase: 'idle', version_disponible: null, version_actual: null, error: null };
+  }
+}
+ 
+function writeUpdateState(partial: object): void {
+  const current = readUpdateState();
+  fs.writeFileSync(UPDATE_STATE_PATH, JSON.stringify({ ...current, ...partial }, null, 2));
+}
+ 
+// GET /api/status/update
+// Devuelve el estado actual de actualización para el panel de ConfigPage.
+app.get('/api/status/update', (_req, res) => {
+  const s = readUpdateState();
+  res.json({
+    phase: s.phase ?? 'idle',
+    hay_update: !!s.version_disponible,
+    version_disponible: s.version_disponible ?? null,
+    version_actual: s.version_actual ?? null,
+    ultimo_check: s.ultimo_check ?? null,
+    error: s.error ?? null,
+  });
+});
+ 
+// POST /api/status/update/apply
+// El frontend pide al launcher que descargue y/o aplique la actualización.
+// El launcher monitoriza update-state.json con fs.watchFile y reacciona al flag.
+app.post('/api/status/update/apply', (req, res) => {
+  const reiniciar_ahora = req.body?.reiniciar_ahora === true;
+  writeUpdateState({ apply_requested: true, reiniciar_ahora });
+  res.json({ ok: true, reiniciar_ahora });
+});
 
 
 // ─── Error handlers (siempre al final) ───────────────────────────────────────
