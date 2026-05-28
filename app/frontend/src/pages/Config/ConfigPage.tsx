@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { useConfigStore } from '../../store/config.store';
-import { api } from '../../utils/api';
-import Spinner from '../../components/UI/Spinner';
+import { useConfigStore } from '@store/config.store';
+import api from '@utils/api';
+import Spinner from '@ui/Spinner';
 
 // ─── tipos locales ────────────────────────────────────────────────────────────
 

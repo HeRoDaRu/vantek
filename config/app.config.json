@@ -1,14 +1,12 @@
 {
   "puerto": 3001,
   "empresa": {
-    "nombre": "",
-    "cif": "",
-    "direccion": "",
-    "telefono": "",
-    "email": "",
-    "logo_path": "",
-    "mano_obra_precio_hora": 35,
-    "mano_obra_unidad": "h"
+    "nombre": "Reformas Integrales Ermi SLU",
+    "cif": "B65319659",
+    "direccion": "Carrer del Cardenal Tedeschini, 19 Tienda 2, 08027 Barcelona.",
+    "telefono": "933499362",
+    "email": "er.mi2010@hotmail.com",
+    "logo": ""
   },
   "documentos": {
     "iva_porcentaje": 21,
@@ -16,7 +14,7 @@
     "max_versiones": 10,
     "numeracion_facturas": {
       "contador": 0,
-      "anio": 2025
+      "anio": 2026
     },
     "footer_factura": "Gracias por confiar en nosotros.",
     "footer_presupuesto": "Presupuesto válido durante 30 días.",

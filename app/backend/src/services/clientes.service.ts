@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection';
+import { getDb } from '@db/connection';
 import { v4 as uuidv4 } from 'uuid';
 import { Cliente, ClienteConAgrupadores, AgrupadorConTrabajos, TrabajoBrief } from '../types';
 

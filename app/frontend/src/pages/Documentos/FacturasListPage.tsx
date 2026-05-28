@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFacturasStore } from '../../store/facturas.store';
-import Badge from '../../components/UI/Badge';
-import Spinner from '../../components/UI/Spinner';
+import { useFacturasStore } from '@store/facturas.store';
+import Badge from '@ui/Badge';
+import Spinner from '@ui/Spinner';
 
 function fmt(n: number) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

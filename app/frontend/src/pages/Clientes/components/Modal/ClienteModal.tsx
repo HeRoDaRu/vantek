@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import Modal from '../../../components/UI/Modal';
-import { Cliente } from '../../../store/clientes.store';
+import Modal from '@ui/Modal';
+import { Cliente } from '@store/clientes.store';
 
 interface Props {
   open: boolean;

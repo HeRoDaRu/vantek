@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../utils/api';
-import Badge from '../../components/UI/Badge';
-import Spinner from '../../components/UI/Spinner';
-import { useConfigStore } from '../../store/config.store';
+import api from '@utils/api';
+import Badge from '@ui/Badge';
+import Spinner from '@ui/Spinner';
+import { useConfigStore } from '@store/config.store';
 
 interface AlbaranListItem {
   id: string;

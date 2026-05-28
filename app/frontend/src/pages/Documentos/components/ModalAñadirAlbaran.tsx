@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api } from '../../../utils/api';
-import Modal from '../../../components/UI/Modal';
-import Spinner from '../../../components/UI/Spinner';
-import { LineaEditor } from './DocumentoEditor';
+import api from '@utils/api';
+import Modal from '@ui/Modal';
+import Spinner from '@ui/Spinner';
+import { LineaEditor } from '@pages/Documentos/components/DocumentoEditor';
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
 

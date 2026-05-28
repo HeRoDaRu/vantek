@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import { checkSetupRequired, saveSetup } from '../services/setup.service';
+import { asyncHandler } from '@middleware/errorHandler';
+import { checkSetupRequired, saveSetup } from '@services/setup.service';
 import { SetupPayload, PerfilNegocio } from '../types';
 
 const router = Router();

@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useFacturasStore, LineaFactura } from '../../store/facturas.store';
-import Spinner from '../../components/UI/Spinner';
-import Modal from '../../components/UI/Modal';
-import DocumentoEditor, { LineaEditor, genKey } from './components/DocumentoEditor';
-import BarraAcciones from './components/BarraAcciones';
-import PanelHistorial from './components/PanelHistorial';
-import ModalAñadirAlbaran from './components/ModalAñadirAlbaran';
+import { useFacturasStore, LineaFactura } from '@store/facturas.store';
+import Spinner from '@ui/Spinner';
+import Modal from '@ui/Modal';
+import DocumentoEditor, { LineaEditor, genKey } from '@pages/Documentos/components/DocumentoEditor';
+import BarraAcciones from '@pages/Documentos/components/BarraAcciones';
+import PanelHistorial from '@pages/Documentos/components/PanelHistorial';
+import ModalAñadirAlbaran from '@pages/Documentos/components/ModalAñadirAlbaran';
 
 const AUTOSAVE_MS = 3 * 60 * 1000;
 

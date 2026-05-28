@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import { albanesService } from '../services/albaranes.service';
+import { asyncHandler } from '@middleware/errorHandler';
+import { albanesService } from '@services/albaranes.service';
 
 const router = Router();
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { EstadoFactura } from '../../../store/facturas.store';
-import { EstadoPresupuesto } from '../../../store/presupuestos.store';
-import Badge from '../../../components/UI/Badge';
+import { EstadoFactura } from '@store/facturas.store';
+import { EstadoPresupuesto } from '@store/presupuestos.store';
+import Badge from '@ui/Badge';
 
 type TipoDocumento = 'factura' | 'presupuesto';
 

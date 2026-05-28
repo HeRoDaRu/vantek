@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import * as svc from '../services/presupuestos.service';
-import { generarPdf } from '../services/pdf.service';
-import { guardarVersion } from '../services/presupuestos.service';
+import { asyncHandler } from '@middleware/errorHandler';
+import * as svc from '@services/presupuestos.service';
+import { generarPdf } from '@services/pdf.service';
+import { guardarVersion } from '@services/presupuestos.service';
 
 const router = Router();
 

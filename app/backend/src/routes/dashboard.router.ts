@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import { getDashboard } from '../services/dashboard.service';
+import { asyncHandler } from '@middleware/errorHandler';
+import { getDashboard } from '@services/dashboard.service';
 
 const router = Router();
 

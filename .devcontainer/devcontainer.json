@@ -1,6 +1,6 @@
 {
   "name": "Vantek Dev",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:24-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22-bookworm",
   "forwardPorts": [3000, 5173],
   "portsAttributes": {
     "3000": {
@@ -12,7 +12,7 @@
       "onAutoForward": "openPreview"
     }
   },
-  "postCreateCommand": "npm install --ignore-scripts && cd node_modules/better-sqlite3 && npm install --ignore-scripts=false && cd /workspaces/vantek",
+  "postCreateCommand": "npm install",
   "customizations": {
     "vscode": {
       "extensions": [

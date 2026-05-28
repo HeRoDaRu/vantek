@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import api from '../utils/api';
+import api from '@utils/api';
 
 export interface TrabajoBrief {
   id: string; nombre: string; estado: string; created_at: string;

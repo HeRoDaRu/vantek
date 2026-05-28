@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useClientesStore } from '../../store/clientes.store';
-import { useConfigStore } from '../../store/config.store';
-import Spinner from '../../components/UI/Spinner';
-import Modal from '../../components/UI/Modal';
-import ClienteModal from './components/ClienteModal';
+import { useClientesStore } from '@store/clientes.store';
+import { useConfigStore } from '@store/config.store';
+import Spinner from '@ui/Spinner';
+import Modal from "@components/UI/Modal"
+import ClienteModal from '@pages/Clientes/components/Modal/ClienteModal';
 
 export default function ClientesPage() {
   const { clientes, loading, error, fetchAll, create } = useClientesStore();

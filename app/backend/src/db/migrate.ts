@@ -1,4 +1,4 @@
-import { getDb } from './connection';
+import { getDb } from '@db/connection';
 
 const migrations: { version: number; sql: string }[] = [
   {

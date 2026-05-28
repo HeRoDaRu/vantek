@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import api from '../../utils/api';
-import Badge from '../../components/UI/Badge';
-import Spinner from '../../components/UI/Spinner';
-import Modal from '../../components/UI/Modal';
-import { useConfigStore } from '../../store/config.store';
+import api from '@utils/api';
+import Badge from '@ui/Badge';
+import Spinner from '@ui/Spinner';
+import Modal from '@ui/Modal';
+import { useConfigStore } from '@store/config.store';
 
 interface LineaAlbaran {
   id: string;

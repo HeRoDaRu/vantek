@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import path from 'path';
 import fs from 'fs';
-import { getAppConfig } from '../utils/config';
+import { getAppConfig } from '@utils/config';
 
 export async function enviarFactura(
   factura: {

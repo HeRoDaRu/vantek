@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import { getProfileConfig, getAppConfig } from '../utils/config';
+import { asyncHandler } from '@middleware/errorHandler';
+import { getProfileConfig, getAppConfig } from '@utils/config';
 import fs from 'fs';
 import path from 'path';
 

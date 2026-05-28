@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getDb } from '../db/connection';
-import { getAppConfig } from '../utils/config';
-import { exportarLineasParaFactura } from './presupuestos.service';
+import { getDb } from '@db/connection';
+import { getAppConfig } from '@utils/config';
+import { exportarLineasParaFactura } from '@services/presupuestos.service';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 

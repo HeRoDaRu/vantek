@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { useConfigStore } from '../../../store/config.store';
-import Modal from '../../../components/UI/Modal';
+import { useConfigStore } from '@store/config.store';
+import Modal from '@ui/Modal';
 
 export type LineaEditor = {
   _key: string;

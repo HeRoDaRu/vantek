@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
-import { getAppConfig, getProfileConfig } from '../utils/config';
+import { getAppConfig, getProfileConfig } from '@utils/config';
 
 // ─── Tipos mínimos que necesita el template ───────────────────────────────────
 

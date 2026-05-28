@@ -5,17 +5,17 @@ import compression from 'compression';
 import path from 'path';
 import fs from 'fs';
 import asyncHandler from 'express-async-handler';
-import { runMigrations } from './db/migrate';
-import { getAppConfig, getProfileConfig } from './utils/config';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-import clientesRouter from './routes/clientes.router';
-import albanesRouter from './routes/albaranes.router';
-import setupRouter from './routes/setup.router';
-import presupuestosRouter from './routes/presupuestos.router';
-import facturasRouter from './routes/facturas.router';
-import { hayBorradorSucio } from './services/facturas.service';
-import dashboardRouter from './routes/dashboard.router';
-import configRouter from './routes/config.router';
+import { runMigrations } from '@db/migrate';
+import { getAppConfig, getProfileConfig } from '@utils/config';
+import { errorHandler, notFoundHandler } from '@middleware/errorHandler';
+import clientesRouter from '@routes/clientes.router';
+import albanesRouter from '@routes/albaranes.router';
+import setupRouter from '@routes/setup.router';
+import presupuestosRouter from '@routes/presupuestos.router';
+import facturasRouter from '@routes/facturas.router';
+import { hayBorradorSucio } from '@services/facturas.service';
+import dashboardRouter from '@routes/dashboard.router';
+import configRouter from '@routes/config.router';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,7 +57,7 @@ app.use('/api/facturas', facturasRouter);
 app.use('/api/dashboard', dashboardRouter);
 
 // Fase 5:
-// import seguimientoRouter from './routes/seguimiento.router';
+// import seguimientoRouter from '@routes/seguimiento.router';
 // app.use('/api/seguimiento', seguimientoRouter);
 
 // ─── SPA fallback (producción) ────────────────────────────────────────────────

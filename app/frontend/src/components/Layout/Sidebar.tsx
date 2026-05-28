@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { useConfigStore } from '../../store/config.store';
+import { useConfigStore } from '@store/config.store';
 
 // ─── iconos SVG inline ────────────────────────────────────────────────────────
 

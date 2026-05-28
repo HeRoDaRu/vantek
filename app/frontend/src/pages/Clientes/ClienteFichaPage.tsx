@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useClientesStore, Agrupador, TrabajoBrief } from '../../store/clientes.store';
-import { useConfigStore } from '../../store/config.store';
-import Spinner from '../../components/UI/Spinner';
-import ClienteModal from './components/ClienteModal';
-import AgrupadorModal from './components/AgrupadorModal';
-import TrabajoModal from './components/TrabajoModal';
+import { useClientesStore, Agrupador, TrabajoBrief } from '@store/clientes.store';
+import { useConfigStore } from '@store/config.store';
+import Spinner from '@ui/Spinner';
+import ClienteModal from '@pages/Clientes/components/Modal/ClienteModal';
+import AgrupadorModal from '@pages/Clientes/components/Modal/AgrupadorModal';
+import TrabajoModal from '@pages/Clientes/components/Modal/TrabajoModal';
 
 // Icono chevron
 const ChevronIcon = ({ open }: { open: boolean }) => (
