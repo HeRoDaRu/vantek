@@ -21,7 +21,8 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
 export default function ClienteFichaPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { selected, loading, error, fetchById, update, remove, createAgrupador, updateAgrupador, removeAgrupador, createTrabajo } = useClientesStore();
+  // const { selected, loading, error, fetchById, update, remove, createAgrupador, updateAgrupador, removeAgrupador, createTrabajo } = useClientesStore();
+  const { selected, loading, error, fetchById, update, createAgrupador, updateAgrupador, createTrabajo } = useClientesStore();
   const { t } = useConfigStore();
 
   // Agrupadores expandidos

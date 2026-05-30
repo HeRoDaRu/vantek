@@ -6,7 +6,8 @@
     "direccion": "Carrer del Cardenal Tedeschini, 19 Tienda 2, 08027 Barcelona.",
     "telefono": "933499362",
     "email": "er.mi2010@hotmail.com",
-    "logo": ""
+    "logo": "",
+    "mano_obra_precio_hora": 47
   },
   "documentos": {
     "iva_porcentaje": 21,
@@ -40,6 +41,6 @@
     "ventana_inicio": "15:00",
     "ventana_fin": "16:00",
     "minutos_inactividad": 15,
-    "email_errores": ""
+    "email_errores": "hectoor.16@icloud.com"
   }
 }

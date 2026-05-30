@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useClientesStore } from '@store/clientes.store';
 import { useConfigStore } from '@store/config.store';
 import Spinner from '@ui/Spinner';
-import Modal from "@components/UI/Modal"
+// import Modal from "@components/UI/Modal"
 import ClienteModal from '@pages/Clientes/components/Modal/ClienteModal';
 
 export default function ClientesPage() {

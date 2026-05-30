@@ -136,7 +136,7 @@ function Seccion({ titulo, desc, children }: { titulo: string; desc?: string; ch
         <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{titulo}</h2>
         {desc && <p style={{ fontSize: 12, color: 'var(--text-2)' }}>{desc}</p>}
       </div>
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="card-section" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {children}
       </div>
     </div>
@@ -146,12 +146,12 @@ function Seccion({ titulo, desc, children }: { titulo: string; desc?: string; ch
 // ─── tabs de navegación lateral ───────────────────────────────────────────────
 
 const TABS = [
-  { id: 'empresa',    label: 'Empresa' },
+  { id: 'empresa', label: 'Empresa' },
   { id: 'documentos', label: 'Documentos' },
-  { id: 'templates',  label: 'Templates PDF' },
-  { id: 'dashboard',  label: 'Dashboard' },
-  { id: 'email',      label: 'Email / SMTP' },
-  { id: 'sistema',    label: 'Sistema' },
+  { id: 'templates', label: 'Templates PDF' },
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'email', label: 'Email / SMTP' },
+  { id: 'sistema', label: 'Sistema' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useConfigStore } from '@store/config.store';
 
 // ─── iconos SVG inline ────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ function NavItem({
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const { profile, t } = useConfigStore();
+  const { profile } = useConfigStore();
   const modulos = profile?.modulos ?? {} as { albaranes?: boolean; seguimiento?: boolean };
 
   const W = collapsed ? 56 : 210;

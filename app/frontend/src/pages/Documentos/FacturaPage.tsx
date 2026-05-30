@@ -10,7 +10,7 @@ import ModalAñadirAlbaran from '@pages/Documentos/components/ModalAñadirAlbara
 import { useConfigStore } from '@store/config.store';
 
 const AUTOSAVE_MS = 3 * 60 * 1000;
-const appConfig = useConfigStore(state => state.appConfig);
+
 
 
 // Convierte una LineaFactura del backend al formato del editor
@@ -47,6 +47,7 @@ function editorLineaToBack(l: LineaEditor): Omit<LineaFactura, 'id' | 'factura_i
 export default function FacturaPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const appConfig = useConfigStore(state => state.appConfig);
   const {
     actual, loading, error,
     cargarFactura, guardarLineas, guardarBorrador,

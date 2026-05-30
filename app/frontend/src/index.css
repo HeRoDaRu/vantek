@@ -116,6 +116,13 @@ body {
 }
 .card-title { font-size: 14px; font-weight: 600; }
 
+.card-section {
+  background: var(--bg-2); 
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;                    
+}
+
 /* ─── Badges / Estado ────────────────────────────────────────────────────── */
 .badge {
   display: inline-flex; align-items: center; gap: 5px;
