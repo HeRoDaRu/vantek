@@ -23,7 +23,8 @@
   },
   "dashboard": {
     "grafico_tipo": "barras_lineas",
-    "dias_presupuesto_antiguo": 30
+    "dias_presupuesto_antiguo": 30,
+    "dias_factura_sin_cobrar": 30
   },
   "email": {
     "smtp": {

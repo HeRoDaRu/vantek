@@ -7,8 +7,11 @@ import DocumentoEditor, { LineaEditor, genKey } from '@pages/Documentos/componen
 import BarraAcciones from '@pages/Documentos/components/BarraAcciones';
 import PanelHistorial from '@pages/Documentos/components/PanelHistorial';
 import ModalAñadirAlbaran from '@pages/Documentos/components/ModalAñadirAlbaran';
+import { useConfigStore } from '@store/config.store';
 
 const AUTOSAVE_MS = 3 * 60 * 1000;
+const appConfig = useConfigStore(state => state.appConfig);
+
 
 // Convierte una LineaFactura del backend al formato del editor
 function facturaLineaToEditor(l: LineaFactura): LineaEditor {
@@ -258,7 +261,7 @@ export default function FacturaPage() {
       {showModalAlbaran && (
         <ModalAñadirAlbaran
           trabajoId={actual.trabajo_id}
-          margenTrabajo={actual.trabajo_margen ?? appConfig?.documentos?.margen_defecto ?? 0}
+          margenTrabajo={appConfig?.documentos.margen_defecto ?? 10}
           lineasYaUsadas={lineasYaUsadas}
           onConfirm={handleLineasAlbaran}
           onClose={() => setShowModalAlbaran(false)}

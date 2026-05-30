@@ -27,7 +27,7 @@ export default function FacturasListPage() {
       {lista.length === 0 ? (
         <div className="empty-state">
           <p>No hay facturas todavía.</p>
-          <p style={{ color: 'var(--text-3)', fontSize: 13 }}>
+          <p className="text-muted text-xs">
             Las facturas se crean desde la ficha de cada cliente.
           </p>
         </div>

@@ -16,6 +16,7 @@ import facturasRouter from '@routes/facturas.router';
 import { hayBorradorSucio } from '@services/facturas.service';
 import dashboardRouter from '@routes/dashboard.router';
 import configRouter from '@routes/config.router';
+import seguimientoRouter from './routes/seguimiento.router';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,10 +56,7 @@ app.use('/api/albaranes', albanesRouter);
 app.use('/api/presupuestos', presupuestosRouter);
 app.use('/api/facturas', facturasRouter);
 app.use('/api/dashboard', dashboardRouter);
-
-// Fase 5:
-// import seguimientoRouter from '@routes/seguimiento.router';
-// app.use('/api/seguimiento', seguimientoRouter);
+app.use('/api/seguimiento', seguimientoRouter);
 
 // ─── SPA fallback (producción) ────────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {

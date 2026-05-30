@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@db/connection';
 import { getAppConfig } from '@utils/config';
+import { syncSeguimientoDesdeDocumento } from './seguimiento.service';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -268,6 +269,9 @@ export async function cambiarEstado(
      WHERE id = ?`
   ).run(estado, id);
 
+  if (id) {
+    syncSeguimientoDesdeDocumento(id, 'presupuesto', estado);
+  }
   return obtenerPresupuesto(id);
 }
 
@@ -336,7 +340,7 @@ export async function exportarLineasParaFactura(presupuesto_id: string) {
        ORDER BY orden ASC`
     )
     .all(presupuesto_id) as Omit
-      LineaPresupuesto,
-      'id' | 'presupuesto_id' | 'orden'
-    >[];
+  LineaPresupuesto,
+    'id' | 'presupuesto_id' | 'orden'
+    > [];
 }

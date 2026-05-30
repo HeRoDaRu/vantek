@@ -1,7 +1,7 @@
 import { useEffect, ReactNode } from 'react';
 
 interface ModalProps {
-  open: boolean;
+  open?: boolean;
   onClose: () => void;
   title: string;
   size?: 'sm' | 'md' | 'lg';

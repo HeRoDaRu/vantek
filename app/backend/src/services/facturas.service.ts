@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@db/connection';
 import { getAppConfig } from '@utils/config';
 import { exportarLineasParaFactura } from '@services/presupuestos.service';
+import { syncSeguimientoDesdeDocumento } from './seguimiento.service';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -304,7 +305,12 @@ export async function cambiarEstado(id: string, estado: EstadoFactura) {
     db.prepare(
       `UPDATE facturas SET estado = ?, updated_at = datetime('now') WHERE id = ?`
     ).run(estado, id);
+
+    if (id) {
+      syncSeguimientoDesdeDocumento(id, 'factura', estado);
+    }
   }
+
 
   return obtenerFactura(id);
 }

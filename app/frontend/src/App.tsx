@@ -40,7 +40,8 @@ export default function App() {
   if (configState === 'loading') {
     return (
       <div className="loading-page">
-        <div className="spinner spinner-lg" />
+        {/* <div className="spinner spinner-lg" /> */}
+        <Spinner size="lg" />
       </div>
     );
   }

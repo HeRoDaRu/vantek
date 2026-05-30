@@ -2,7 +2,7 @@ import { getDb } from '@db/connection';
 import { getAppConfig } from '@utils/config';
 
 export interface PendienteAccion {
-  tipo: 'presupuesto_sin_convertir' | 'presupuesto_antiguo' | 'factura_sin_entregar';
+  tipo: 'presupuesto_sin_convertir' | 'presupuesto_antiguo' | 'factura_sin_entregar' | 'factura_sin_cobrar';
   id: string;
   numero?: string;
   cliente: string;
@@ -10,6 +10,7 @@ export interface PendienteAccion {
   importe: number;
   fecha: string;
   dias_espera?: number;
+  dias_sin_cobrar?: number;
 }
 
 export interface PuntoGrafico {
@@ -36,7 +37,7 @@ export interface DashboardData {
 
 function labelMes(periodo: string): string {
   const [anio, mes] = periodo.split('-');
-  const nombres = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   return `${nombres[parseInt(mes) - 1]} ${anio.slice(2)}`;
 }
 
@@ -62,10 +63,14 @@ function periodoAnio(fecha: string): string {
 
 // ─── pendientes ─────────────────────────────────────────────────────────────
 
-async function getPendientes(diasAntiguo: number): Promise<PendienteAccion[]> {
+async function getPendientes(): Promise<PendienteAccion[]> {
   const db = getDb();
   const pendientes: PendienteAccion[] = []
   const hoy = new Date();
+  const config = getAppConfig();
+  const diasAntiguo = (config as any).dashboard?.dias_presupuesto_antiguo ?? 30;
+  const diasSinCobrar = (config as any).dashboard?.dashboard?.dias_factura_sin_cobrar ?? 30;
+
 
   // 1. Presupuestos enviados sin convertir a aceptado (todos los "enviados")
   const presupuestosEnviados = db.prepare(`
@@ -128,6 +133,36 @@ async function getPendientes(diasAntiguo: number): Promise<PendienteAccion[]> {
       agrupador: f.agrupador,
       importe: f.importe,
       fecha: f.fecha,
+    });
+  }
+
+  const facturasSinCobrar = db.prepare(`
+  SELECT f.id, f.updated_at, f.numero,
+    t.nombre AS trabajo_nombre,
+    a.label  AS agrupador_label,
+    c.nombre AS cliente_nombre,
+    (SELECT SUM(precio_unitario * cantidad) FROM factura_lineas WHERE factura_id = f.id) AS importe
+  FROM facturas f
+  JOIN trabajos t    ON f.trabajo_id   = t.id
+  JOIN agrupadores a ON t.agrupador_id = a.id
+  JOIN clientes c    ON a.cliente_id   = c.id
+  WHERE f.estado = 'pendiente_pago'
+    AND julianday('now') - julianday(f.updated_at) > ?
+`).all(diasSinCobrar) as any[];
+
+  for (const f of facturasSinCobrar) {
+    const fechaDoc = new Date(f.updated_at);
+    const dias = Math.floor((hoy.getTime() - fechaDoc.getTime()) / (1000 * 60 * 60 * 24));
+
+    pendientes.push({
+      tipo: 'factura_sin_cobrar',
+      id: f.id,
+      numero: f.numero,
+      cliente: f.cliente_nombre,
+      agrupador: f.agrupador_label,
+      importe: f.importe,
+      fecha: f.updated_at,
+      dias_espera: dias,
     });
   }
 
@@ -201,11 +236,10 @@ export async function getDashboard(
   agrupacion: 'mes' | 'trimestre' | 'anio' = 'mes'
 ): Promise<DashboardData> {
   const config = getAppConfig();
-  const diasAntiguo = (config as any).dashboard?.dias_presupuesto_antiguo ?? 30;
   const grafico_tipo = (config as any).dashboard?.grafico_tipo ?? 'barras_lineas';
 
   const [pendientes, resumen] = await Promise.all([
-    getPendientes(diasAntiguo),
+    getPendientes(),
     getResumen(agrupacion),
   ]);
 
