@@ -4,6 +4,7 @@ import api from '@utils/api';
 import Badge from '@ui/Badge';
 import Spinner from '@ui/Spinner';
 import { useConfigStore } from '@store/config.store';
+import NuevoAlbaranModal from './components/NuevoAlbaranModal';
 
 interface AlbaranListItem {
   id: string;
@@ -26,6 +27,7 @@ export default function AlbaranesPage() {
   const [albaranes, setAlbaranes] = useState<AlbaranListItem[]>([]);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
+  const [showNuevo, setShowNuevo] = useState(false);
 
   // Filtros
   const [estado, setEstado]         = useState('');
@@ -63,6 +65,9 @@ export default function AlbaranesPage() {
       {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Albaranes</h1>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowNuevo(true)}>
+          + Nuevo albarán
+        </button>
       </div>
 
       {/* Filtros */}
@@ -115,6 +120,7 @@ export default function AlbaranesPage() {
         {!loading && !error && albaranes.length === 0 && (
           <div className="empty">
             <span className="empty-title">No hay albaranes</span>
+            <span className="empty-desc">Crea el primero con el botón «+ Nuevo albarán».</span>
           </div>
         )}
 
@@ -161,6 +167,17 @@ export default function AlbaranesPage() {
           </div>
         )}
       </div>
+
+      {/* Modal nuevo albarán */}
+      {showNuevo && (
+        <NuevoAlbaranModal
+          onClose={() => setShowNuevo(false)}
+          onCreado={albaranId => {
+            setShowNuevo(false);
+            navigate(`/albaranes/${albaranId}`);
+          }}
+        />
+      )}
     </div>
   );
 }
