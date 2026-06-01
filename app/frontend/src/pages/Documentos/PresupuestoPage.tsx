@@ -3,11 +3,27 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePresupuestosStore, LineaPresupuesto, EstadoPresupuesto } from '@store/presupuestos.store';
 import Spinner from '@ui/Spinner';
 import Modal from '@ui/Modal';
-import DocumentoEditor, { LineaEditor } from '@pages/Documentos/components/DocumentoEditor';
+import DocumentoEditor, { LineaEditor, genKey } from '@pages/Documentos/components/DocumentoEditor';
 import BarraAcciones from '@pages/Documentos/components/BarraAcciones';
 import PanelHistorial from '@pages/Documentos/components/PanelHistorial';
 
 const AUTOSAVE_MS = 3 * 60 * 1000;
+
+// Convierte una LineaPresupuesto del backend al formato del editor
+function presupuestoLineaToEditor(l: LineaPresupuesto): LineaEditor {
+  return {
+    _key: genKey(),
+    descripcion: l.descripcion,
+    cantidad: l.cantidad,
+    unidad: l.unidad ?? '',
+    precio_unitario: l.precio_unitario,
+    coste_unitario: l.coste_unitario ?? null,
+    margen_porcentaje: l.margen_porcentaje ?? null,
+    tipo: l.tipo ?? 'concepto',
+    es_libre: l.es_libre ?? true,
+    albaran_linea_id: null,
+  };
+}
 
 export default function PresupuestoPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,7 +31,9 @@ export default function PresupuestoPage() {
   const { actual, loading, error, cargarPresupuesto, guardarLineas,
           guardarBorrador, cambiarEstado, generarPdf } = usePresupuestosStore();
 
-  const [lineasEditor, setLineasEditor] = useState<LineaEditor[]>([]);
+  // Estado controlado de líneas — igual que FacturaPage (Opción A)
+  const [lineas, setLineas] = useState<LineaEditor[]>([]);
+
   const [guardando, setGuardando] = useState(false);
   const [showHistorial, setShowHistorial] = useState(false);
   const [showEnviar, setShowEnviar] = useState(false);
@@ -23,15 +41,25 @@ export default function PresupuestoPage() {
 
   const autosaveTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Cargar presupuesto al montar
   useEffect(() => {
     if (id) cargarPresupuesto(id);
     return () => { if (autosaveTimer.current) clearInterval(autosaveTimer.current); };
   }, [id]);
 
+  // Cuando llega el presupuesto del store, inicializar el estado local de líneas
+  // Dependencia en actual?.id para que solo se ejecute cuando cambia el documento,
+  // no en cada render — mismo patrón que FacturaPage
+  useEffect(() => {
+    if (!actual) return;
+    setLineas(actual.lineas.map(presupuestoLineaToEditor));
+  }, [actual?.id]);
+
+  // Arrancar autosave si está en borrador
   useEffect(() => {
     if (!actual || !id || actual.estado !== 'borrador') return;
     autosaveTimer.current = setInterval(() => {
-      guardarBorrador(id, { lineas: lineasEditor });
+      guardarBorrador(id, { lineas });
     }, AUTOSAVE_MS);
     return () => { if (autosaveTimer.current) clearInterval(autosaveTimer.current); };
   }, [actual?.id, actual?.estado]);
@@ -40,7 +68,7 @@ export default function PresupuestoPage() {
     if (!id || !actual) return;
     setGuardando(true);
     try {
-      const lineasBack = lineasEditor.map(l => ({
+      const lineasBack = lineas.map(l => ({
         descripcion: l.descripcion,
         cantidad: l.cantidad,
         unidad: l.unidad || null,
@@ -48,30 +76,30 @@ export default function PresupuestoPage() {
         coste_unitario: l.coste_unitario,
         margen_porcentaje: l.margen_porcentaje,
         tipo: l.tipo,
+        es_libre: l.es_libre,
       } as Omit<LineaPresupuesto, 'id' | 'presupuesto_id' | 'orden'>));
       await guardarLineas(id, lineasBack);
       await generarPdf(id);
     } finally {
       setGuardando(false);
     }
-  }, [id, lineasEditor]);
+  }, [id, lineas, guardarLineas, generarPdf]);
 
   const handleCerrar = useCallback(async () => {
     if (!id) return;
-    // Verificación: al menos una línea
-    if (lineasEditor.length === 0) {
+    if (lineas.length === 0) {
       setErrorCierre('El presupuesto debe tener al menos una línea antes de cerrarse.');
       return;
     }
     await handleGuardar();
     await cambiarEstado(id, 'enviado');
-  }, [id, lineasEditor, handleGuardar, cambiarEstado]);
+  }, [id, lineas, handleGuardar, cambiarEstado]);
 
   const handlePdf = useCallback(async () => {
     if (!id) return;
     await generarPdf(id);
     window.open(`/api/presupuestos/${id}/pdf/latest`, '_blank');
-  }, [id]);
+  }, [id, generarPdf]);
 
   const handleReabrir = useCallback(async () => {
     if (!id) return;
@@ -128,14 +156,14 @@ export default function PresupuestoPage() {
         </div>
       </div>
 
+      {/* Editor controlado — mismo patrón que FacturaPage */}
       <div className="card" style={{ marginTop: 12 }}>
         <DocumentoEditor
           tipo="presupuesto"
-          trabajoId={actual.trabajo_id}
-          lineasIniciales={actual.lineas}
+          lineas={lineas}
+          onChange={setLineas}
           iva_porcentaje={actual.iva_porcentaje}
           readonly={readonly}
-          onChange={setLineasEditor}
         />
       </div>
 
