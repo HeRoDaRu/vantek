@@ -1,0 +1,53 @@
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend        # ← apunta al stage "backend" del Dockerfile unificado
+    container_name: vantek-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - vantek-data:/app/data
+      - vantek-pdfs:/app/data/pdfs
+      - vantek-config:/app/config
+      - vantek-logs:/app/logs
+    networks:
+      - vantek-internal
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/status', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx          # ← apunta al stage "nginx" del Dockerfile unificado
+    container_name: vantek-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - vantek-internal
+    volumes:
+      - vantek-pdfs:/var/www/vantek/pdfs:ro
+
+volumes:
+  vantek-data:
+  vantek-pdfs:
+  vantek-config:
+  vantek-logs:
+
+networks:
+  vantek-internal:
+    driver: bridge
