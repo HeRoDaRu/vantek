@@ -1,120 +1,101 @@
+# syntax=docker/dockerfile:1
 # =============================================================================
-# Vantek — Dockerfile multi-stage unificado
-# =============================================================================
-# Stages:
-#   deps            → instala node_modules (caché compartida)
-#   frontend-build  → npm run build del frontend (Vite)
-#   backend-build   → tsc del backend
-#   backend         → runtime con Node + Chromium (target: backend)
-#   nginx           → nginx sirviendo el dist de Vite (target: nginx)
+# Vantek — Dockerfile Multi-stage Unificado y Corregido
 # =============================================================================
 
-
-# ─── Stage 1: dependencias ────────────────────────────────────────────────────
-FROM node:22-bookworm AS deps
-
+# ─── Stage 1: Dependencias Base ──────────────────────────────────────────────
+FROM node:22-bookworm-slim AS deps
 WORKDIR /build
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
-# Copiar solo los manifiestos para aprovechar la caché de capas de Docker.
-# Si no cambia ningún package.json, npm ci no se vuelve a ejecutar.
-COPY package.json package-lock.json ./
+
+# Copiamos físicamente los manifiestos para que persistan en los stages de build
+COPY package*.json ./
 COPY app/backend/package.json ./app/backend/
 COPY app/frontend/package.json ./app/frontend/
 
-RUN npm ci --workspaces
+# Usamos caché únicamente para las descargas de red de npm (.npm)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspaces
 
 
-# ─── Stage 2: build del frontend ──────────────────────────────────────────────
+# ─── Stage 2: Build del Frontend ──────────────────────────────────────────────
 FROM deps AS frontend-build
-
-# Copiar solo el código fuente del frontend
+# Al heredar de deps, ya tenemos los package.json y los node_modules instalados
 COPY app/frontend/ ./app/frontend/
-
 RUN npm run build --workspace=app/frontend
 
 
-# ─── Stage 3: build del backend ───────────────────────────────────────────────
+# ─── Stage 3: Build del Backend ───────────────────────────────────────────────
 FROM deps AS backend-build
-
-# Copiar el código fuente del backend
 COPY app/backend/ ./app/backend/
 COPY config/ ./config/
 COPY version.json ./
-
 RUN npm run build --workspace=app/backend
 
 
-# ─── Stage 4: runtime del backend ─────────────────────────────────────────────
-FROM node:22-bookworm AS backend
+# ─── Stage 4: Aislamiento de Dependencias de Producción ───────────────────────
+FROM node:22-bookworm-slim AS production-deps
+WORKDIR /build
+
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
+# Copiamos de nuevo los manifiestos para aislar las dependencias limpias
+COPY package*.json ./
+COPY app/backend/package.json ./app/backend/
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspaces --omit=dev
+
+
+# ─── Stage 5: Runtime del Backend ─────────────────────────────────────────────
+FROM node:22-bookworm-slim AS backend
 
 # Dependencias de sistema para Puppeteer + Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
-    fonts-liberation \
-    fonts-noto \
-    fonts-noto-cjk \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libgtk-3-0 \
+    fonts-freefont-ttf \
     libnss3 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxkbcommon0 \
-    libxrandr2 \
-    xdg-utils \
+    libxss1 \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Usar el Chromium del sistema, no descargar uno propio
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-# Traer el backend compilado desde backend-build
+# Traemos node_modules de producción y artefactos compilados
+COPY --from=production-deps /build/node_modules ./node_modules
 COPY --from=backend-build /build/app/backend/dist ./dist
 COPY --from=backend-build /build/app/backend/package.json ./
 COPY --from=backend-build /build/config ./config-default
 COPY --from=backend-build /build/version.json ./
 
-# Instalar solo dependencias de producción
-RUN npm install --omit=dev
-
-# El dist del frontend va aquí por si Express necesita servirlo como fallback
+# Frontend como fallback en Express
 COPY --from=frontend-build /build/app/frontend/dist ./public
 
-# Script de entrada que inicializa volúmenes en el primer arranque
-COPY backend-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Configuración de directorios y permisos no-root (Seguridad)
+RUN mkdir -p data/pdfs logs config && \
+    chown -R node:node /app
 
-RUN mkdir -p data/pdfs logs config
+COPY --chmod=755 backend-entrypoint.sh /entrypoint.sh
+
+USER node
 
 EXPOSE 3000
-
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["node", "dist/index.js"]
+CMD ["node", "-r", "tsconfig-paths/register", "dist/index.js"]
 
 
-# ─── Stage 5: nginx ───────────────────────────────────────────────────────────
+# ─── Stage 6: Servidor Nginx (Producción Frontend) ───────────────────────────
 FROM nginx:1.27-alpine AS nginx
 
-# Eliminar configuración por defecto
 RUN rm /etc/nginx/conf.d/default.conf
-
-# Configuración de Vantek
 COPY nginx.conf /etc/nginx/conf.d/vantek.conf
 
-# Dist del frontend — viene del stage frontend-build, no de npm
+# Copiamos los estáticos al directorio web de Nginx
 COPY --from=frontend-build /build/app/frontend/dist /var/www/vantek/html
-
-# El volumen de PDFs se monta en /var/www/vantek/pdfs vía docker-compose
 
 EXPOSE 80

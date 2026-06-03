@@ -34,7 +34,7 @@ interface ClientesStore {
   createTrabajo: (clienteId: string, agrupadorId: string, data: { nombre: string; descripcion?: string; margen_porcentaje?: number }) => Promise<TrabajoBrief>;
 }
 
-export const useClientesStore = create<ClientesStore>((set, get) => ({
+export const useClientesStore = create<ClientesStore>((set) => ({
   clientes: [],
   selected: null,
   loading: false,

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { usePresupuestosStore, LineaPresupuesto, EstadoPresupuesto } from '@store/presupuestos.store';
+import { usePresupuestosStore, LineaPresupuesto } from '@store/presupuestos.store';
 import Spinner from '@ui/Spinner';
 import Modal from '@ui/Modal';
 import DocumentoEditor, { LineaEditor, genKey } from '@pages/Documentos/components/DocumentoEditor';
@@ -20,7 +20,7 @@ function presupuestoLineaToEditor(l: LineaPresupuesto): LineaEditor {
     coste_unitario: l.coste_unitario ?? null,
     margen_porcentaje: l.margen_porcentaje ?? null,
     tipo: l.tipo ?? 'concepto',
-    es_libre: l.es_libre ?? true,
+    es_libre: true,
     albaran_linea_id: null,
   };
 }
@@ -77,7 +77,7 @@ export default function PresupuestoPage() {
         margen_porcentaje: l.margen_porcentaje,
         tipo: l.tipo,
         es_libre: l.es_libre,
-      } as Omit<LineaPresupuesto, 'id' | 'presupuesto_id' | 'orden'>));
+      }));
       await guardarLineas(id, lineasBack);
       await generarPdf(id);
     } finally {
