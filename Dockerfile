@@ -11,10 +11,11 @@
 
 
 # ─── Stage 1: dependencias ────────────────────────────────────────────────────
-FROM node:20-bookworm-slim AS deps
+FROM node:22-bookworm-slim AS deps
 
 WORKDIR /build
 
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 # Copiar solo los manifiestos para aprovechar la caché de capas de Docker.
 # Si no cambia ningún package.json, npm ci no se vuelve a ejecutar.
 COPY package.json package-lock.json ./
@@ -45,7 +46,7 @@ RUN npm run build --workspace=app/backend
 
 
 # ─── Stage 4: runtime del backend ─────────────────────────────────────────────
-FROM node:20-bookworm-slim AS backend
+FROM node:22-bookworm-slim AS backend
 
 # Dependencias de sistema para Puppeteer + Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
