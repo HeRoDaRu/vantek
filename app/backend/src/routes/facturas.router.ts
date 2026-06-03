@@ -53,8 +53,8 @@ router.post('/:id/borrador', asyncHandler(async (req, res) => {
 router.post('/:id/cerrar', asyncHandler(async (req, res) => {
   const resultado = await svc.cerrarFactura(req.params.id);
 
-  if (!resultado.ok && resultado.bloqueante) {
-    return res.status(422).json({ error: resultado.bloqueante, bloqueante: true });
+  if (!resultado.ok) {
+    return res.status(422).json({ error: (resultado as any).error });
   }
 
   // Si hay aviso pero no es bloqueante, lo incluimos en la respuesta
@@ -99,7 +99,7 @@ router.post('/:id/enviar', asyncHandler(async (req, res) => {
   const dest = email_destino || (factura as Record<string, unknown>).cliente_email;
   if (!dest) return res.status(400).json({ error: 'No hay email de destino' });
 
-  await enviarFactura(factura, dest as string);
+  await enviarFactura(factura as any, dest as string);
   await svc.cambiarEstado(req.params.id, 'entregada');
 
   res.json({ ok: true });

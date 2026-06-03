@@ -159,7 +159,7 @@ export async function crearPresupuesto(data: {
   const config = getAppConfig();
   const id = uuidv4();
   const fecha = data.fecha ?? new Date().toISOString().slice(0, 10);
-  const iva = config.documentos?.iva_porcentaje ?? 21;
+  const iva = config.documentos?.iva ?? 21;
 
   db.prepare(
     `INSERT INTO presupuestos
@@ -339,8 +339,8 @@ export async function exportarLineasParaFactura(presupuesto_id: string) {
        WHERE presupuesto_id = ?
        ORDER BY orden ASC`
     )
-    .all(presupuesto_id) as Omit
-  LineaPresupuesto,
-    'id' | 'presupuesto_id' | 'orden'
-    > [];
+    .all(presupuesto_id) as Omit<
+      LineaPresupuesto,
+      'id' | 'presupuesto_id' | 'orden'
+    >[];
 }

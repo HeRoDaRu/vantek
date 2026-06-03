@@ -11,7 +11,7 @@
 
 
 # ─── Stage 1: dependencias ────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS deps
+FROM node:22-bookworm AS deps
 
 WORKDIR /build
 
@@ -46,7 +46,7 @@ RUN npm run build --workspace=app/backend
 
 
 # ─── Stage 4: runtime del backend ─────────────────────────────────────────────
-FROM node:22-bookworm-slim AS backend
+FROM node:22-bookworm AS backend
 
 # Dependencias de sistema para Puppeteer + Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \

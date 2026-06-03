@@ -5,7 +5,7 @@ import { Cliente } from '@store/clientes.store';
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: Partial<Cliente>) => Promise<void>;
+  onSubmit: (data: { nombre: string; empresa?: string; dni_cif?: string; telefono?: string; email?: string; notas?: string }) => Promise<void>;
   titulo: string;
   inicial?: Partial<Cliente>;
 }

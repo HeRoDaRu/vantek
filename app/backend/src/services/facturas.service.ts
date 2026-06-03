@@ -181,7 +181,7 @@ export async function crearFactura(data: {
   const config = getAppConfig();
   const id = uuidv4();
   const fecha = data.fecha ?? new Date().toISOString().slice(0, 10);
-  const iva = config.documentos?.iva_porcentaje ?? 21;
+  const iva = config.documentos?.iva ?? 21;
 
   db.prepare(
     `INSERT INTO facturas
@@ -265,6 +265,7 @@ export async function guardarBorrador(id: string, data: unknown) {
 export interface ResultadoCierre {
   ok: boolean;
   factura?: Awaited<ReturnType<typeof obtenerFactura>>;
+  error?: string;
 }
 
 export async function cerrarFactura(id: string): Promise<ResultadoCierre> {

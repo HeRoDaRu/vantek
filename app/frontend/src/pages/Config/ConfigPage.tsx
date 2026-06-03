@@ -1,5 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
-import { useConfigStore } from '@store/config.store';
+import { useEffect, useState } from 'react';
 import api from '@utils/api';
 import Spinner from '@ui/Spinner';
 

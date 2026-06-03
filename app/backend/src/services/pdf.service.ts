@@ -229,7 +229,9 @@ export async function generarPdf(
 
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, {
+      waitUntil: ["load", "domcontentloaded"]
+    });
     await page.pdf({
       path: outputPath,
       format: 'A4',
