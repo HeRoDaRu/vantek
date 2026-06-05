@@ -12,7 +12,6 @@ node/
 
 #CONFIG files
 config/*.config.json
-config/*.config.json.old
 
 # Frontend build
 app/frontend/dist/

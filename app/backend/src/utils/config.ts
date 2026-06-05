@@ -52,19 +52,17 @@ export interface AppConfig {
     numeracion_factura: {
       contador: number;
       anio: number;
-      reinicio_pendiente: boolean;
     };
     footer_factura: string;
     footer_presupuesto: string;
     template_html?: string;
     template_path?: string;
   };
-  conceptos_defecto: Array<{
-    id: string;
-    label: string;
-    precio_hora: number;
-    unidad: string;
-  }>;
+  dashboard: {
+    grafico_tipo: string;
+    dias_presupuesto_antiguo: number;
+    dias_factura_sin_cobrar: number;
+  };
   sistema: {
     email_errores: string;
     actualizacion: {
@@ -78,6 +76,7 @@ export interface AppConfig {
       host: string;
       port: number;
       secure: boolean;
+      from: string;
     };
     auth: {
       user: string;

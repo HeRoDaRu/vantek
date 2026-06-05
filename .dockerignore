@@ -23,6 +23,8 @@ node/
 # Variables de entorno locales
 .env
 .env.*
+config/app.config.json
+config/profile.config.json
 
 # Configuración de editores
 .vscode

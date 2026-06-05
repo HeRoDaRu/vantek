@@ -30,11 +30,11 @@ app.use(express.urlencoded({ extended: true }));
 
 
 // ─── Estáticos (producción) ───────────────────────────────────────────────────
-const FRONTEND_DIST = path.resolve(process.cwd(), '../../dist/public');
+const FRONTEND_DIST = path.join(__dirname,'..','..','..','dist')
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(FRONTEND_DIST));
 }
-app.use('/pdfs', express.static(path.resolve(process.cwd(), '../../data/pdfs')));
+app.use('/pdfs', express.static(path.join(__dirname, '..', '..', '..', 'data', 'pdfs')));
 
 // ─── Config endpoints ─────────────────────────────────────────────────────────
 app.use('/api/config', configRouter);

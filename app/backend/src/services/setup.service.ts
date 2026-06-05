@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { PerfilNegocio, SetupPayload, DefaultConfig, AppConfig } from '../types';
+import { PerfilNegocio, SetupPayload, DefaultConfig } from '../types';
+import { AppConfig, reloadAppConfig, reloadProfileConfig } from '@utils/config';
 
-const CONFIG_DIR = path.resolve(process.cwd(), '../../config');
+const CONFIG_DIR = path.join(__dirname, '..', '..', '..', 'config');
 const APP_CONFIG_PATH = path.join(CONFIG_DIR, 'app.config.json');
 const DEFAULT_CONFIG_PATH = path.join(CONFIG_DIR, 'profile.config.json');
 
@@ -149,23 +150,55 @@ export function buildAppConfig(payload: SetupPayload): AppConfig {
   }
 
   const base: AppConfig = existing ?? {
-    empresa: { nombre: '', cif: '', direccion: '', telefono: '', email: '', logo: '' },
+    puerto: '',
+    empresa: {
+      nombre: '',
+      cif: '',
+      direccion: '',
+      telefono: '',
+      email: '',
+      logo: '',
+      mano_obra_precio_hora: 45
+    },
     documentos: {
-      iva: 21,
+      iva_porcentaje: 21,
       margen_defecto: 20,
       max_versiones: 10,
-      numeracion_factura: {
+      numeracion_facturas: {
         contador: 0,
-        anno: new Date().getFullYear(),
-        reinicio_pendiente: false,
+        anio: new Date().getFullYear(),
       },
+      footer_factura: '',
+      footer_presupuesto: '',
+      template_html: '',
+      template_path: '',
     },
-    conceptos_defecto: [
-      { id: 'mano_obra', label: 'Mano de obra', precio_hora: 0, unidad: 'hora' },
-    ],
+    dashboard: {
+      grafico_tipo: 'barras_lineas',
+      dias_presupuesto_antiguo: 30,
+      dias_factura_sin_cobrar: 30,
+    },
+    email: {
+      smtp: {
+        host: '',
+        port: 587,
+        secure: false,
+        user: '',
+        pass: '',
+        from: ''
+      },
+      auth: {
+        user: '',
+        pass: '',
+      }
+    },
     sistema: {
       email_errores: '',
-      actualizacion: { hora_inicio: '15:00', hora_fin: '16:00', inactividad_minutos: 15 },
+      actualizacion: {
+        hora_inicio: '15:00',
+        hora_fin: '16:00',
+        inactividad_minutos: 15,
+      }
     },
   };
 
@@ -190,4 +223,7 @@ export function saveSetup(payload: SetupPayload): void {
 
   fs.writeFileSync(DEFAULT_CONFIG_PATH, JSON.stringify(defaultConfig, null, 2), 'utf-8');
   fs.writeFileSync(APP_CONFIG_PATH, JSON.stringify(appConfig, null, 2), 'utf-8');
+
+  reloadAppConfig();
+  reloadProfileConfig();
 }
