@@ -11,8 +11,8 @@ node/
 .env.local
 
 #CONFIG files
-config/app.config.json
-config/profile.config.json
+config/*.config.json
+config/*.config.json.old
 
 # Frontend build
 app/frontend/dist/
