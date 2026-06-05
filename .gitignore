@@ -1,3 +1,4 @@
+#BUILD files
 node_modules/
 dist/
 data/
@@ -8,6 +9,10 @@ node/
 *.db-shm
 .env
 .env.local
+
+#CONFIG files
+config/app.config.json
+config/profile.config.json
 
 # Frontend build
 app/frontend/dist/

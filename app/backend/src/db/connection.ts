@@ -1,7 +1,9 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { mkdirSync } from 'fs';
 
-const DB_PATH = path.resolve(process.cwd(), '../../data/vantek.db');
+const DB_PATH = path.join(__dirname, '..', '..', 'data', 'vantek.db');
+mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 let db: Database.Database;
 

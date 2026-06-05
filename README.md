@@ -45,7 +45,7 @@ npm run build
 
 ## Perfiles disponibles
 
-El perfil de negocio se configura en `config/default.config.json`.
+El perfil de negocio se configura en `config/profile.config.json`.
 
 | Perfil | agrupador | trabajo |
 |--------|-----------|---------|

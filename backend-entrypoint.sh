@@ -6,23 +6,28 @@ set -e
 # Los volúmenes de Docker arrancan vacíos. Este script copia los ficheros
 # por defecto si aún no existen, sin sobreescribir los que ya tenga el usuario.
 
-echo "[vantek] Comprobando inicialización de volúmenes..."
-
-# Config: copiar app.config.json y default.config.json si no existen
-if [ ! -f /app/config/app.config.json ]; then
-    echo "[vantek] Primer arranque — copiando configuración por defecto..."
-    cp /app/config-default/app.config.json /app/config/app.config.json
-fi
-
-if [ ! -f /app/config/default.config.json ]; then
-    cp /app/config-default/default.config.json /app/config/default.config.json
-fi
+echo "[Vantek] Comprobando inicialización de volúmenes..."
 
 # Asegurar que los directorios de datos existen
-mkdir -p /app/data/pdfs
-mkdir -p /app/logs
+mkdir -p /app/data/pdfs /app/logs /app/config
+chown -R node:node /app/data /app/logs /app/config
 
-echo "[vantek] Listo. Arrancando servidor..."
+# Config: copiar app.config.json y profile.config.json si no existen
+if [ ! -f /app/config/app.config.json ]; then
+    echo "[Vantek] Primer arranque — copiando configuración por defecto..."
+    node -e "
+        const t = require('/app/config-default/app.config.template.json');
+        t.documentos.numeracion_facturas.anio = new Date().getFullYear();
+        require('fs').writeFileSync(
+            '/app/config/app.config.json',
+            JSON.stringify(t, null, 2)
+        );
+    "
+fi
 
-# Ejecutar el comando pasado al contenedor (node dist/index.js)
-exec "$@"
+if [ ! -f /app/config/profile.config.json ]; then
+    cp /app/config-default/profile.config.json /app/config/profile.config.json
+fi
+
+echo "[Vantek] Listo. Arrancando servidor..."
+exec gosu node "$@"

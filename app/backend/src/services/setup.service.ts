@@ -4,7 +4,7 @@ import { PerfilNegocio, SetupPayload, DefaultConfig, AppConfig } from '../types'
 
 const CONFIG_DIR = path.resolve(process.cwd(), '../../config');
 const APP_CONFIG_PATH = path.join(CONFIG_DIR, 'app.config.json');
-const DEFAULT_CONFIG_PATH = path.join(CONFIG_DIR, 'default.config.json');
+const DEFAULT_CONFIG_PATH = path.join(CONFIG_DIR, 'profile.config.json');
 
 // ─── Perfiles predefinidos ────────────────────────────────────────────────────
 

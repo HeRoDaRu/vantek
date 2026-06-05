@@ -58,6 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 \
     libxss1 \
     procps \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production \
@@ -70,6 +71,7 @@ WORKDIR /app
 COPY --from=production-deps /build/node_modules ./node_modules
 COPY --from=backend-build /build/app/backend/dist ./dist
 COPY --from=backend-build /build/app/backend/package.json ./
+COPY --from=backend-build /build/app/backend/tsconfig.json ./
 COPY --from=backend-build /build/config ./config-default
 COPY --from=backend-build /build/version.json ./
 
@@ -77,12 +79,10 @@ COPY --from=backend-build /build/version.json ./
 COPY --from=frontend-build /build/app/frontend/dist ./public
 
 # Configuración de directorios y permisos no-root (Seguridad)
-RUN mkdir -p data/pdfs logs config && \
+RUN mkdir -p /app/data/pdfs /app/logs /app/config && \
     chown -R node:node /app
 
 COPY --chmod=755 backend-entrypoint.sh /entrypoint.sh
-
-USER node
 
 EXPOSE 3000
 ENTRYPOINT ["/entrypoint.sh"]

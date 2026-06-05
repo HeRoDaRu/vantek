@@ -23,12 +23,15 @@ const { spawn, execSync } = require('child_process');
 
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
-const ROOT             = path.resolve(__dirname, '..');
-const CONFIG_PATH      = path.join(ROOT, 'config', 'app.config.json');
-const VERSION_PATH     = path.join(ROOT, 'version.json');
-const LOG_PATH         = path.join(ROOT, 'logs', 'launcher.log');
-const TMP_ZIP          = path.join(ROOT, 'logs', 'update.zip');
-const UPDATE_STATE     = path.join(ROOT, 'data', 'update-state.json');
+const ROOT                   = path.resolve(__dirname, '..');
+const CONFIG_PATH            = path.join(ROOT, 'config', 'app.config.json');
+const CONFIG_TEMPLATE_PATH   = path.join(ROOT, 'config', 'app.config.template.json');
+const PROFILE_PATH           = path.join(ROOT, 'config', 'profile.config.json');
+const PROFILE_TEMPLATE_PATH  = path.join(ROOT, 'config', 'profile.config.template.json');
+const VERSION_PATH           = path.join(ROOT, 'version.json');
+const LOG_PATH               = path.join(ROOT, 'logs', 'launcher.log');
+const TMP_ZIP                = path.join(ROOT, 'logs', 'update.zip');
+const UPDATE_STATE           = path.join(ROOT, 'data', 'update-state.json');
 
 // ─── GitHub ───────────────────────────────────────────────────────────────────
 
@@ -85,6 +88,38 @@ function getConfig(): any {
 function getCurrentVersion(): string {
   try { return JSON.parse(fs.readFileSync(VERSION_PATH, 'utf-8')).version; }
   catch { return '0.0.0'; }
+}
+
+// ─── Inicialización de ficheros de configuración ─────────────────────────────
+// Se ejecuta una sola vez, en el primer arranque, cuando los ficheros no existen.
+// En actualizaciones posteriores nunca sobreescribe los ficheros reales.
+
+function inicializarConfiguracion(): void {
+  // Asegurar que existe la carpeta config
+  const configDir = path.join(ROOT, 'config');
+  if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
+
+  // app.config.json — con año dinámico
+  if (!fs.existsSync(CONFIG_PATH)) {
+    if (fs.existsSync(CONFIG_TEMPLATE_PATH)) {
+      const template = JSON.parse(fs.readFileSync(CONFIG_TEMPLATE_PATH, 'utf-8'));
+      template.documentos.numeracion_facturas.anio = new Date().getFullYear();
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(template, null, 2));
+      log('app.config.json creado desde plantilla.');
+    } else {
+      log('ADVERTENCIA: No se encontró app.config.template.json. El servidor puede no arrancar correctamente.');
+    }
+  }
+
+  // profile.config.json — copia directa del template
+  if (!fs.existsSync(PROFILE_PATH)) {
+    if (fs.existsSync(PROFILE_TEMPLATE_PATH)) {
+      fs.copyFileSync(PROFILE_TEMPLATE_PATH, PROFILE_PATH);
+      log('profile.config.json creado desde plantilla.');
+    } else {
+      log('ADVERTENCIA: No se encontró profile.config.template.json. El servidor puede no arrancar correctamente.');
+    }
+  }
 }
 
 // ─── update-state.json ───────────────────────────────────────────────────────
@@ -179,7 +214,7 @@ function downloadFile(url: string, dest: string): Promise<void> {
         file.on('finish', () => { file.close(); resolve(); });
       })
       .on('error', (err: any) => {
-        fs.unlink(dest, () => {});
+        fs.unlink(dest, () => { });
         reject(err);
       });
   });
@@ -430,14 +465,13 @@ function iniciarScheduler(): void {
     // No hacer nada si ya estamos en medio de un proceso
     if (['checking', 'descargando', 'aplicando'].includes(state.phase)) return;
 
-    const enVentana    = dentroDeVentana();
-    const inactivo     = inactividadSuficiente();
+    const enVentana = dentroDeVentana();
+    const inactivo  = inactividadSuficiente();
 
     if (!enVentana || !inactivo) return;
 
     log('Dentro de la ventana horaria y usuario inactivo. Comprobando actualizaciones...');
 
-    // Si aún no hemos comprobado o ya sabemos que hay update, pasar directo a descargar
     if (state.phase === 'idle' || state.phase === 'sin_update') {
       await checkForUpdate();
     }
@@ -493,7 +527,6 @@ function iniciarWatcherApply(): void {
       return;
     }
 
-    // Descargar si aún no lo hemos hecho
     if (state.phase === 'hay_update') {
       const ok = await downloadUpdate();
       if (!ok) return;
@@ -509,8 +542,6 @@ function iniciarWatcherApply(): void {
       }
       await applyUpdate();
     } else {
-      // Aplicar en el siguiente arranque: el ZIP ya está en logs/update.zip
-      // y state.phase es 'listo_para_aplicar'. Al arrancar checkAndUpdate lo aplicará.
       log('Actualización descargada. Se aplicará en el siguiente arranque del servicio.');
     }
   });
@@ -519,24 +550,20 @@ function iniciarWatcherApply(): void {
 }
 
 // ─── Comprobación al arrancar ─────────────────────────────────────────────────
-// Al iniciar el servicio: si hay un ZIP pendiente de una sesión anterior, aplicarlo.
-// Si no, buscar actualizaciones normalmente.
 
 async function checkAndUpdateAlArrancar(): Promise<void> {
   state.version_actual = getCurrentVersion();
 
-  // ¿Hay un ZIP pendiente de la sesión anterior?
   if (fs.existsSync(TMP_ZIP)) {
     log('ZIP de actualización encontrado. Verificando borrador antes de aplicar...');
     const dirty = await hasDirtyDraft();
     if (!dirty) {
-      // Necesitamos saber qué versión es — intentar leer el state guardado
       const disco = readState();
       if (disco.version_disponible) {
         state.version_disponible = disco.version_disponible;
         state.phase = 'listo_para_aplicar';
         await applyUpdate();
-        return; // process.exit(0) si tiene éxito
+        return;
       }
     } else {
       log('Borrador sucio. ZIP pendiente no se puede aplicar ahora. Se reintentará.');
@@ -546,12 +573,8 @@ async function checkAndUpdateAlArrancar(): Promise<void> {
     }
   }
 
-  // Comprobación normal al arrancar
   await checkForUpdate();
 
-  // No descargar automáticamente al arrancar fuera de la ventana horaria.
-  // El scheduler se encargará en la ventana configurada.
-  // Excepción: si estamos EN la ventana y hay inactividad, aprovechar.
   if (state.phase === 'hay_update' && dentroDeVentana() && inactividadSuficiente()) {
     const dirty = await hasDirtyDraft();
     if (!dirty) {
@@ -598,27 +621,22 @@ function startServer(): void {
 
 async function main(): Promise<void> {
   // Asegurar directorios necesarios
-  for (const dir of ['logs', 'data'].map(d => path.join(ROOT, d))) {
+  for (const dir of ['logs', 'data', 'config'].map(d => path.join(ROOT, d))) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
+
+  // Inicializar ficheros de configuración desde plantillas si no existen
+  inicializarConfiguracion();
 
   log('=== Vantek Launcher iniciado ===');
   log(`Versión actual: ${getCurrentVersion()}`);
 
-  // Inicializar state con la versión actual
   state.version_actual = getCurrentVersion();
   writeState();
 
-  // 1. Comprobar y aplicar actualización pendiente o buscar nuevas
   await checkAndUpdateAlArrancar();
-
-  // 2. Arrancar el servidor (aunque haya fallado la actualización)
   startServer();
-
-  // 3. Iniciar scheduler para la ventana horaria
   iniciarScheduler();
-
-  // 4. Iniciar watcher para solicitudes manuales del frontend
   iniciarWatcherApply();
 }
 

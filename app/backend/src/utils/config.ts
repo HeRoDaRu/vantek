@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
-const CONFIG_DIR = path.resolve(process.cwd(), '../../config');
-const PROFILE_PATH = path.join(CONFIG_DIR, 'default.config.json');
+const CONFIG_DIR = path.join(__dirname, '..', '..', '..', 'config');
+const PROFILE_PATH = path.join(CONFIG_DIR, 'profile.config.json');
 const APP_PATH = path.join(CONFIG_DIR, 'app.config.json');
 
 export interface ProfileConfig {
@@ -34,6 +34,7 @@ export interface ProfileConfig {
 }
 
 export interface AppConfig {
+  puerto?: number;
   empresa: {
     nombre: string;
     cif: string;
@@ -41,16 +42,22 @@ export interface AppConfig {
     telefono: string;
     email: string;
     logo: string;
+    mano_obra_precio_hora: number;
+    mano_obra_unidad: string;
   };
   documentos: {
-    iva: number;
+    iva_porcentaje: number;
     margen_defecto: number;
     max_versiones: number;
     numeracion_factura: {
       contador: number;
-      anno: number;
+      anio: number;
       reinicio_pendiente: boolean;
     };
+    footer_factura: string;
+    footer_presupuesto: string;
+    template_html?: string;
+    template_path?: string;
   };
   conceptos_defecto: Array<{
     id: string;
@@ -103,6 +110,10 @@ export function saveAppConfig(config: AppConfig): void {
 
 export function reloadAppConfig(): void {
   appCache = null;
+}
+
+export function reloadProfileConfig(): void {
+  profileCache = null;
 }
 
 // Función de traducción — nunca texto literal en el código

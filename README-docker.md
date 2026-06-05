@@ -50,7 +50,7 @@ Los volúmenes de Docker guardan los datos entre reinicios y actualizaciones:
 |---|---|
 | `vantek-data` | Base de datos SQLite (`crm.db`) |
 | `vantek-pdfs` | PDFs generados por Puppeteer |
-| `vantek-config` | `app.config.json` y `default.config.json` |
+| `vantek-config` | `app.config.json` y `profile.config.json` |
 | `vantek-logs` | Logs del backend |
 
 **Nunca borres estos volúmenes** en producción. Para hacer backup:
