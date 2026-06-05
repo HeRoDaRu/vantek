@@ -6,7 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import asyncHandler from 'express-async-handler';
 import { runMigrations } from '@db/migrate';
-import { getAppConfig, getProfileConfig } from '@utils/config';
+import { migrateConfig } from '@utils/config';
 import { errorHandler, notFoundHandler } from '@middleware/errorHandler';
 import clientesRouter from '@routes/clientes.router';
 import albanesRouter from '@routes/albaranes.router';
@@ -30,11 +30,11 @@ app.use(express.urlencoded({ extended: true }));
 
 
 // ─── Estáticos (producción) ───────────────────────────────────────────────────
-const FRONTEND_DIST = path.join(__dirname,'..','..','..','dist')
+const FRONTEND_DIST = path.join(__dirname,'..','..','dist')
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(FRONTEND_DIST));
 }
-app.use('/pdfs', express.static(path.join(__dirname, '..', '..', '..', 'data', 'pdfs')));
+app.use('/pdfs', express.static(path.join(__dirname, '..', '..', 'data', 'pdfs')));
 
 // ─── Config endpoints ─────────────────────────────────────────────────────────
 app.use('/api/config', configRouter);
@@ -66,7 +66,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ─── placeholders de actualización ────────────────────────────────────────────
-const UPDATE_STATE_PATH = path.join(process.cwd(), 'data', 'update-state.json');
+const UPDATE_STATE_PATH = path.join(__dirname, '..', '..', 'data', 'update-state.json');
  
 function readUpdateState(): any {
   try {
@@ -113,6 +113,7 @@ app.use(errorHandler);
 function start() {
   try {
     console.log('[Vantek] Iniciando...');
+    migrateConfig();           // ← añadir esta línea
     runMigrations();
     console.log('[Vantek] Base de datos lista.');
     app.listen(PORT, () => {

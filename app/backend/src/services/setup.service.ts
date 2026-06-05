@@ -3,7 +3,7 @@ import path from 'path';
 import { PerfilNegocio, SetupPayload, DefaultConfig } from '../types';
 import { AppConfig, reloadAppConfig, reloadProfileConfig } from '@utils/config';
 
-const CONFIG_DIR = path.join(__dirname, '..', '..', '..', 'config');
+const CONFIG_DIR = path.join(__dirname, '..', '..', 'config');
 const APP_CONFIG_PATH = path.join(CONFIG_DIR, 'app.config.json');
 const DEFAULT_CONFIG_PATH = path.join(CONFIG_DIR, 'profile.config.json');
 
@@ -150,7 +150,6 @@ export function buildAppConfig(payload: SetupPayload): AppConfig {
   }
 
   const base: AppConfig = existing ?? {
-    puerto: '',
     empresa: {
       nombre: '',
       cif: '',
@@ -158,13 +157,14 @@ export function buildAppConfig(payload: SetupPayload): AppConfig {
       telefono: '',
       email: '',
       logo: '',
-      mano_obra_precio_hora: 45
+      mano_obra_precio_hora: 45,
+      mano_obra_unidad: 'hora'
     },
     documentos: {
       iva_porcentaje: 21,
       margen_defecto: 20,
       max_versiones: 10,
-      numeracion_facturas: {
+      numeracion_factura: {
         contador: 0,
         anio: new Date().getFullYear(),
       },
@@ -183,8 +183,6 @@ export function buildAppConfig(payload: SetupPayload): AppConfig {
         host: '',
         port: 587,
         secure: false,
-        user: '',
-        pass: '',
         from: ''
       },
       auth: {
@@ -211,6 +209,8 @@ export function buildAppConfig(payload: SetupPayload): AppConfig {
       telefono: payload.empresa.telefono?.trim() ?? '',
       email: payload.empresa.email?.trim() ?? '',
       logo: payload.empresa.logo?.trim() ?? '',
+      mano_obra_precio_hora: base.empresa.mano_obra_precio_hora,
+      mano_obra_unidad: base.empresa.mano_obra_unidad
     },
   };
 }

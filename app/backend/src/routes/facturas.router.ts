@@ -87,7 +87,7 @@ router.get('/:id/pdf/latest', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Sin PDF disponible' });
   }
   const ultima = factura.versiones[0] as { pdf_path: string };
-  res.sendFile(ultima.pdf_path, { root: process.cwd() });
+  res.sendFile(ultima.pdf_path, { root: __dirname });
 }));
 
 // Enviar por email

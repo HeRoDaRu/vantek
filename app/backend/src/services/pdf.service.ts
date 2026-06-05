@@ -36,7 +36,7 @@ type TipoDocumento = 'factura' | 'presupuesto';
 // ─── Directorio de salida ─────────────────────────────────────────────────────
 
 function dirPdfs(): string {
-  const dir = path.join(process.cwd(), 'data', 'pdfs');
+  const dir = path.join(__dirname, '..','..','data', 'pdfs');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -242,5 +242,5 @@ export async function generarPdf(
     await browser.close();
   }
 
-  return path.relative(process.cwd(), outputPath);
+  return path.relative(__dirname, outputPath);
 }

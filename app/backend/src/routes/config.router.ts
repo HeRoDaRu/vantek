@@ -6,7 +6,7 @@ import path from 'path';
 
 const router = Router();
 
-const CONFIG_DIR        = path.join(__dirname, '..', '..', '..', 'config');
+const CONFIG_DIR        = path.join(__dirname, '..', '..', 'config');
 const APP_CONFIG_PATH   = path.join(CONFIG_DIR, 'app.config.json');
 const PROFILE_CONFIG_PATH = path.join(CONFIG_DIR, 'profile.config.json');
 

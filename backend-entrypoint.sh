@@ -26,7 +26,7 @@ if [ ! -f /app/config/app.config.json ]; then
 fi
 
 if [ ! -f /app/config/profile.config.json ]; then
-    cp /app/config-default/profile.config.json /app/config/profile.config.json
+    cp /app/config-default/profile.config.template.json /app/config/profile.config.json
 fi
 
 echo "[Vantek] Listo. Arrancando servidor..."

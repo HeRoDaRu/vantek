@@ -38,7 +38,7 @@ export async function enviarFactura(
   
   if (factura.versiones?.length) {
     const ultima = factura.versiones[0] as { pdf_path: string };
-    const pdfAbs = path.join(process.cwd(), ultima.pdf_path);
+    const pdfAbs = path.join(__dirname, ultima.pdf_path);
     if (fs.existsSync(pdfAbs)) {
       adjuntos.push({
         filename: `Factura-${numero}.pdf`,

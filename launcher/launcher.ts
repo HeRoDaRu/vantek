@@ -23,7 +23,7 @@ const { spawn, execSync } = require('child_process');
 
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
-const ROOT                   = path.resolve(__dirname, '..');
+const ROOT                   = path.resolve(__dirname, '..', '..');
 const CONFIG_PATH            = path.join(ROOT, 'config', 'app.config.json');
 const CONFIG_TEMPLATE_PATH   = path.join(ROOT, 'config', 'app.config.template.json');
 const PROFILE_PATH           = path.join(ROOT, 'config', 'profile.config.json');
