@@ -134,7 +134,7 @@ export default function AlbaranFichaPage() {
   return (
     <div className="page">
       {/* Header */}
-      <div className="page-header" style={{ paddingTop: 22 }}>
+      <div className="page-header">
         <div className="flex flex-col gap-1">
           <div className="breadcrumb">
             <Link to="/albaranes">Albaranes</Link>

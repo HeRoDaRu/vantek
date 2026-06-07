@@ -63,7 +63,7 @@ export default function AlbaranesPage() {
   return (
     <div className="page">
       {/* Header */}
-      <div className="page-header">
+      <div className="page-header" style={{ paddingTop: 22 }}>
         <h1 className="page-title">Albaranes</h1>
         <button className="btn btn-primary" onClick={() => setShowNuevo(true)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
