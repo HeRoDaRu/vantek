@@ -29,7 +29,7 @@ export default function PresupuestoPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { actual, loading, error, cargarPresupuesto, guardarLineas,
-          guardarBorrador, cambiarEstado, generarPdf } = usePresupuestosStore();
+          guardarBorrador, cambiarEstado, generarPdf, eliminar } = usePresupuestosStore();
 
   // Estado controlado de líneas — igual que FacturaPage (Opción A)
   const [lineas, setLineas] = useState<LineaEditor[]>([]);
@@ -106,6 +106,15 @@ export default function PresupuestoPage() {
     await cambiarEstado(id, 'borrador');
   }, [id, cambiarEstado]);
 
+  async function handleEliminar() {
+    if (!actual) return;
+    try {
+      await eliminar(actual.id);
+      navigate(-1);
+    } catch (e: any) {
+      console.error('Error al eliminar presupuesto:', e);
+    }
+  }
   if (loading && !actual) return <Spinner label="Cargando presupuesto…" />;
   if (error) return <div className="page-error">{error}</div>;
   if (!actual) return null;
@@ -137,6 +146,7 @@ export default function PresupuestoPage() {
         onEnviar={() => setShowEnviar(true)}
         onHistorial={() => setShowHistorial(true)}
         onReabrir={handleReabrir}
+        onEliminar={handleEliminar}
       />
 
       <div className="card" style={{ marginTop: 16 }}>

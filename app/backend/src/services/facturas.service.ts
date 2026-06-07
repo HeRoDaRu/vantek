@@ -132,7 +132,7 @@ export async function obtenerFactura(id: string) {
         c.id AS cliente_id, c.nombre AS cliente_nombre,
         c.empresa AS cliente_empresa, c.dni_cif AS cliente_dni_cif,
         c.telefono AS cliente_telefono, c.email AS cliente_email,
-        c.direccion AS cliente_direccion
+        a.label AS cliente_direccion
        FROM facturas f
        JOIN trabajos t ON t.id = f.trabajo_id
        JOIN agrupadores a ON a.id = t.agrupador_id
@@ -183,40 +183,44 @@ export async function crearFactura(data: {
   const fecha = data.fecha ?? new Date().toISOString().slice(0, 10);
   const iva = config.documentos?.iva_porcentaje ?? 21;
 
-  db.prepare(
-    `INSERT INTO facturas
-     (id, trabajo_id, presupuesto_origen_id, estado, fecha, notas,
-      iva_porcentaje, created_at, updated_at)
-     VALUES (?, ?, ?, 'borrador', ?, ?, ?, datetime('now'), datetime('now'))`
-  ).run(
-    id, data.trabajo_id, data.presupuesto_origen_id ?? null,
-    fecha, data.notas ?? null, iva
-  );
-
-  // Si viene de un presupuesto, importar sus líneas
+ // Resolver líneas ANTES de la transacción (puede ser async)
   let lineas = data.lineas;
   if (!lineas?.length && data.presupuesto_origen_id) {
     lineas = await exportarLineasParaFactura(data.presupuesto_origen_id) as typeof lineas;
   }
 
-  if (lineas?.length) {
-    const stmt = db.prepare(
-      `INSERT INTO factura_lineas
-       (id, factura_id, descripcion, cantidad, unidad, precio_unitario,
-        coste_unitario, margen_porcentaje, tipo, es_libre, albaran_linea_id, orden)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  const resultado = db.transaction(() => {
+    db.prepare(
+      `INSERT INTO facturas
+       (id, trabajo_id, presupuesto_origen_id, estado, fecha, notas,
+        iva_porcentaje, created_at, updated_at)
+       VALUES (?, ?, ?, 'borrador', ?, ?, ?, datetime('now'), datetime('now'))`
+    ).run(
+      id, data.trabajo_id, data.presupuesto_origen_id ?? null,
+      fecha, data.notas ?? null, iva
     );
-    lineas.forEach((l, idx) => {
-      stmt.run(
-        uuidv4(), id, l.descripcion, l.cantidad, l.unidad ?? null,
-        l.precio_unitario, l.coste_unitario ?? null,
-        l.margen_porcentaje ?? null, l.tipo,
-        l.es_libre ? 1 : 0, l.albaran_linea_id ?? null, idx
-      );
-    });
-  }
 
-  return obtenerFactura(id);
+    if (lineas?.length) {
+      const stmt = db.prepare(
+        `INSERT INTO factura_lineas
+         (id, factura_id, descripcion, cantidad, unidad, precio_unitario,
+          coste_unitario, margen_porcentaje, tipo, es_libre, albaran_linea_id, orden)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+      lineas.forEach((l, idx) => {
+        stmt.run(
+          uuidv4(), id, l.descripcion, l.cantidad, l.unidad ?? null,
+          l.precio_unitario, l.coste_unitario ?? null,
+          l.margen_porcentaje ?? null, l.tipo,
+          l.es_libre ? 1 : 0, l.albaran_linea_id ?? null, idx
+        );
+      });
+    }
+
+    return id;
+  })();
+
+  return obtenerFactura(resultado);
 }
 
 // ─── Guardar líneas ───────────────────────────────────────────────────────────

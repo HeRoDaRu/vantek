@@ -134,14 +134,14 @@ export default function AlbaranFichaPage() {
   return (
     <div className="page">
       {/* Header */}
-      <div className="page-header">
+      <div className="page-header" style={{ paddingTop: 22 }}>
         <div className="flex flex-col gap-1">
           <div className="breadcrumb">
             <Link to="/albaranes">Albaranes</Link>
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{a.numero ?? a.id.slice(0, 8)}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <h1 className="page-title">
               {a.proveedor_nombre ?? 'Sin proveedor'} — {formatFecha(a.fecha)}
             </h1>

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFacturasStore } from '@store/facturas.store';
 import Badge from '@ui/Badge';
 import Spinner from '@ui/Spinner';
+import SelectorTrabajoModal from '@ui/SelectorTrabajoModal';
 
 function fmt(n: number) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -20,17 +21,17 @@ const ESTADOS_FACTURA = [
 export default function FacturasListPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { lista, loading, error, cargarLista } = useFacturasStore();
+  const { lista, loading, error, cargarLista, crearFactura } = useFacturasStore();
 
-  // Filtros — se inicializan desde query params si vienen de la ficha de cliente
-  const [estado, setEstado]     = useState(searchParams.get('estado') ?? '');
+  const [estado, setEstado]       = useState(searchParams.get('estado') ?? '');
   const [textoBusq, setTextoBusq] = useState(searchParams.get('cliente') ?? '');
-  const [trabajoId]             = useState(searchParams.get('trabajo') ?? '');
+  const [trabajoId]               = useState(searchParams.get('trabajo') ?? '');
+  const [trabajoLabel]            = useState(() => searchParams.get('trabajo_label') ?? '');
 
-  // Etiqueta informativa cuando hay filtro de trabajo precargado
-  const [trabajoLabel] = useState(() => searchParams.get('trabajo_label') ?? '');
+  // Modal de nueva factura
+  const [modalNuevo, setModalNuevo] = useState(false);
+  const [creando, setCreando]       = useState(false);
 
-  // Filtro local sobre la lista ya cargada (cliente y agrupador)
   const listaFiltrada = lista.filter(f => {
     if (!textoBusq.trim()) return true;
     const q = textoBusq.toLowerCase();
@@ -58,12 +59,31 @@ export default function FacturasListPage() {
 
   const hayFiltrosActivos = estado || textoBusq || trabajoId;
 
+  async function handleCrearFactura(tId: string) {
+    setCreando(true);
+    try {
+      const nueva = await crearFactura({ trabajo_id: tId });
+      setModalNuevo(false);
+      navigate(`/facturas/${nueva.id}`);
+    } catch (e: any) {
+      alert(`Error al crear la factura: ${e.message}`);
+    } finally {
+      setCreando(false);
+    }
+  }
+
   if (loading && !lista.length) return <Spinner label="Cargando facturas…" />;
 
   return (
     <div className="page">
-      <div className="page-header">
+      <div className="page-header" style={{ paddingTop: 22 }}>
         <h1 className="page-title">Facturas</h1>
+        <button className="btn btn-primary" onClick={() => setModalNuevo(true)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Nueva factura
+        </button>
       </div>
 
       {/* Barra de filtros */}
@@ -73,7 +93,6 @@ export default function FacturasListPage() {
           padding: '12px 24px', borderBottom: '1px solid var(--border)', flexShrink: 0,
         }}
       >
-        {/* Chip informativo si viene filtrado por trabajo desde ficha de cliente */}
         {trabajoId && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
@@ -125,14 +144,15 @@ export default function FacturasListPage() {
 
       {error && <div className="alert alert-error" style={{ margin: '12px 24px' }}>{error}</div>}
 
-      {/* Tabla */}
       {listaFiltrada.length === 0 && !loading ? (
         <div className="empty">
           <span className="empty-title">
             {hayFiltrosActivos ? 'Sin resultados para este filtro' : 'No hay facturas todavía'}
           </span>
           {!hayFiltrosActivos && (
-            <span className="empty-desc">Las facturas se crean desde la ficha de cada cliente.</span>
+            <span className="empty-desc">
+              Usa el botón "Nueva factura" o créalas desde la ficha de cada cliente.
+            </span>
           )}
         </div>
       ) : (
@@ -167,6 +187,14 @@ export default function FacturasListPage() {
           </table>
         </div>
       )}
+
+      <SelectorTrabajoModal
+        open={modalNuevo}
+        onClose={() => setModalNuevo(false)}
+        tipo="factura"
+        onConfirmar={handleCrearFactura}
+        cargando={creando}
+      />
     </div>
   );
 }

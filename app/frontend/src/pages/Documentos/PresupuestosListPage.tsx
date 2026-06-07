@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { usePresupuestosStore } from '@store/presupuestos.store';
 import Badge from '@ui/Badge';
 import Spinner from '@ui/Spinner';
+import SelectorTrabajoModal from '@ui/SelectorTrabajoModal';
 
 function fmt(n: number) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -20,14 +21,17 @@ const ESTADOS_PRESUPUESTO = [
 export default function PresupuestosListPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { lista, loading, error, cargarLista } = usePresupuestosStore();
+  const { lista, loading, error, cargarLista, crearPresupuesto } = usePresupuestosStore();
 
   const [estado, setEstado]       = useState(searchParams.get('estado') ?? '');
   const [textoBusq, setTextoBusq] = useState(searchParams.get('cliente') ?? '');
   const [trabajoId]               = useState(searchParams.get('trabajo') ?? '');
   const [trabajoLabel]            = useState(() => searchParams.get('trabajo_label') ?? '');
 
-  // Filtro local sobre lista ya cargada
+  // Modal de nuevo presupuesto
+  const [modalNuevo, setModalNuevo] = useState(false);
+  const [creando, setCreando]       = useState(false);
+
   const listaFiltrada = lista.filter(p => {
     if (!textoBusq.trim()) return true;
     const q = textoBusq.toLowerCase();
@@ -55,12 +59,31 @@ export default function PresupuestosListPage() {
 
   const hayFiltrosActivos = estado || textoBusq || trabajoId;
 
+  async function handleCrearPresupuesto(tId: string) {
+    setCreando(true);
+    try {
+      const nuevo = await crearPresupuesto({ trabajo_id: tId });
+      setModalNuevo(false);
+      navigate(`/presupuestos/${nuevo.id}`);
+    } catch (e: any) {
+      alert(`Error al crear el presupuesto: ${e.message}`);
+    } finally {
+      setCreando(false);
+    }
+  }
+
   if (loading && !lista.length) return <Spinner label="Cargando presupuestos…" />;
 
   return (
     <div className="page">
-      <div className="page-header">
+      <div className="page-header" style={{ paddingTop: 22 }}>
         <h1 className="page-title">Presupuestos</h1>
+        <button className="btn btn-primary" onClick={() => setModalNuevo(true)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Nuevo presupuesto
+        </button>
       </div>
 
       {/* Barra de filtros */}
@@ -127,7 +150,9 @@ export default function PresupuestosListPage() {
             {hayFiltrosActivos ? 'Sin resultados para este filtro' : 'No hay presupuestos todavía'}
           </span>
           {!hayFiltrosActivos && (
-            <span className="empty-desc">Los presupuestos se crean desde la ficha de cada cliente.</span>
+            <span className="empty-desc">
+              Usa el botón "Nuevo presupuesto" o créalos desde la ficha de cada cliente.
+            </span>
           )}
         </div>
       ) : (
@@ -160,6 +185,14 @@ export default function PresupuestosListPage() {
           </table>
         </div>
       )}
+
+      <SelectorTrabajoModal
+        open={modalNuevo}
+        onClose={() => setModalNuevo(false)}
+        tipo="presupuesto"
+        onConfirmar={handleCrearPresupuesto}
+        cargando={creando}
+      />
     </div>
   );
 }

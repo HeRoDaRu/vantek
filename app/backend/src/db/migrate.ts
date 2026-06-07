@@ -189,6 +189,19 @@ const migrations: { version: number; sql: string }[] = [
       );
     `
   }
+  ,
+  {
+    version: 2,
+    sql: `
+      ALTER TABLE presupuestos ADD COLUMN fecha TEXT NOT NULL DEFAULT (date('now'));
+      ALTER TABLE presupuestos ADD COLUMN iva_porcentaje REAL NOT NULL DEFAULT 21;
+
+      ALTER TABLE facturas ADD COLUMN fecha TEXT NOT NULL DEFAULT (date('now'));
+      ALTER TABLE facturas ADD COLUMN fecha_cierre TEXT;
+      ALTER TABLE facturas ADD COLUMN iva_porcentaje REAL NOT NULL DEFAULT 21;
+      ALTER TABLE facturas ADD COLUMN presupuesto_origen_id TEXT REFERENCES presupuestos(id);
+    `
+  }
 ];
 
 export function runMigrations(): void {

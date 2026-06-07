@@ -323,3 +323,67 @@ tbody tr:hover td { background: var(--bg-3); color: var(--text); }
 .px-4           { padding-left: 16px; padding-right: 16px; }
 .rounded        { border-radius: var(--radius); }
 .overflow-hidden{ overflow: hidden; }
+
+/* ─── Barra de acciones del editor de documentos ────────────────────────── */
+.barra-acciones {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; gap: 12px;
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); flex-shrink: 0;
+}
+.barra-left  { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.barra-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+.barra-separator {
+  width: 1px; height: 20px; background: var(--border);
+  margin: 0 2px; flex-shrink: 0;
+}
+.doc-titulo {
+  font-size: 14px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ─── Editor de líneas de documento ─────────────────────────────────────── */
+.doc-editor { display: flex; flex-direction: column; }
+.table-wrapper { overflow-x: auto; }
+.table-wrapper table { min-width: 700px; }
+.input-sm {
+  padding: 4px 8px; font-size: 12px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: var(--font); outline: none; width: 100%;
+  transition: border-color 150ms ease;
+}
+.input-sm:focus { border-color: var(--accent); }
+.btn-icon-danger {
+  color: var(--red); background: transparent; border: none;
+  cursor: pointer; border-radius: var(--radius);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 150ms ease;
+}
+.btn-icon-danger:hover { background: var(--red-dim); }
+
+/* ─── Totales del documento ──────────────────────────────────────────────── */
+.doc-totales {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 4px; padding: 12px 16px; border-top: 1px solid var(--border);
+}
+.totales-row {
+  display: flex; gap: 16px; font-size: 13px; color: var(--text-2);
+  min-width: 220px; justify-content: space-between;
+}
+.totales-total {
+  font-size: 15px; font-weight: 600; color: var(--text);
+  border-top: 1px solid var(--border); padding-top: 6px; margin-top: 2px;
+}
+
+/* ─── Utilidades de página de documento ─────────────────────────────────── */
+.btn-link {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-2); font-size: 13px; padding: 0;
+  font-family: var(--font); transition: color 150ms ease;
+}
+.btn-link:hover { color: var(--text); }
+.page-error {
+  display: flex; align-items: center; justify-content: center;
+  flex: 1; font-size: 13px; color: var(--red); padding: 24px;
+}

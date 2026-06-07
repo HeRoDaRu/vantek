@@ -51,7 +51,7 @@ export default function FacturaPage() {
   const {
     actual, loading, error,
     cargarFactura, guardarLineas, guardarBorrador,
-    cerrarFactura, cambiarEstado, generarPdf, enviar,
+    cerrarFactura, cambiarEstado, generarPdf, enviar, eliminar
   } = useFacturasStore();
 
   // ─── Estado controlado de líneas (Opción A) ─────────────────────────────────
@@ -171,6 +171,15 @@ export default function FacturaPage() {
     await cambiarEstado(id, 'borrador');
   }, [id, cambiarEstado]);
 
+  async function handleEliminar() {
+    if (!actual) return;
+    try {
+      await eliminar(actual.id);
+      navigate(-1);
+    } catch (e: any) {
+      console.error('Error al eliminar factura:', e);
+    }
+  }
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   if (loading && !actual) return <Spinner label="Cargando factura…" />;
@@ -213,6 +222,7 @@ export default function FacturaPage() {
         onAlbaranes={() => navigate(`/albaranes?trabajo_id=${actual.trabajo_id}`)}
         onHistorial={() => setShowHistorial(true)}
         onReabrir={handleReabrir}
+        onEliminar={handleEliminar}
       />
 
       {/* Cabecera del documento */}

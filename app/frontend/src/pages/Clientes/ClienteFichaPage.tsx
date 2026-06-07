@@ -137,6 +137,7 @@ export default function ClienteFichaPage() {
       navigate(`/facturas/${nuevaId}`);
     } catch (e: any) {
       console.error('Error al gestionar factura:', e);
+      alert(`Error: ${e.message ?? 'No se pudo crear la factura'}`);
     } finally {
       setAccionEnCurso(false);
     }
@@ -214,6 +215,7 @@ export default function ClienteFichaPage() {
       navigate(`/presupuestos/${nuevoId}`);
     } catch (e: any) {
       console.error('Error al gestionar presupuesto:', e);
+      alert(`Error: ${e.message ?? 'No se pudo crear el presupuesto'}`);
     } finally {
       setAccionEnCurso(false);
     }
