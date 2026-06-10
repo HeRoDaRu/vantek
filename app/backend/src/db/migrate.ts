@@ -178,7 +178,15 @@ const migrations: { version: number; sql: string }[] = [
           'a_la_espera','en_curso','pendiente_facturar','entregada','pagada'
         )),
         trabajo_id TEXT REFERENCES trabajos(id),
+        fecha_visita TEXT,
         notas TEXT,
+        matricula TEXT,
+        marca_modelo TEXT,
+        fecha_entrada TEXT,
+        fecha_salida_estimada TEXT,
+        descripcion_problema TEXT,
+        firma_entrada TEXT,
+        firma_salida TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -200,6 +208,19 @@ const migrations: { version: number; sql: string }[] = [
       ALTER TABLE facturas ADD COLUMN fecha_cierre TEXT;
       ALTER TABLE facturas ADD COLUMN iva_porcentaje REAL NOT NULL DEFAULT 21;
       ALTER TABLE facturas ADD COLUMN presupuesto_origen_id TEXT REFERENCES presupuestos(id);
+    `
+  },
+  {
+    version: 3,
+    sql: `
+      ALTER TABLE seguimiento ADD COLUMN fecha_visita TEXT;
+      ALTER TABLE seguimiento ADD COLUMN matricula TEXT;
+      ALTER TABLE seguimiento ADD COLUMN marca_modelo TEXT;
+      ALTER TABLE seguimiento ADD COLUMN fecha_entrada TEXT;
+      ALTER TABLE seguimiento ADD COLUMN fecha_salida_estimada TEXT;
+      ALTER TABLE seguimiento ADD COLUMN descripcion_problema TEXT;
+      ALTER TABLE seguimiento ADD COLUMN firma_entrada TEXT;
+      ALTER TABLE seguimiento ADD COLUMN firma_salida TEXT;
     `
   }
 ];

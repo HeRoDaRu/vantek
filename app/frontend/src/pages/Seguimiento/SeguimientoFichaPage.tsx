@@ -10,9 +10,9 @@ import Spinner from '@ui/Spinner';
 
 const TRANSICIONES: Record<EstadoSeguimiento, EstadoSeguimiento[]> = {
   nuevo:                  ['contactado'],
-  contactado:             ['visita_agendada', 'nuevo'],
-  visita_agendada:        ['pendiente_presupuesto', 'contactado'],
-  pendiente_presupuesto:  ['a_la_espera', 'visita_agendada'],
+  contactado:             ['visita_agendada'],
+  visita_agendada:        ['pendiente_presupuesto'],
+  pendiente_presupuesto:  ['a_la_espera'],
   a_la_espera:            ['en_curso', 'pendiente_presupuesto'],
   en_curso:               ['pendiente_facturar'],
   pendiente_facturar:     ['entregada'],

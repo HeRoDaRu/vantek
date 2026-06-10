@@ -22,6 +22,7 @@ export interface Seguimiento {
   direccion: string | null;
   dni_cif: string | null;
   peticion: string | null;
+  accion_peticion?: string | null;
   estado: EstadoSeguimiento;
   trabajo_id: string | null;
   fecha_visita: string | null;
@@ -49,6 +50,7 @@ export interface CrearSeguimientoDto {
   direccion?: string;
   dni_cif?: string;
   peticion?: string;
+  accion_peticion?: string;
   notas?: string;
   // Taller
   matricula?: string;
@@ -69,6 +71,7 @@ export interface ActualizarSeguimientoDto extends Partial<CrearSeguimientoDto> {
 const SELECT_CON_JOINS = `
   SELECT
     s.*,
+    s.accion_peticion AS peticion,
     t.nombre AS trabajo_nombre,
     a.label  AS agrupador_label,
     c.nombre AS cliente_nombre
@@ -102,10 +105,11 @@ export function obtener(id: string): Seguimiento | null {
 export function crear(data: CrearSeguimientoDto): Seguimiento {
   const db = getDb();
   const id = uuidv4();
+  const accionPeticion = data.accion_peticion ?? data.peticion ?? null;
 
   db.prepare(`
     INSERT INTO seguimiento (
-      id, nombre, telefono, direccion, dni_cif, peticion, estado,
+      id, nombre, telefono, direccion, dni_cif, accion_peticion, estado,
       matricula, marca_modelo, fecha_entrada, fecha_salida_estimada, descripcion_problema,
       created_at, updated_at
     ) VALUES (
@@ -119,7 +123,7 @@ export function crear(data: CrearSeguimientoDto): Seguimiento {
     data.telefono    ?? null,
     data.direccion   ?? null,
     data.dni_cif     ?? null,
-    data.peticion    ?? null,
+    accionPeticion,
     data.matricula             ?? null,
     data.marca_modelo          ?? null,
     data.fecha_entrada         ?? null,
@@ -135,13 +139,15 @@ export function actualizar(id: string, data: ActualizarSeguimientoDto): Seguimie
   const seg = obtener(id);
   if (!seg) throw new Error('Seguimiento no encontrado');
 
+  const accionPeticion = data.accion_peticion ?? data.peticion ?? seg.accion_peticion ?? seg.peticion;
+
   db.prepare(`
     UPDATE seguimiento SET
       nombre                 = ?,
       telefono               = ?,
       direccion              = ?,
       dni_cif                = ?,
-      peticion               = ?,
+      accion_peticion        = ?,
       notas                  = ?,
       fecha_visita           = ?,
       matricula              = ?,
@@ -158,7 +164,7 @@ export function actualizar(id: string, data: ActualizarSeguimientoDto): Seguimie
     data.telefono              ?? seg.telefono,
     data.direccion             ?? seg.direccion,
     data.dni_cif               ?? seg.dni_cif,
-    data.peticion              ?? seg.peticion,
+    accionPeticion,
     data.notas                 ?? seg.notas,
     data.fecha_visita          ?? seg.fecha_visita,
     data.matricula             ?? seg.matricula,

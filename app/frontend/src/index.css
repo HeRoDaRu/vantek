@@ -387,3 +387,5 @@ tbody tr:hover td { background: var(--bg-3); color: var(--text); }
   display: flex; align-items: center; justify-content: center;
   flex: 1; font-size: 13px; color: var(--red); padding: 24px;
 }
+.tr-clickable { cursor: pointer; transition: var(--transition); }
+.tr-clickable:hover td { background: var(--bg-3); color: var(--text); }

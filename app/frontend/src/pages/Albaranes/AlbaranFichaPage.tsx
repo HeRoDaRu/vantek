@@ -5,6 +5,7 @@ import Badge from '@ui/Badge';
 import Spinner from '@ui/Spinner';
 import Modal from '@ui/Modal';
 import { useConfigStore } from '@store/config.store';
+import OCRAlbaranModal, { type ResultadoOCR } from './components/OCRAlbaranModal';
 
 interface LineaAlbaran {
   id: string;
@@ -49,6 +50,9 @@ export default function AlbaranFichaPage() {
   const [moving, setMoving]               = useState(false);
   const [moveErr, setMoveErr]             = useState('');
 
+  // Modal OCR
+  const [ocrAbierto, setOcrAbierto] = useState(false);
+
   const cargar = async () => {
     if (!id) return;
     setLoading(true);
@@ -70,8 +74,6 @@ export default function AlbaranFichaPage() {
     setDesdeTrabajo(linea.trabajos_asignados[0]?.id ?? '');
     setHastaTrabajo('');
     setMoveErr('');
-    // Carga la lista de trabajos disponibles (ruta general de clientes anidados no existe,
-    // usamos búsqueda de clientes con sus trabajos)
     try {
       const res = await api.get('/clientes', { params: {} });
       const opciones: TrabajoOpcion[] = [];
@@ -108,6 +110,24 @@ export default function AlbaranFichaPage() {
     } finally {
       setMoving(false);
     }
+  };
+
+  // Al confirmar el OCR, los datos pueblan un nuevo albarán.
+  // Como esta es la FICHA de un albarán ya existente, el OCR se usa
+  // para corrección/referencia: los datos extraídos se muestran en un
+  // toast informativo. La creación de nuevos albaranes via OCR ocurre
+  // en AlbaranesPage. Este es el flujo acordado en el contexto de sesión.
+  const handleOCRConfirmado = (resultado: ResultadoOCR) => {
+    setOcrAbierto(false);
+    // El resultado queda disponible para uso futuro (pre-rellenar edición).
+    // Por ahora lo logueamos como referencia.
+    console.info('[OCR resultado]', resultado);
+    alert(
+      `OCR completado.\n` +
+      `Proveedor detectado: ${resultado.proveedor || '—'}\n` +
+      `Fecha: ${resultado.fecha || '—'}\n` +
+      `Líneas detectadas: ${resultado.lineas.length}`
+    );
   };
 
   const formatFecha = (s: string) =>
@@ -148,6 +168,19 @@ export default function AlbaranFichaPage() {
             <Badge estado={a.estado} />
           </div>
         </div>
+
+        {/* Botón OCR */}
+        <button
+          className="btn btn-ghost"
+          onClick={() => setOcrAbierto(true)}
+          title="Escanear albarán con OCR"
+        >
+          <svg viewBox="0 0 24 24" style={{ width: 15, height: 15, marginRight: 6, stroke: 'currentColor', fill: 'none', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+          </svg>
+          Escanear OCR
+        </button>
       </div>
 
       <div className="page-body">
@@ -294,6 +327,14 @@ export default function AlbaranFichaPage() {
           {moveErr && <span className="form-error">{moveErr}</span>}
         </div>
       </Modal>
+
+      {/* Modal OCR */}
+      {ocrAbierto && (
+        <OCRAlbaranModal
+          onConfirmar={handleOCRConfirmado}
+          onCerrar={() => setOcrAbierto(false)}
+        />
+      )}
     </div>
   );
 }

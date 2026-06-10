@@ -28,6 +28,19 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// ─── HTTP request logger ──────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const color = res.statusCode >= 500 ? '\x1b[31m'  // rojo
+                : res.statusCode >= 400 ? '\x1b[33m'  // amarillo
+                : res.statusCode >= 300 ? '\x1b[36m'  // cyan
+                : '\x1b[32m';                          // verde
+    console.log(`${color}${res.statusCode}\x1b[0m ${req.method} ${req.path} \x1b[90m${ms}ms\x1b[0m`);
+  });
+  next();
+});
 
 // ─── Estáticos (producción) ───────────────────────────────────────────────────
 const FRONTEND_DIST = path.join(__dirname,'..','..','dist')
