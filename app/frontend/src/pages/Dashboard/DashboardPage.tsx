@@ -16,15 +16,16 @@ function fmtFecha(iso: string): string {
 }
 
 const TIPO_CONFIG: Record<PendienteAccion['tipo'], { label: string; clase: string }> = {
-  presupuesto_antiguo:      { label: 'Llamar',       clase: 'badge-pendiente_pago' },
-  presupuesto_sin_convertir:{ label: 'Sin respuesta', clase: 'badge-entregada' },
-  factura_sin_entregar:     { label: 'Sin entregar',  clase: 'badge-borrador' },
+  factura_sin_cobrar: { label: 'Sin cobrar', clase: 'badge-borrador' },
+  presupuesto_antiguo: { label: 'Llamar', clase: 'badge-pendiente_pago' },
+  presupuesto_sin_convertir: { label: 'Sin respuesta', clase: 'badge-entregada' },
+  factura_sin_entregar: { label: 'Sin entregar', clase: 'badge-cerrada' },
 };
 
 const AGRUPACIONES: { value: AgrupacionDashboard; label: string }[] = [
-  { value: 'mes',       label: 'Por mes' },
+  { value: 'mes', label: 'Por mes' },
   { value: 'trimestre', label: 'Por trimestre' },
-  { value: 'anio',      label: 'Por año' },
+  { value: 'anio', label: 'Por año' },
 ];
 
 function TooltipCustom({ active, payload, label }: any) {
@@ -60,12 +61,19 @@ export default function DashboardPage() {
 
   const { pendientes = [], resumen, grafico_tipo } = data ?? {};
 
+  // factura_sin_cobrar va primero, con badge rojo
+  const pendientesOrdenados = [
+    ...pendientes.filter(p => p.tipo === 'factura_sin_cobrar'),
+    ...pendientes.filter(p => p.tipo !== 'factura_sin_cobrar'),
+  ];
+
   const nSinConvertir = pendientes.filter(p => p.tipo === 'presupuesto_sin_convertir').length;
-  const nAntiguos     = pendientes.filter(p => p.tipo === 'presupuesto_antiguo').length;
-  const nSinEntregar  = pendientes.filter(p => p.tipo === 'factura_sin_entregar').length;
+  const nAntiguos = pendientes.filter(p => p.tipo === 'presupuesto_antiguo').length;
+  const nSinEntregar = pendientes.filter(p => p.tipo === 'factura_sin_entregar').length;
+  const nSinCobrar = pendientes.filter(p => p.tipo === 'factura_sin_cobrar').length;
 
   function irAPendiente(p: PendienteAccion) {
-    if (p.tipo === 'factura_sin_entregar') navigate(`/facturas/${p.id}`);
+    if (p.tipo === 'factura_sin_entregar' || p.tipo === 'factura_sin_cobrar') navigate(`/facturas/${p.id}`);
     else navigate(`/presupuestos/${p.id}`);
   }
 
@@ -95,8 +103,13 @@ export default function DashboardPage() {
         <KpiCard
           label="Pendientes"
           valor={String(pendientes.length)}
-          sub={`${nSinEntregar} sin entregar · ${nAntiguos} antiguos · ${nSinConvertir} en espera`}
-          acento={pendientes.length > 0 ? 'var(--orange)' : 'var(--border-2)'}
+          sub={[
+            nSinCobrar > 0 ? `${nSinCobrar} sin cobrar` : '',
+            nSinEntregar > 0 ? `${nSinEntregar} sin entregar` : '',
+            nAntiguos > 0 ? `${nAntiguos} antiguos` : '',
+            nSinConvertir > 0 ? `${nSinConvertir} en espera` : '',
+          ].filter(Boolean).join(' · ') || 'Todo en orden'}
+          acento={nSinCobrar > 0 ? 'var(--red)' : pendientes.length > 0 ? 'var(--orange)' : 'var(--border-2)'}
         />
       </div>
 
@@ -146,11 +159,7 @@ export default function DashboardPage() {
                 {grafico_tipo === 'barras_lineas' ? (
                   <>
                     <Bar dataKey="pagado" name="pagado" fill="var(--green)" radius={[3, 3, 0, 0]} maxBarSize={48} />
-                    <Line
-                      dataKey="proyeccion" name="proyeccion"
-                      type="monotone" stroke="var(--accent)"
-                      strokeWidth={2} dot={{ fill: 'var(--accent)', r: 3 }}
-                    />
+                    <Line dataKey="proyeccion" name="proyeccion" type="monotone" stroke="var(--accent)" strokeWidth={2} dot={{ fill: 'var(--accent)', r: 3 }} />
                   </>
                 ) : grafico_tipo === 'lineas' ? (
                   <>
@@ -169,12 +178,8 @@ export default function DashboardPage() {
         ) : (
           <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-3)' }}>
             <div style={{ fontSize: 32, marginBottom: 10 }}>📊</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>
-              Sin datos económicos
-            </div>
-            <div style={{ fontSize: 12 }}>
-              Cuando empieces a cerrar facturas aparecerá el gráfico aquí
-            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>Sin datos económicos</div>
+            <div style={{ fontSize: 12 }}>Cuando empieces a cerrar facturas aparecerá el gráfico aquí</div>
           </div>
         )}
       </div>
@@ -184,37 +189,30 @@ export default function DashboardPage() {
         background: 'var(--bg-2)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius-lg)', overflow: 'hidden',
       }}>
-        <div style={{
-          display: 'flex', alignItems: 'center',
-          padding: '14px 20px', borderBottom: '1px solid var(--border)',
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
           <span style={{ fontWeight: 600, fontSize: 14 }}>Pendientes de acción</span>
           {pendientes.length > 0 && (
             <span style={{
-              marginLeft: 8, background: 'var(--red)', color: '#fff',
-              borderRadius: 99, fontSize: 11, padding: '1px 7px', fontWeight: 600,
+              marginLeft: 8, background: nSinCobrar > 0 ? 'var(--red)' : 'var(--orange)',
+              color: '#fff', borderRadius: 99, fontSize: 11, padding: '1px 7px', fontWeight: 600,
             }}>
               {pendientes.length}
             </span>
           )}
         </div>
 
-        {pendientes.length === 0 ? (
+        {pendientesOrdenados.length === 0 ? (
           <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-3)' }}>
             <div style={{ fontSize: 28, marginBottom: 10 }}>✅</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>
-              Todo en orden
-            </div>
-            <div style={{ fontSize: 12 }}>
-              No hay presupuestos ni facturas que requieran atención
-            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>Todo en orden</div>
+            <div style={{ fontSize: 12 }}>No hay presupuestos ni facturas que requieran atención</div>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)', width: 110 }}>Tipo</th>
+                  <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)', width: 120 }}>Tipo</th>
                   <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)' }}>Cliente</th>
                   <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)' }}>Agrupador</th>
                   <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)' }}>Fecha</th>
@@ -222,27 +220,26 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {pendientes.map((p, i) => {
+                {pendientesOrdenados.map((p, i) => {
                   const cfg = TIPO_CONFIG[p.tipo];
+                  const esCritico = p.tipo === 'factura_sin_cobrar';
                   return (
                     <tr
                       key={`${p.tipo}-${p.id}-${i}`}
                       onClick={() => irAPendiente(p)}
-                      style={{ cursor: 'pointer', transition: 'var(--transition)' }}
+                      style={{ cursor: 'pointer', transition: 'var(--transition)', background: esCritico ? 'rgba(239,68,68,0.04)' : undefined }}
                       onMouseEnter={e => {
                         (e.currentTarget as HTMLTableRowElement).querySelectorAll('td').forEach(td => {
                           (td as HTMLElement).style.background = 'var(--bg-3)';
-                          (td as HTMLElement).style.color = 'var(--text)';
                         });
                       }}
                       onMouseLeave={e => {
                         (e.currentTarget as HTMLTableRowElement).querySelectorAll('td').forEach(td => {
-                          (td as HTMLElement).style.background = '';
-                          (td as HTMLElement).style.color = '';
+                          (td as HTMLElement).style.background = esCritico ? 'rgba(239,68,68,0.04)' : '';
                         });
                       }}
                     >
-                      <td style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--text-2)' }}>
+                      <td style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', fontSize: 13 }}>
                         <span className={`badge ${cfg.clase}`} style={{ fontSize: 10 }}>{cfg.label}</span>
                       </td>
                       <td style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
@@ -259,7 +256,7 @@ export default function DashboardPage() {
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', fontSize: 13, fontWeight: 600, textAlign: 'right', color: 'var(--text)' }}>
+                      <td style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', fontSize: 13, fontWeight: 600, textAlign: 'right', color: esCritico ? 'var(--red)' : 'var(--text)' }}>
                         {fmt(p.importe)}
                       </td>
                     </tr>
@@ -276,10 +273,7 @@ export default function DashboardPage() {
 }
 
 function KpiCard({ label, valor, sub, acento }: {
-  label: string;
-  valor: string;
-  sub: string;
-  acento: string;
+  label: string; valor: string; sub: string; acento: string;
 }) {
   return (
     <div style={{

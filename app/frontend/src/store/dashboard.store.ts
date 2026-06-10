@@ -4,7 +4,7 @@ import api from '@utils/api';
 export type AgrupacionDashboard = 'mes' | 'trimestre' | 'anio';
 
 export interface PendienteAccion {
-  tipo: 'presupuesto_sin_convertir' | 'presupuesto_antiguo' | 'factura_sin_entregar';
+  tipo: 'presupuesto_sin_convertir' | 'presupuesto_antiguo' | 'factura_sin_entregar' | 'factura_sin_cobrar';
   id: string;
   numero?: string;
   cliente: string;

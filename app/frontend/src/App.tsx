@@ -13,6 +13,8 @@ import FacturaPage from '@pages/Documentos/FacturaPage';
 import PresupuestoPage from '@pages/Documentos/PresupuestoPage';
 import DashboardPage from '@pages/Dashboard/DashboardPage';
 import ConfigPage from '@pages/Config/ConfigPage';
+import SeguimientoPage from '@pages/Seguimiento/SeguimientoPage';
+import SeguimientoFichaPage from '@pages/Seguimiento/SeguimientoFichaPage';
 import Spinner from '@ui/Spinner';
 
 export default function App() {
@@ -40,7 +42,6 @@ export default function App() {
   if (configState === 'loading') {
     return (
       <div className="loading-page">
-        {/* <div className="spinner spinner-lg" /> */}
         <Spinner size="lg" />
       </div>
     );
@@ -61,9 +62,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {configState === 'setup' ? (
-          <>
-            <Route path="*" element={<SetupPage />} />
-          </>
+          <Route path="*" element={<SetupPage />} />
         ) : (
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
@@ -77,6 +76,8 @@ export default function App() {
             <Route path="presupuestos/:id" element={<PresupuestoPage />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="configuracion" element={<ConfigPage />} />
+            <Route path="seguimiento" element={<SeguimientoPage />} />
+            <Route path="seguimiento/:id" element={<SeguimientoFichaPage />} />
           </Route>
         )}
       </Routes>
