@@ -164,7 +164,7 @@ export function buildAppConfig(payload: SetupPayload): AppConfig {
       iva_porcentaje: 21,
       margen_defecto: 20,
       max_versiones: 10,
-      numeracion_facturas: {
+      numeracion_factura: {
         contador: 0,
         anio: new Date().getFullYear(),
       },

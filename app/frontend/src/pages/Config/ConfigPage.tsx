@@ -19,7 +19,7 @@ interface AppConfig {
     iva_porcentaje: number;
     margen_defecto: number;
     max_versiones: number;
-    numeracion_facturas: { contador: number; anio: number };
+    numeracion_factura: { contador: number; anio: number };
     footer_factura: string;
     footer_presupuesto: string;
     template_html?: string;
@@ -194,7 +194,7 @@ export default function ConfigPage() {
 
   // Diálogo de inicio de año
   const anioActual = new Date().getFullYear();
-  const anioDoc = config?.documentos?.numeracion_facturas?.anio ?? anioActual;
+  const anioDoc = config?.documentos?.numeracion_factura?.anio ?? anioActual;
   const [mostrarDialogoAnio, setMostrarDialogoAnio] = useState(false);
 
   useEffect(() => {
@@ -209,7 +209,7 @@ export default function ConfigPage() {
       ...config,
       documentos: {
         ...config.documentos,
-        numeracion_facturas: { contador: 0, anio: anioActual },
+        numeracion_factura: { contador: 0, anio: anioActual },
       },
     };
     setConfig(nuevo);
@@ -327,7 +327,7 @@ export default function ConfigPage() {
                   <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>NUMERACIÓN DE FACTURAS</div>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <span style={{ fontSize: 13 }}>
-                      Próxima factura: <strong>{String(config.documentos.numeracion_facturas.contador + 1).padStart(4, '0')}</strong> · Año <strong>{config.documentos.numeracion_facturas.anio}</strong>
+                      Próxima factura: <strong>{String(config.documentos.numeracion_factura.contador + 1).padStart(4, '0')}</strong> · Año <strong>{config.documentos.numeracion_factura.anio}</strong>
                     </span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>

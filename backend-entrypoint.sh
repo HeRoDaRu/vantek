@@ -17,7 +17,7 @@ if [ ! -f /app/config/app.config.json ]; then
     echo "[Vantek] Primer arranque — copiando configuración por defecto..."
     node -e "
         const t = require('/app/config-default/app.config.template.json');
-        t.documentos.numeracion_facturas.anio = new Date().getFullYear();
+        t.documentos.numeracion_factura.anio = new Date().getFullYear();
         require('fs').writeFileSync(
             '/app/config/app.config.json',
             JSON.stringify(t, null, 2)

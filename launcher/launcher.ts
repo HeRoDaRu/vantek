@@ -103,7 +103,7 @@ function inicializarConfiguracion(): void {
   if (!fs.existsSync(CONFIG_PATH)) {
     if (fs.existsSync(CONFIG_TEMPLATE_PATH)) {
       const template = JSON.parse(fs.readFileSync(CONFIG_TEMPLATE_PATH, 'utf-8'));
-      template.documentos.numeracion_facturas.anio = new Date().getFullYear();
+      template.documentos.numeracion_factura.anio = new Date().getFullYear();
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(template, null, 2));
       log('app.config.json creado desde plantilla.');
     } else {
