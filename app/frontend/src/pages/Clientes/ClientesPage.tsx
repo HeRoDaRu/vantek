@@ -123,6 +123,7 @@ export default function ClientesPage() {
                 <tr>
                   <th>{t("entidades.cliente")}</th>
                   <th>Empresa</th>
+                  <th>Dirección</th>
                   <th>DNI / CIF</th>
                   <th>Teléfono</th>
                   <th>Email</th>
@@ -141,6 +142,9 @@ export default function ClientesPage() {
                     </td>
                     <td>
                       {c.empresa ?? <span className="text-muted">—</span>}
+                    </td>
+                    <td className="mono">
+                      {c.agrupadores?.map(a => a.label).join(', ') ?? <span className="text-muted">—</span>}
                     </td>
                     <td className="mono">
                       {c.dni_cif ?? <span className="text-muted">—</span>}

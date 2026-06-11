@@ -68,6 +68,12 @@ export interface ActualizarSeguimientoDto extends Partial<CrearSeguimientoDto> {
   firma_salida?: string;
 }
 
+// Estados desde los que aún se puede cancelar: hasta que el presupuesto se
+// acepta (en_curso). A partir de en_curso la obra ya está iniciada.
+const ESTADOS_CANCELABLES: EstadoSeguimiento[] = [
+  'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto', 'a_la_espera',
+];
+
 // ─── Query base con JOINs ─────────────────────────────────────────────────────
 
 const SELECT_CON_JOINS = `
@@ -186,7 +192,10 @@ export function eliminar(id: string): void {
   const db = getDb();
   const seg = obtener(id);
   if (!seg) throw new Error('Seguimiento no encontrado');
-  if (seg.trabajo_id) throw new Error('No se puede eliminar un seguimiento vinculado a un trabajo activo');
+  // Se elimina únicamente el registro de seguimiento (capa de seguimiento/CRM).
+  // El cliente, la obra y sus documentos (facturas, presupuestos) son entidades
+  // de negocio independientes y se conservan: seguimiento.trabajo_id es una FK
+  // hija, por lo que borrar esta fila no afecta al trabajo ni a sus documentos.
   db.prepare('DELETE FROM seguimiento WHERE id = ?').run(id);
 }
 
@@ -197,15 +206,36 @@ export function cambiarEstado(id: string, nuevoEstado: EstadoSeguimiento): Segui
   const seg = obtener(id);
   if (!seg) throw new Error('Seguimiento no encontrado');
 
-  // Al pasar a en_curso se auto-convierte si aún no tiene trabajo vinculado
-  if (nuevoEstado === 'en_curso' && !seg.trabajo_id) {
-    if (!seg.dni_cif) {
-      throw Object.assign(
-        new Error('Se requiere DNI/CIF para convertir el seguimiento en cliente'),
-        { statusCode: 400 },
-      );
-    }
+  // Cancelar solo es posible antes de iniciar la obra. La obra arranca al pasar
+  // a en_curso (presupuesto aceptado); a partir de ahí no se admite cancelar.
+  if (nuevoEstado === 'cancelado' && !ESTADOS_CANCELABLES.includes(seg.estado)) {
+    throw Object.assign(
+      new Error('No se puede cancelar: la obra ya está en curso. La cancelación solo es posible hasta que se acepta el presupuesto.'),
+      { statusCode: 400 },
+    );
+  }
+
+  // Al cancelar antes de iniciar la obra se limpian las entidades autocreadas
+  // (presupuestos en borrador, obra, agrupador y, si queda vacío, el cliente).
+  if (nuevoEstado === 'cancelado' && seg.trabajo_id) {
+    _limpiarObraAlCancelar(db, seg.trabajo_id);
+    db.prepare(`
+      UPDATE seguimiento SET estado = 'cancelado', trabajo_id = NULL, updated_at = datetime('now') WHERE id = ?
+    `).run(id);
+    return obtener(id)!;
+  }
+
+  // Al pasar a pendiente_presupuesto (flujo reformas) o a en_curso (flujo
+  // taller) se crea cliente + agrupador + obra si aún no existen, para poder
+  // generar el presupuesto/factura sobre la obra.
+  if ((nuevoEstado === 'pendiente_presupuesto' || nuevoEstado === 'en_curso') && !seg.trabajo_id) {
     _convertirACliente(db, seg, id);
+  }
+
+  // Antes de marcar como entregada, la factura debe tener un PDF generado
+  // (para imprimir) o haberse enviado por email.
+  if (nuevoEstado === 'entregada') {
+    _verificarFacturaLista(db, seg.trabajo_id);
   }
 
   db.prepare(`
@@ -215,9 +245,7 @@ export function cambiarEstado(id: string, nuevoEstado: EstadoSeguimiento): Segui
   // Sync hacia documentos (usa el trabajo_id actualizado si acaba de crearse)
   const actualizado = obtener(id)!;
   if (actualizado.trabajo_id) {
-    if (nuevoEstado !== 'cancelado') {
-      _syncDocumentosDesdeEstado(db, actualizado.trabajo_id, nuevoEstado);
-    }
+    _syncDocumentosDesdeEstado(db, actualizado.trabajo_id, nuevoEstado);
     _syncTrabajoDesdeEstado(db, actualizado.trabajo_id, nuevoEstado);
   }
 
@@ -354,15 +382,16 @@ function _syncDocumentosDesdeEstado(
       `).run(pres.id);
     }
   } else if (estado === 'entregada') {
-    // Factura cerrada → entregada
+    // Factura cerrada o entregada → pendiente_pago. Refresca updated_at, que es
+    // el ancla del contador de cobro del dashboard (factura_sin_cobrar).
     const fac = db.prepare(`
       SELECT id FROM facturas
-      WHERE trabajo_id = ? AND estado = 'cerrada'
+      WHERE trabajo_id = ? AND estado IN ('cerrada', 'entregada')
       ORDER BY created_at DESC LIMIT 1
     `).get(trabajoId) as { id: string } | undefined;
     if (fac) {
       db.prepare(`
-        UPDATE facturas SET estado = 'entregada', updated_at = datetime('now') WHERE id = ?
+        UPDATE facturas SET estado = 'pendiente_pago', updated_at = datetime('now') WHERE id = ?
       `).run(fac.id);
     }
   } else if (estado === 'pagada') {
@@ -376,6 +405,81 @@ function _syncDocumentosDesdeEstado(
       db.prepare(`
         UPDATE facturas SET estado = 'pagada', updated_at = datetime('now') WHERE id = ?
       `).run(fac.id);
+    }
+  }
+}
+
+/**
+ * Verifica que la factura del trabajo esté lista para entregar: debe existir
+ * una factura cerrada (o ya en proceso de cobro) con al menos un PDF generado.
+ * El PDF se crea tanto al imprimir como al enviar por email.
+ */
+function _verificarFacturaLista(
+  db: ReturnType<typeof getDb>,
+  trabajoId: string | null,
+): void {
+  const fac = trabajoId
+    ? (db.prepare(`
+        SELECT id FROM facturas
+        WHERE trabajo_id = ? AND estado IN ('cerrada', 'entregada', 'pendiente_pago')
+        ORDER BY created_at DESC LIMIT 1
+      `).get(trabajoId) as { id: string } | undefined)
+    : undefined;
+
+  if (!fac) {
+    throw Object.assign(
+      new Error('No hay una factura cerrada para entregar. Cierra la factura primero.'),
+      { statusCode: 400 },
+    );
+  }
+
+  const pdf = db.prepare(`
+    SELECT id FROM factura_versiones WHERE factura_id = ? AND pdf_path IS NOT NULL LIMIT 1
+  `).get(fac.id) as { id: string } | undefined;
+
+  if (!pdf) {
+    throw Object.assign(
+      new Error('Genera el PDF o envía la factura por email antes de marcarla como entregada.'),
+      { statusCode: 400 },
+    );
+  }
+}
+
+/**
+ * Limpia las entidades autocreadas al cancelar un seguimiento antes de iniciar
+ * la obra. Los presupuestos en borrador/enviado se borran físicamente (sus
+ * líneas y versiones por cascada); la obra queda cancelada y el agrupador (y el
+ * cliente si queda sin agrupadores activos) se desactivan (borrado lógico,
+ * principio 5). En este punto del flujo nunca existen facturas ni albaranes.
+ */
+function _limpiarObraAlCancelar(
+  db: ReturnType<typeof getDb>,
+  trabajoId: string,
+): void {
+  const trabajo = db
+    .prepare('SELECT agrupador_id FROM trabajos WHERE id = ?')
+    .get(trabajoId) as { agrupador_id: string } | undefined;
+  if (!trabajo) return;
+
+  db.prepare('DELETE FROM presupuestos WHERE trabajo_id = ?').run(trabajoId);
+  db.prepare(`
+    UPDATE trabajos SET estado = 'cancelado', updated_at = datetime('now') WHERE id = ?
+  `).run(trabajoId);
+  db.prepare(`
+    UPDATE agrupadores SET activo = 0, updated_at = datetime('now') WHERE id = ?
+  `).run(trabajo.agrupador_id);
+
+  const cli = db
+    .prepare('SELECT cliente_id FROM agrupadores WHERE id = ?')
+    .get(trabajo.agrupador_id) as { cliente_id: string } | undefined;
+  if (cli) {
+    const otros = db
+      .prepare('SELECT COUNT(*) AS n FROM agrupadores WHERE cliente_id = ? AND activo = 1')
+      .get(cli.cliente_id) as { n: number };
+    if (otros.n === 0) {
+      db.prepare(`
+        UPDATE clientes SET activo = 0, updated_at = datetime('now') WHERE id = ?
+      `).run(cli.cliente_id);
     }
   }
 }

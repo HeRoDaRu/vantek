@@ -282,7 +282,7 @@ export default function OCRAlbaranModal({ onConfirmar, onCerrar }: Props) {
                         </div>
                         <input className="input-sm" type="number" min="0" step="0.01" value={l.precio_unitario} onChange={e => setLinea(i, 'precio_unitario', e.target.value)} />
                       </div>
-                      <button className="btn-icon-danger" onClick={() => eliminarLinea(i)} title="Eliminar línea">
+                      <button className="btn-icon btn-icon-danger" onClick={() => eliminarLinea(i)} title="Eliminar línea">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
                     </div>

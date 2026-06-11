@@ -514,7 +514,7 @@ function UpdatePanel() {
       {estado === 'sin_update' && (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <span style={{ fontSize: 13, color: 'var(--green)' }}>✓ Tienes la versión más reciente</span>
-          <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => setEstado('idle')}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setEstado('idle')}>
             Volver a comprobar
           </button>
         </div>

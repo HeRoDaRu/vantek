@@ -70,17 +70,9 @@ function NavItem({
     <NavLink
       to={to}
       title={collapsed ? label : undefined}
-      style={({ isActive }) => ({
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: collapsed ? '9px 0' : '9px 14px',
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        borderRadius: 'var(--radius)',
-        textDecoration: 'none',
-        fontSize: 13, fontWeight: 500,
-        color: isActive ? 'var(--accent)' : 'var(--text-2)',
-        background: isActive ? 'var(--accent-dim)' : 'transparent',
-        transition: 'all 150ms',
-      })}
+      className={({ isActive }) =>
+        `nav-item${collapsed ? ' collapsed' : ''}${isActive ? ' active' : ''}`
+      }
     >
       {icon}
       {!collapsed && <span>{label}</span>}
@@ -149,13 +141,8 @@ export default function Sidebar() {
         <button
           onClick={() => setCollapsed(c => !c)}
           title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-end',
-            padding: '6px 8px', background: 'transparent', border: 'none',
-            cursor: 'pointer', color: 'var(--text-3)',
-            borderRadius: 'var(--radius)', transition: 'all 150ms',
-            width: '100%',
-          }}
+          className="sidebar-collapse-btn"
+          style={{ justifyContent: collapsed ? 'center' : 'flex-end' }}
         >
           <IconCollapse collapsed={collapsed} />
         </button>

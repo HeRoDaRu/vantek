@@ -91,7 +91,7 @@ export default function BarraAcciones({
           <button className="btn btn-ghost btn-sm" onClick={onHistorial}>Historial</button>
 
           {esBorrador && onEliminar && (
-            <button className="btn btn-danger btn-sm" onClick={() => setConfirmEliminar(true)}>
+            <button className="btn btn-ghost btn-icon-danger btn-sm" onClick={() => setConfirmEliminar(true)}>
               Eliminar
             </button>
           )}

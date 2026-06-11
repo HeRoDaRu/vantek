@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSeguimientoStore, EstadoSeguimiento } from '@store/seguimiento.store';
+import { usePresupuestosStore } from '@store/presupuestos.store';
+import { useFacturasStore } from '@store/facturas.store';
 import { useConfigStore } from '@store/config.store';
 import Badge from '@ui/Badge';
 import Modal from '@ui/Modal';
@@ -9,7 +11,11 @@ import api from '@utils/api';
 
 // ─── Máquina de estados ───────────────────────────────────────────────────────
 
-const ESTADOS_FINALES: EstadoSeguimiento[] = ['completado', 'cancelado'];
+// Estados desde los que aún se puede cancelar: hasta que se acepta el
+// presupuesto (en_curso). A partir de en_curso la obra ya está iniciada.
+const ESTADOS_CANCELABLES: EstadoSeguimiento[] = [
+  'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto', 'a_la_espera',
+];
 
 const TRANSICIONES_BASE: Record<EstadoSeguimiento, EstadoSeguimiento[]> = {
   nuevo:                  ['contactado'],
@@ -27,7 +33,8 @@ const TRANSICIONES_BASE: Record<EstadoSeguimiento, EstadoSeguimiento[]> = {
 
 function getTransiciones(estado: EstadoSeguimiento): EstadoSeguimiento[] {
   const base = TRANSICIONES_BASE[estado] ?? [];
-  if (!ESTADOS_FINALES.includes(estado)) {
+  // Cancelar solo se ofrece hasta que se acepta el presupuesto (en_curso).
+  if (ESTADOS_CANCELABLES.includes(estado)) {
     return [...base, 'cancelado'];
   }
   return base;
@@ -91,6 +98,8 @@ export default function SeguimientoFichaPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { actual, cargando, error, cargarSeguimiento, actualizar, cambiarEstado, eliminar, limpiarActual } = useSeguimientoStore();
+  const { crearPresupuesto } = usePresupuestosStore();
+  const { crearFactura } = useFacturasStore();
   const { profile, t } = useConfigStore();
 
   const esTaller = profile?.modulos?.matriculas ?? false;
@@ -106,6 +115,9 @@ export default function SeguimientoFichaPage() {
   const [confirmEstado, setConfirmEstado] = useState<EstadoSeguimiento | null>(null);
   const [confirmEliminar, setConfirmEliminar] = useState(false);
   const [errEstado, setErrEstado] = useState<string | null>(null);
+  const [fechaVisita, setFechaVisita] = useState('');
+  const [postAccion, setPostAccion] = useState<null | 'crear_presupuesto' | 'crear_factura' | 'cerrar_trabajo'>(null);
+  const [accionLoading, setAccionLoading] = useState(false);
 
   useEffect(() => {
     if (id) cargarSeguimiento(id);
@@ -184,9 +196,67 @@ export default function SeguimientoFichaPage() {
 
   async function handleCambiarEstado() {
     if (!id || !confirmEstado) return;
-    const res = await cambiarEstado(id, confirmEstado);
+    // Al agendar la visita pedimos primero la fecha y la guardamos en fecha_visita
+    if (confirmEstado === 'visita_agendada') {
+      if (!fechaVisita) { setErrEstado('Indica la fecha de la visita'); return; }
+      try {
+        await actualizar(id, { fecha_visita: fechaVisita });
+      } catch (e: any) {
+        setErrEstado(e.response?.data?.error ?? e.message ?? 'Error guardando la fecha de visita');
+        return;
+      }
+    }
+    const destino = confirmEstado;
+    const res = await cambiarEstado(id, destino);
     setConfirmEstado(null);
-    if (!res.ok) setErrEstado(res.error ?? 'Error cambiando estado');
+    if (!res.ok) { setErrEstado(res.error ?? 'Error cambiando estado'); return; }
+    // Acciones posteriores según el estado alcanzado
+    if (destino === 'pendiente_presupuesto') setPostAccion('crear_presupuesto');
+    else if (destino === 'pendiente_facturar') setPostAccion('crear_factura');
+    else if (destino === 'pagada') setPostAccion('cerrar_trabajo');
+  }
+
+  async function handleCrearPresupuesto() {
+    if (!actual?.trabajo_id) { setPostAccion(null); return; }
+    setAccionLoading(true);
+    try {
+      const nuevo = await crearPresupuesto({ trabajo_id: actual.trabajo_id });
+      setPostAccion(null);
+      navigate(`/presupuestos/${nuevo.id}`);
+    } catch (e: any) {
+      setErrEstado(e.response?.data?.error ?? e.message ?? 'Error creando el presupuesto');
+      setPostAccion(null);
+    } finally {
+      setAccionLoading(false);
+    }
+  }
+
+  async function handleCrearFactura() {
+    if (!actual?.trabajo_id) { setPostAccion(null); return; }
+    setAccionLoading(true);
+    try {
+      const aceptado = presupuestos.find(p => p.estado === 'aceptado') ?? presupuestos[0];
+      const nueva = await crearFactura({
+        trabajo_id: actual.trabajo_id,
+        presupuesto_origen_id: aceptado?.id,
+      });
+      setPostAccion(null);
+      navigate(`/facturas/${nueva.id}`);
+    } catch (e: any) {
+      setErrEstado(e.response?.data?.error ?? e.message ?? 'Error creando la factura');
+      setPostAccion(null);
+    } finally {
+      setAccionLoading(false);
+    }
+  }
+
+  async function handleCerrarTrabajo() {
+    if (!id) return;
+    setAccionLoading(true);
+    const res = await cambiarEstado(id, 'completado');
+    setAccionLoading(false);
+    setPostAccion(null);
+    if (!res.ok) setErrEstado(res.error ?? 'Error cerrando el trabajo');
   }
 
   async function handleEliminar() {
@@ -222,10 +292,9 @@ export default function SeguimientoFichaPage() {
               </>
             )
           )}
-          {!actual.trabajo_id && !esCancelado && (
+          {!editando && (
             <button
-              className="btn btn-ghost"
-              style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
+              className="btn btn-ghost btn-icon-danger"
               onClick={() => setConfirmEliminar(true)}
             >
               Eliminar
@@ -251,13 +320,23 @@ export default function SeguimientoFichaPage() {
         {estadosDisponibles.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {estadosDisponibles.map(e => (
-              <button
-                key={e}
-                className={`btn btn-sm ${e === 'cancelado' ? 'btn-danger' : 'btn-ghost'}`}
-                onClick={() => { setErrEstado(null); setConfirmEstado(e); }}
-              >
-                {e === 'cancelado' ? '✕ Cancelar' : `→ ${ESTADO_LABELS[e]}`}
-              </button>
+              e === 'completado' ? (
+                <button
+                  key={e}
+                  className="btn btn-sm btn-primary"
+                  onClick={() => { setErrEstado(null); setPostAccion('cerrar_trabajo'); }}
+                >
+                  ✓ Cerrar trabajo
+                </button>
+              ) : (
+                <button
+                  key={e}
+                  className={`btn btn-sm ${e === 'cancelado' ? 'btn-danger' : 'btn-ghost'}`}
+                  onClick={() => { setErrEstado(null); setFechaVisita(actual.fecha_visita ?? ''); setConfirmEstado(e); }}
+                >
+                  {e === 'cancelado' ? '✕ Cancelar' : `→ ${ESTADO_LABELS[e]}`}
+                </button>
+              )
             ))}
           </div>
         )}
@@ -438,6 +517,7 @@ export default function SeguimientoFichaPage() {
               <button
                 className={`btn ${confirmEstado === 'cancelado' ? 'btn-danger' : 'btn-primary'}`}
                 onClick={handleCambiarEstado}
+                disabled={confirmEstado === 'visita_agendada' && !fechaVisita}
               >
                 {confirmEstado === 'cancelado' ? 'Sí, cancelar' : 'Confirmar'}
               </button>
@@ -455,18 +535,102 @@ export default function SeguimientoFichaPage() {
             ) : (
               <>
                 ¿Cambiar estado a <strong>{ESTADO_LABELS[confirmEstado]}</strong>?
+                {confirmEstado === 'visita_agendada' && (
+                  <div className="form-group" style={{ marginTop: 12 }}>
+                    <label className="form-label">
+                      Fecha de visita<span style={{ color: 'var(--accent)', marginLeft: 2 }}>*</span>
+                    </label>
+                    <input
+                      className="input"
+                      type="date"
+                      value={fechaVisita}
+                      onChange={e => setFechaVisita(e.target.value)}
+                    />
+                  </div>
+                )}
+                {confirmEstado === 'pendiente_presupuesto' && !actual.trabajo_id && (
+                  <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', fontSize: 13 }}>
+                    Se creará el {t('entidades.cliente').toLowerCase()}, {t('entidades.agrupador').toLowerCase()} y {t('entidades.trabajo').toLowerCase()}, y podrás crear el presupuesto a continuación.
+                  </div>
+                )}
                 {confirmEstado === 'en_curso' && !actual.trabajo_id && (
                   <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', fontSize: 13 }}>
                     Se creará automáticamente un cliente, {t('entidades.agrupador').toLowerCase()} y {t('entidades.trabajo').toLowerCase()} a partir de los datos del formulario.
                     {!actual.dni_cif && (
-                      <div style={{ marginTop: 6, color: 'var(--red)', fontWeight: 500 }}>
-                        ⚠ El DNI/CIF es obligatorio para convertir en cliente.
+                      <div style={{ marginTop: 6, color: 'var(--text-2)' }}>
+                        Recomendable indicar el DNI/CIF para la facturación.
                       </div>
                     )}
                   </div>
                 )}
               </>
             )}
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal acción posterior: crear presupuesto */}
+      {postAccion === 'crear_presupuesto' && (
+        <Modal
+          title="Crear presupuesto"
+          size="sm"
+          onClose={() => setPostAccion(null)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setPostAccion(null)}>Más tarde</button>
+              <button className="btn btn-primary" onClick={handleCrearPresupuesto} disabled={accionLoading}>
+                {accionLoading ? 'Creando…' : 'Crear presupuesto'}
+              </button>
+            </>
+          }
+        >
+          <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+            Se han creado el {t('entidades.cliente').toLowerCase()} y la {t('entidades.trabajo').toLowerCase()}.
+            ¿Quieres crear el presupuesto ahora?
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal acción posterior: crear factura desde el presupuesto */}
+      {postAccion === 'crear_factura' && (
+        <Modal
+          title="Crear factura"
+          size="sm"
+          onClose={() => setPostAccion(null)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setPostAccion(null)}>Más tarde</button>
+              <button className="btn btn-primary" onClick={handleCrearFactura} disabled={accionLoading}>
+                {accionLoading ? 'Creando…' : 'Crear factura'}
+              </button>
+            </>
+          }
+        >
+          <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+            Se generará una factura en borrador a partir del presupuesto aceptado.
+            Podrás revisarla y cerrarla antes de entregarla.
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal acción posterior: cerrar el trabajo (pagada → completado) */}
+      {postAccion === 'cerrar_trabajo' && (
+        <Modal
+          title="Cerrar trabajo"
+          size="sm"
+          onClose={() => setPostAccion(null)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setPostAccion(null)}>Todavía no</button>
+              <button className="btn btn-primary" onClick={handleCerrarTrabajo} disabled={accionLoading}>
+                {accionLoading ? 'Cerrando…' : 'Sí, cerrar trabajo'}
+              </button>
+            </>
+          }
+        >
+          <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+            La factura está cobrada. ¿Está todo correcto y quieres cerrar el trabajo
+            como <strong>completado</strong>?
           </div>
         </Modal>
       )}
@@ -480,7 +644,7 @@ export default function SeguimientoFichaPage() {
           footer={
             <>
               <button className="btn btn-ghost" onClick={() => setConfirmEliminar(false)}>Cancelar</button>
-              <button className="btn" style={{ background: 'var(--red)', color: '#fff' }} onClick={handleEliminar}>
+              <button className="btn btn-danger" onClick={handleEliminar}>
                 Eliminar
               </button>
             </>
@@ -488,6 +652,11 @@ export default function SeguimientoFichaPage() {
         >
           <div style={{ fontSize: 14 }}>
             ¿Eliminar <strong>{actual.nombre}</strong>? Esta acción no se puede deshacer.
+            {actual.trabajo_id && (
+              <div style={{ marginTop: 8, color: 'var(--text-2)', fontSize: 13 }}>
+                Solo se elimina el registro de {label.toLowerCase()}; {t('entidades.cliente').toLowerCase()}, {t('entidades.trabajo').toLowerCase()} y sus documentos (facturas, presupuestos) se conservan.
+              </div>
+            )}
           </div>
         </Modal>
       )}
