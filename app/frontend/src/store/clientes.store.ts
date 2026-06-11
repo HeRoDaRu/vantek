@@ -3,6 +3,7 @@ import api from '@utils/api';
 
 export interface TrabajoBrief {
   id: string; nombre: string; estado: string; created_at: string;
+  descripcion?: string; margen_porcentaje?: number;
 }
 
 export interface Agrupador {
@@ -32,6 +33,7 @@ interface ClientesStore {
   updateAgrupador: (clienteId: string, agrupadorId: string, data: { label?: string; descripcion?: string }) => Promise<void>;
   removeAgrupador: (clienteId: string, agrupadorId: string) => Promise<void>;
   createTrabajo: (clienteId: string, agrupadorId: string, data: { nombre: string; descripcion?: string; margen_porcentaje?: number }) => Promise<TrabajoBrief>;
+  updateTrabajo: (clienteId: string, agrupadorId: string, trabajoId: string, data: { nombre?: string; descripcion?: string; margen_porcentaje?: number }) => Promise<void>;
 }
 
 export const useClientesStore = create<ClientesStore>((set) => ({
@@ -125,5 +127,28 @@ export const useClientesStore = create<ClientesStore>((set) => ({
       } : s.selected
     }));
     return nuevo;
+  },
+
+  updateTrabajo: async (clienteId, agrupadorId, trabajoId, data) => {
+    const res = await api.put(
+      `/clientes/${clienteId}/agrupadores/${agrupadorId}/trabajos/${trabajoId}`,
+      data
+    );
+    const updated = res.data.data;
+    set(s => ({
+      selected: s.selected?.id === clienteId ? {
+        ...s.selected,
+        agrupadores: s.selected.agrupadores?.map(a =>
+          a.id === agrupadorId
+            ? {
+                ...a,
+                trabajos: a.trabajos?.map(t =>
+                  t.id === trabajoId ? { ...t, ...updated } : t
+                )
+              }
+            : a
+        )
+      } : s.selected
+    }));
   },
 }));

@@ -5,10 +5,13 @@ import { useConfigStore } from '@store/config.store';
 import Badge from '@ui/Badge';
 import Modal from '@ui/Modal';
 import Spinner from '@ui/Spinner';
+import api from '@utils/api';
 
 // ─── Máquina de estados ───────────────────────────────────────────────────────
 
-const TRANSICIONES: Record<EstadoSeguimiento, EstadoSeguimiento[]> = {
+const ESTADOS_FINALES: EstadoSeguimiento[] = ['pagada', 'cancelado'];
+
+const TRANSICIONES_BASE: Record<EstadoSeguimiento, EstadoSeguimiento[]> = {
   nuevo:                  ['contactado'],
   contactado:             ['visita_agendada'],
   visita_agendada:        ['pendiente_presupuesto'],
@@ -18,10 +21,19 @@ const TRANSICIONES: Record<EstadoSeguimiento, EstadoSeguimiento[]> = {
   pendiente_facturar:     ['entregada'],
   entregada:              ['pagada'],
   pagada:                 [],
+  cancelado:              [],
 };
 
+function getTransiciones(estado: EstadoSeguimiento): EstadoSeguimiento[] {
+  const base = TRANSICIONES_BASE[estado] ?? [];
+  if (!ESTADOS_FINALES.includes(estado)) {
+    return [...base, 'cancelado'];
+  }
+  return base;
+}
+
 const ESTADOS_TALLER: EstadoSeguimiento[] = [
-  'nuevo', 'en_curso', 'pendiente_facturar', 'entregada', 'pagada',
+  'nuevo', 'en_curso', 'pendiente_facturar', 'entregada', 'pagada', 'cancelado',
 ];
 
 const ESTADO_LABELS: Record<EstadoSeguimiento, string> = {
@@ -34,6 +46,7 @@ const ESTADO_LABELS: Record<EstadoSeguimiento, string> = {
   pendiente_facturar: 'Pendiente facturar',
   entregada: 'Entregada',
   pagada: 'Pagada',
+  cancelado: 'Cancelado',
 };
 
 function fmtFecha(iso: string | null | undefined) {
@@ -41,7 +54,7 @@ function fmtFecha(iso: string | null | undefined) {
   return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-// ─── Componente de fila editable ──────────────────────────────────────────────
+// ─── Campo editable ───────────────────────────────────────────────────────────
 
 function Campo({ label, value, onChange, tipo = 'text', placeholder = '', required = false }: {
   label: string; value: string; onChange: (v: string) => void;
@@ -49,7 +62,10 @@ function Campo({ label, value, onChange, tipo = 'text', placeholder = '', requir
 }) {
   return (
     <div className="form-group">
-      <label className="form-label">{label}{required && <span style={{ color: 'var(--accent)', marginLeft: 2 }}>*</span>}</label>
+      <label className="form-label">
+        {label}
+        {required && <span style={{ color: 'var(--accent)', marginLeft: 2 }}>*</span>}
+      </label>
       {tipo === 'textarea'
         ? <textarea className="input" rows={3} style={{ resize: 'vertical' }} placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} />
         : <input className="input" type={tipo} placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} />
@@ -58,7 +74,16 @@ function Campo({ label, value, onChange, tipo = 'text', placeholder = '', requir
   );
 }
 
-// ─── Página principal ─────────────────────────────────────────────────────────
+function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 13, color: value ? 'var(--text)' : 'var(--text-3)' }}>{value || '—'}</div>
+    </div>
+  );
+}
+
+// ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function SeguimientoFichaPage() {
   const { id } = useParams<{ id: string }>();
@@ -69,12 +94,13 @@ export default function SeguimientoFichaPage() {
   const esTaller = profile?.modulos?.matriculas ?? false;
   const label = profile?.seguimiento?.label ?? 'Seguimiento';
 
-  // Formulario local (edición en página, no modal)
   const [editando, setEditando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
 
-  // Modales
+  // Presupuestos del trabajo (carga cuando el seguimiento tiene trabajo_id)
+  const [presupuestos, setPresupuestos] = useState<{ id: string; estado: string; fecha: string; importe: number }[]>([]);
+
   const [confirmEstado, setConfirmEstado] = useState<EstadoSeguimiento | null>(null);
   const [confirmEliminar, setConfirmEliminar] = useState(false);
   const [errEstado, setErrEstado] = useState<string | null>(null);
@@ -85,54 +111,66 @@ export default function SeguimientoFichaPage() {
   }, [id]);
 
   useEffect(() => {
-    if (actual) {
-      setForm({
-        nombre: actual.nombre ?? '',
-        telefono: actual.telefono ?? '',
-        dni_cif: actual.dni_cif ?? '',
-        direccion: actual.direccion ?? '',
-        peticion: actual.peticion ?? '',
-        notas: actual.notas ?? '',
-        fecha_visita: actual.fecha_visita ?? '',
-        // Taller
-        matricula: actual.matricula ?? '',
-        marca_modelo: actual.marca_modelo ?? '',
-        fecha_entrada: actual.fecha_entrada ?? '',
-        fecha_salida_estimada: actual.fecha_salida_estimada ?? '',
-        descripcion_problema: actual.descripcion_problema ?? '',
-        firma_entrada: actual.firma_entrada ?? '',
-        firma_salida: actual.firma_salida ?? '',
-      });
-    }
+    if (!actual) return;
+    setForm({
+      nombre:                  actual.nombre ?? '',
+      telefono:                actual.telefono ?? '',
+      dni_cif:                 actual.dni_cif ?? '',
+      direccion:               actual.direccion ?? '',
+      peticion:                actual.peticion ?? '',
+      notas:                   actual.notas ?? '',
+      fecha_visita:            actual.fecha_visita ?? '',
+      matricula:               actual.matricula ?? '',
+      marca_modelo:            actual.marca_modelo ?? '',
+      fecha_entrada:           actual.fecha_entrada ?? '',
+      fecha_salida_estimada:   actual.fecha_salida_estimada ?? '',
+      descripcion_problema:    actual.descripcion_problema ?? '',
+      firma_entrada:           actual.firma_entrada ?? '',
+      firma_salida:            actual.firma_salida ?? '',
+    });
   }, [actual]);
+
+  // Cargar presupuestos cuando hay trabajo vinculado
+  useEffect(() => {
+    if (!actual?.trabajo_id) { setPresupuestos([]); return; }
+    api.get('/presupuestos', { params: { trabajo_id: actual.trabajo_id } })
+      .then(res => setPresupuestos(res.data.data ?? res.data ?? []))
+      .catch(() => setPresupuestos([]));
+  }, [actual?.trabajo_id]);
 
   if (cargando && !actual) return <Spinner label="Cargando…" />;
   if (error) return <div className="page-error">{error}</div>;
   if (!actual) return <div className="page-error">Registro no encontrado</div>;
 
+  const esCancelado = actual.estado === 'cancelado';
+
   const estadosDisponibles = esTaller
-    ? TRANSICIONES[actual.estado].filter(e => ESTADOS_TALLER.includes(e))
-    : TRANSICIONES[actual.estado];
+    ? getTransiciones(actual.estado).filter(e => ESTADOS_TALLER.includes(e))
+    : getTransiciones(actual.estado);
+
+  function setF(key: string) {
+    return (v: string) => setForm(f => ({ ...f, [key]: v }));
+  }
 
   async function handleGuardar() {
     if (!id || !form.nombre?.trim()) return;
     setGuardando(true);
     try {
       await actualizar(id, {
-        nombre: form.nombre,
-        telefono: form.telefono || undefined,
-        dni_cif: form.dni_cif || undefined,
-        direccion: form.direccion || undefined,
-        peticion: form.peticion || undefined,
-        notas: form.notas || undefined,
-        fecha_visita: form.fecha_visita || undefined,
-        matricula: form.matricula || undefined,
-        marca_modelo: form.marca_modelo || undefined,
-        fecha_entrada: form.fecha_entrada || undefined,
+        nombre:                form.nombre,
+        telefono:              form.telefono || undefined,
+        dni_cif:               form.dni_cif || undefined,
+        direccion:             form.direccion || undefined,
+        peticion:              form.peticion || undefined,
+        notas:                 form.notas || undefined,
+        fecha_visita:          form.fecha_visita || undefined,
+        matricula:             form.matricula || undefined,
+        marca_modelo:          form.marca_modelo || undefined,
+        fecha_entrada:         form.fecha_entrada || undefined,
         fecha_salida_estimada: form.fecha_salida_estimada || undefined,
-        descripcion_problema: form.descripcion_problema || undefined,
-        firma_entrada: form.firma_entrada || undefined,
-        firma_salida: form.firma_salida || undefined,
+        descripcion_problema:  form.descripcion_problema || undefined,
+        firma_entrada:         form.firma_entrada || undefined,
+        firma_salida:          form.firma_salida || undefined,
       });
       setEditando(false);
     } catch (e: any) {
@@ -146,12 +184,7 @@ export default function SeguimientoFichaPage() {
     if (!id || !confirmEstado) return;
     const res = await cambiarEstado(id, confirmEstado);
     setConfirmEstado(null);
-    if (!res.ok) {
-      setErrEstado(res.error ?? 'Error cambiando estado');
-    } else if (res.trabajo_id) {
-      // Si se creó un trabajo, ofrecer navegar
-      // El seguimiento ya se actualizó en el store
-    }
+    if (!res.ok) setErrEstado(res.error ?? 'Error cambiando estado');
   }
 
   async function handleEliminar() {
@@ -162,10 +195,6 @@ export default function SeguimientoFichaPage() {
     } catch (e: any) {
       alert(e.response?.data?.error ?? e.message ?? 'No se puede eliminar');
     }
-  }
-
-  function setF(key: string) {
-    return (v: string) => setForm(f => ({ ...f, [key]: v }));
   }
 
   return (
@@ -179,17 +208,19 @@ export default function SeguimientoFichaPage() {
           <span style={{ color: 'var(--text)', fontWeight: 500 }}>{actual.nombre}</span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          {!editando ? (
-            <button className="btn btn-ghost" onClick={() => setEditando(true)}>Editar</button>
-          ) : (
-            <>
-              <button className="btn btn-ghost" onClick={() => { setEditando(false); }}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando}>
-                {guardando ? 'Guardando…' : 'Guardar'}
-              </button>
-            </>
+          {!esCancelado && (
+            !editando ? (
+              <button className="btn btn-ghost" onClick={() => setEditando(true)}>Editar</button>
+            ) : (
+              <>
+                <button className="btn btn-ghost" onClick={() => setEditando(false)}>Cancelar</button>
+                <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando}>
+                  {guardando ? 'Guardando…' : 'Guardar'}
+                </button>
+              </>
+            )
           )}
-          {!actual.trabajo_id && (
+          {!actual.trabajo_id && !esCancelado && (
             <button
               className="btn btn-ghost"
               style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
@@ -201,7 +232,7 @@ export default function SeguimientoFichaPage() {
         </div>
       </div>
 
-      {/* Estado actual + transiciones */}
+      {/* Estado + transiciones */}
       <div style={{
         background: 'var(--bg-2)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius-lg)', padding: '16px 20px',
@@ -210,12 +241,9 @@ export default function SeguimientoFichaPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Badge estado={actual.estado} />
           {actual.trabajo_id && (
-            <Link
-              to={`/clientes`}
-              style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}
-            >
+            <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
               {actual.cliente_nombre} · {actual.trabajo_nombre}
-            </Link>
+            </span>
           )}
         </div>
         {estadosDisponibles.length > 0 && (
@@ -223,10 +251,10 @@ export default function SeguimientoFichaPage() {
             {estadosDisponibles.map(e => (
               <button
                 key={e}
-                className="btn btn-sm btn-ghost"
+                className={`btn btn-sm ${e === 'cancelado' ? 'btn-danger' : 'btn-ghost'}`}
                 onClick={() => { setErrEstado(null); setConfirmEstado(e); }}
               >
-                → {ESTADO_LABELS[e]}
+                {e === 'cancelado' ? '✕ Cancelar' : `→ ${ESTADO_LABELS[e]}`}
               </button>
             ))}
           </div>
@@ -239,11 +267,18 @@ export default function SeguimientoFichaPage() {
         </div>
       )}
 
+      {esCancelado && (
+        <div style={{ padding: '12px 16px', background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--red)', fontWeight: 500 }}>
+          Seguimiento cancelado — solo lectura.
+        </div>
+      )}
+
       {/* Datos del formulario */}
       <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '20px' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Datos del cliente
         </div>
+
         {editando ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -273,7 +308,6 @@ export default function SeguimientoFichaPage() {
                 </div>
                 <Campo label="Descripción del problema" value={form.descripcion_problema} onChange={setF('descripcion_problema')} tipo="textarea" placeholder="Descripción…" />
                 <Campo label="Notas internas" value={form.notas} onChange={setF('notas')} tipo="textarea" placeholder="Notas…" />
-                {/* Firmas — stub Fase 5 */}
                 <div style={{ padding: '12px', background: 'var(--bg-3)', borderRadius: 'var(--radius)', border: '1px dashed var(--border-2)', fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }}>
                   Las firmas digitales con tablet estarán disponibles en próximas versiones
                 </div>
@@ -301,7 +335,7 @@ export default function SeguimientoFichaPage() {
         )}
       </div>
 
-      {/* Petición / descripción (solo lectura cuando no edita) */}
+      {/* Petición / descripción — solo lectura */}
       {!editando && (
         <>
           {!esTaller && (actual.peticion || actual.notas) && (
@@ -309,7 +343,7 @@ export default function SeguimientoFichaPage() {
               {actual.peticion && (
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Petición</div>
-                  <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text)' }}>{actual.peticion}</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.7 }}>{actual.peticion}</div>
                 </div>
               )}
               {actual.notas && (
@@ -325,7 +359,7 @@ export default function SeguimientoFichaPage() {
               {actual.descripcion_problema && (
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Descripción del problema</div>
-                  <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text)' }}>{actual.descripcion_problema}</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.7 }}>{actual.descripcion_problema}</div>
                 </div>
               )}
               {actual.notas && (
@@ -339,49 +373,97 @@ export default function SeguimientoFichaPage() {
         </>
       )}
 
-      {/* Trabajo vinculado */}
+      {/* Trabajo vinculado + presupuestos */}
       {actual.trabajo_id && (
-        <div style={{
-          background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
-          padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-              {t('entidades.trabajo')} vinculado
+        <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                {t('entidades.trabajo')} vinculado
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{actual.trabajo_nombre}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{actual.cliente_nombre} · {actual.agrupador_label}</div>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{actual.trabajo_nombre}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{actual.cliente_nombre} · {actual.agrupador_label}</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/presupuestos?trabajo=${actual.trabajo_id}`)}>
+                Presupuestos
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/facturas?trabajo=${actual.trabajo_id}`)}>
+                Facturas
+              </button>
+            </div>
           </div>
-          <Link to={`/clientes`} className="btn btn-ghost" style={{ fontSize: 12 }}>
-            Ver ficha cliente →
-          </Link>
+
+          {/* Lista de presupuestos del trabajo */}
+          {presupuestos.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Presupuestos
+              </div>
+              {presupuestos.map(p => (
+                <div
+                  key={p.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 10px', borderRadius: 'var(--radius)',
+                    background: 'var(--bg-3)', cursor: 'pointer',
+                  }}
+                  onClick={() => navigate(`/presupuestos/${p.id}`)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Badge estado={p.estado} />
+                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtFecha(p.fecha)}</span>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>
+                    {Number(p.importe ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* Modal confirmar cambio de estado */}
       {confirmEstado && (
         <Modal
-          title="Cambiar estado"
+          title={confirmEstado === 'cancelado' ? 'Cancelar seguimiento' : 'Cambiar estado'}
           size="sm"
           onClose={() => setConfirmEstado(null)}
           footer={
             <>
-              <button className="btn btn-ghost" onClick={() => setConfirmEstado(null)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleCambiarEstado}>Confirmar</button>
+              <button className="btn btn-ghost" onClick={() => setConfirmEstado(null)}>Volver</button>
+              <button
+                className={`btn ${confirmEstado === 'cancelado' ? 'btn-danger' : 'btn-primary'}`}
+                onClick={handleCambiarEstado}
+              >
+                {confirmEstado === 'cancelado' ? 'Sí, cancelar' : 'Confirmar'}
+              </button>
             </>
           }
         >
           <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-            ¿Cambiar estado a <strong>{ESTADO_LABELS[confirmEstado]}</strong>?
-            {confirmEstado === 'en_curso' && !actual.trabajo_id && (
-              <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', fontSize: 13 }}>
-                Se creará automáticamente un cliente, {t('entidades.agrupador').toLowerCase()} y {t('entidades.trabajo').toLowerCase()} a partir de los datos del formulario.
-                {!actual.dni_cif && (
-                  <div style={{ marginTop: 6, color: 'var(--red)', fontWeight: 500 }}>
-                    ⚠ El DNI/CIF es obligatorio para convertir en cliente.
+            {confirmEstado === 'cancelado' ? (
+              <>
+                ¿Cancelar el seguimiento de <strong>{actual.nombre}</strong>?
+                <div style={{ marginTop: 8, fontSize: 13, color: 'var(--text-2)' }}>
+                  El registro quedará marcado como cancelado. No se eliminará y podrá consultarse.
+                </div>
+              </>
+            ) : (
+              <>
+                ¿Cambiar estado a <strong>{ESTADO_LABELS[confirmEstado]}</strong>?
+                {confirmEstado === 'en_curso' && !actual.trabajo_id && (
+                  <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', fontSize: 13 }}>
+                    Se creará automáticamente un cliente, {t('entidades.agrupador').toLowerCase()} y {t('entidades.trabajo').toLowerCase()} a partir de los datos del formulario.
+                    {!actual.dni_cif && (
+                      <div style={{ marginTop: 6, color: 'var(--red)', fontWeight: 500 }}>
+                        ⚠ El DNI/CIF es obligatorio para convertir en cliente.
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         </Modal>
@@ -396,11 +478,7 @@ export default function SeguimientoFichaPage() {
           footer={
             <>
               <button className="btn btn-ghost" onClick={() => setConfirmEliminar(false)}>Cancelar</button>
-              <button
-                className="btn"
-                style={{ background: 'var(--red)', color: '#fff' }}
-                onClick={handleEliminar}
-              >
+              <button className="btn" style={{ background: 'var(--red)', color: '#fff' }} onClick={handleEliminar}>
                 Eliminar
               </button>
             </>
@@ -411,15 +489,6 @@ export default function SeguimientoFichaPage() {
           </div>
         </Modal>
       )}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div>
-      <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 13, color: value ? 'var(--text)' : 'var(--text-3)' }}>{value || '—'}</div>
     </div>
   );
 }

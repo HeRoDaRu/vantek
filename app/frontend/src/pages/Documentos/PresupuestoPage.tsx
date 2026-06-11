@@ -6,10 +6,10 @@ import Modal from '@ui/Modal';
 import DocumentoEditor, { LineaEditor, genKey } from '@pages/Documentos/components/DocumentoEditor';
 import BarraAcciones from '@pages/Documentos/components/BarraAcciones';
 import PanelHistorial from '@pages/Documentos/components/PanelHistorial';
+import api from '@utils/api';
 
 const AUTOSAVE_MS = 3 * 60 * 1000;
 
-// Convierte una LineaPresupuesto del backend al formato del editor
 function presupuestoLineaToEditor(l: LineaPresupuesto): LineaEditor {
   return {
     _key: genKey(),
@@ -31,31 +31,27 @@ export default function PresupuestoPage() {
   const { actual, loading, error, cargarPresupuesto, guardarLineas,
           guardarBorrador, cambiarEstado, generarPdf, eliminar } = usePresupuestosStore();
 
-  // Estado controlado de líneas — igual que FacturaPage (Opción A)
   const [lineas, setLineas] = useState<LineaEditor[]>([]);
 
   const [guardando, setGuardando] = useState(false);
   const [showHistorial, setShowHistorial] = useState(false);
   const [showEnviar, setShowEnviar] = useState(false);
+  const [showConvertir, setShowConvertir] = useState(false);
+  const [convirtiendoFactura, setConvirtiendoFactura] = useState(false);
   const [errorCierre, setErrorCierre] = useState<string | null>(null);
 
   const autosaveTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Cargar presupuesto al montar
   useEffect(() => {
     if (id) cargarPresupuesto(id);
     return () => { if (autosaveTimer.current) clearInterval(autosaveTimer.current); };
   }, [id]);
 
-  // Cuando llega el presupuesto del store, inicializar el estado local de líneas
-  // Dependencia en actual?.id para que solo se ejecute cuando cambia el documento,
-  // no en cada render — mismo patrón que FacturaPage
   useEffect(() => {
     if (!actual) return;
     setLineas(actual.lineas.map(presupuestoLineaToEditor));
   }, [actual?.id]);
 
-  // Arrancar autosave si está en borrador
   useEffect(() => {
     if (!actual || !id || actual.estado !== 'borrador') return;
     autosaveTimer.current = setInterval(() => {
@@ -112,9 +108,34 @@ export default function PresupuestoPage() {
       await eliminar(actual.id);
       navigate(-1);
     } catch (e: any) {
-      console.error('Error al eliminar presupuesto:', e);
+      alert(e.response?.data?.error ?? e.message ?? 'Error al eliminar presupuesto');
     }
   }
+
+  // Convertir presupuesto aceptado a factura
+  async function handleConvertirFactura() {
+    if (!actual) return;
+    setConvirtiendoFactura(true);
+    try {
+      // Marcar como aceptado si aún no lo está
+      if (actual.estado !== 'aceptado') {
+        await cambiarEstado(actual.id, 'aceptado');
+      }
+      // Crear factura importando líneas del presupuesto
+      const res = await api.post('/facturas', {
+        trabajo_id: actual.trabajo_id,
+        presupuesto_origen_id: actual.id,
+      });
+      const nuevaId = res.data.data?.id ?? res.data.id;
+      setShowConvertir(false);
+      navigate(`/facturas/${nuevaId}`);
+    } catch (e: any) {
+      alert(e.response?.data?.error ?? e.message ?? 'Error creando factura');
+    } finally {
+      setConvirtiendoFactura(false);
+    }
+  }
+
   if (loading && !actual) return <Spinner label="Cargando presupuesto…" />;
   if (error) return <div className="page-error">{error}</div>;
   if (!actual) return null;
@@ -124,57 +145,63 @@ export default function PresupuestoPage() {
   return (
     <div className="page">
 
-      <div className="breadcrumb">
-        <button className="btn-link" onClick={() => navigate(-1)}>← Volver</button>
-        <span>{actual.cliente_nombre}</span>
-        <span>›</span>
-        <span>{actual.agrupador_label}</span>
-        <span>›</span>
-        <span>{actual.trabajo_nombre}</span>
-        <span>›</span>
-        <span>Presupuesto {actual.numero ?? 'Borrador'}</span>
-      </div>
-
-      <BarraAcciones
-        tipo="presupuesto"
-        estado={actual.estado}
-        numero={actual.numero}
-        guardando={guardando}
-        onGuardar={handleGuardar}
-        onCerrar={handleCerrar}
-        onPdf={handlePdf}
-        onEnviar={() => setShowEnviar(true)}
-        onHistorial={() => setShowHistorial(true)}
-        onReabrir={handleReabrir}
-        onEliminar={handleEliminar}
-      />
-
-      <div className="card" style={{ marginTop: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div>
-            <div className="form-label">Cliente</div>
-            <div style={{ fontWeight: 600 }}>{actual.cliente_nombre}</div>
-          </div>
-          <div>
-            <div className="form-label">Dirección / Obra</div>
-            <div style={{ color: 'var(--text-2)' }}>{actual.agrupador_label}</div>
-          </div>
-          <div>
-            <div className="form-label">Fecha</div>
-            <div>{actual.fecha}</div>
-          </div>
+      <div className="page-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+        <div className="breadcrumb">
+          <button className="btn-link" onClick={() => navigate(-1)}>← Volver</button>
+          <span>{actual.cliente_nombre}</span>
+          <span>›</span>
+          <span>{actual.agrupador_label}</span>
+          <span>›</span>
+          <span>{actual.trabajo_nombre}</span>
+          <span>›</span>
+          <span>Presupuesto {actual.numero ?? 'Borrador'}</span>
         </div>
       </div>
 
-      {/* Editor controlado — mismo patrón que FacturaPage */}
-      <div className="card" style={{ marginTop: 12 }}>
-        <DocumentoEditor
+      <div className="page-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <BarraAcciones
           tipo="presupuesto"
-          lineas={lineas}
-          onChange={setLineas}
-          iva_porcentaje={actual.iva_porcentaje}
-          readonly={readonly}
+          estado={actual.estado}
+          numero={actual.numero}
+          guardando={guardando}
+          onGuardar={handleGuardar}
+          onCerrar={handleCerrar}
+          onPdf={handlePdf}
+          onEnviar={() => setShowEnviar(true)}
+          onHistorial={() => setShowHistorial(true)}
+          onReabrir={handleReabrir}
+          onEliminar={handleEliminar}
+          onConvertirFactura={actual.estado === 'aceptado' ? () => setShowConvertir(true) : undefined}
         />
+
+        <div className="card">
+          <div className="card-body">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <div className="form-label">Cliente</div>
+                <div style={{ fontWeight: 600 }}>{actual.cliente_nombre}</div>
+              </div>
+              <div>
+                <div className="form-label">Dirección / Obra</div>
+                <div style={{ color: 'var(--text-2)' }}>{actual.agrupador_label}</div>
+              </div>
+              <div>
+                <div className="form-label">Fecha</div>
+                <div>{actual.fecha}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <DocumentoEditor
+            tipo="presupuesto"
+            lineas={lineas}
+            onChange={setLineas}
+            iva_porcentaje={actual.iva_porcentaje}
+            readonly={readonly}
+          />
+        </div>
       </div>
 
       {errorCierre && (
@@ -201,6 +228,31 @@ export default function PresupuestoPage() {
           <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
             ¿Confirmas que el presupuesto ha sido entregado al cliente?
             El estado cambiará a «Enviado».
+          </p>
+        </Modal>
+      )}
+
+      {showConvertir && (
+        <Modal title="Crear factura desde este presupuesto" size="sm" onClose={() => setShowConvertir(false)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setShowConvertir(false)} disabled={convirtiendoFactura}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleConvertirFactura} disabled={convirtiendoFactura}>
+                {convirtiendoFactura ? 'Creando…' : 'Crear factura'}
+              </button>
+            </>
+          }
+        >
+          <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
+            Se creará una nueva factura para <strong>{actual.trabajo_nombre}</strong> importando
+            las líneas de este presupuesto.
+            {actual.estado !== 'aceptado' && (
+              <span style={{ display: 'block', marginTop: 8, color: 'var(--yellow)', fontSize: 12 }}>
+                El presupuesto pasará a estado «Aceptado» automáticamente.
+              </span>
+            )}
           </p>
         </Modal>
       )}

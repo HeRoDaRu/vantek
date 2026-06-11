@@ -26,15 +26,20 @@ export function fmt(n: number) {
   });
 }
 
+// Unidad fija según tipo: mano de obra → h, resto → ud
+function unidadPorTipo(tipo: 'material' | 'manual' | 'concepto'): string {
+  return tipo === 'manual' ? 'h' : 'ud';
+}
+
 type TipoDocumento = 'factura' | 'presupuesto';
 
 interface DocumentoEditorProps {
   tipo: TipoDocumento;
-  lineas: LineaEditor[];                          // estado en el padre
-  onChange: (lineas: LineaEditor[]) => void;      // setter del padre
+  lineas: LineaEditor[];
+  onChange: (lineas: LineaEditor[]) => void;
   iva_porcentaje: number;
   readonly: boolean;
-  onAbrirAlbaran?: () => void;                    // el padre abre el modal
+  onAbrirAlbaran?: () => void;
 }
 
 // ─── Modal ítem manual ────────────────────────────────────────────────────────
@@ -48,12 +53,12 @@ interface ModalItemManualProps {
 function ModalItemManual({ margenDefecto, onConfirm, onClose }: ModalItemManualProps) {
   const [descripcion, setDescripcion] = useState('');
   const [cantidad, setCantidad] = useState('1');
-  const [unidad, setUnidad] = useState('h');
   const [coste, setCoste] = useState('');
   const [margen, setMargen] = useState(String(margenDefecto));
   const [tipo, setTipo] = useState<'manual' | 'concepto'>('manual');
 
   const precio = coste ? Number(coste) * (1 + Number(margen) / 100) : 0;
+  const unidad = unidadPorTipo(tipo);
 
   function handleConfirm() {
     if (!descripcion.trim()) return;
@@ -118,7 +123,12 @@ function ModalItemManual({ margenDefecto, onConfirm, onClose }: ModalItemManualP
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
         <div className="form-group">
-          <label className="form-label">Cantidad</label>
+          <label className="form-label">
+            Cantidad
+            <span style={{ marginLeft: 6, color: 'var(--text-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+              ({unidad})
+            </span>
+          </label>
           <input
             className="input"
             type="number"
@@ -126,15 +136,6 @@ function ModalItemManual({ margenDefecto, onConfirm, onClose }: ModalItemManualP
             step="0.01"
             value={cantidad}
             onChange={e => setCantidad(e.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Unidad</label>
-          <input
-            className="input"
-            value={unidad}
-            onChange={e => setUnidad(e.target.value)}
-            placeholder="h, m², ud..."
           />
         </div>
         <div className="form-group">
@@ -192,8 +193,6 @@ export default function DocumentoEditor({
   const [showModalManual, setShowModalManual] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
 
-  // ─── Mutaciones — todas operan sobre el estado del padre ───────────────────
-
   const actualizarLinea = useCallback((key: string, campo: Partial<LineaEditor>) => {
     onChange(lineas.map(l => {
       if (l._key !== key) return l;
@@ -243,8 +242,7 @@ export default function DocumentoEditor({
           <thead>
             <tr>
               <th>Descripción</th>
-              <th style={{ width: 70 }}>Cant.</th>
-              <th style={{ width: 60 }}>Ud.</th>
+              <th style={{ width: 90 }}>Cant.</th>
               <th style={{ width: 100 }}>Coste u.</th>
               <th style={{ width: 80 }}>Margen %</th>
               <th style={{ width: 110 }}>P. unitario</th>
@@ -256,7 +254,7 @@ export default function DocumentoEditor({
             {lineas.length === 0 && (
               <tr>
                 <td
-                  colSpan={readonly ? 6 : 7}
+                  colSpan={readonly ? 5 : 6}
                   style={{ textAlign: 'center', color: 'var(--text-3)', padding: 24 }}
                 >
                   Sin líneas. Añade ítems con los botones de abajo.
@@ -297,29 +295,28 @@ export default function DocumentoEditor({
                     </span>
                   </td>
 
-                  {/* Cantidad */}
+                  {/* Cantidad con unidad fija */}
                   <td>
                     {enEdicion ? (
-                      <input
-                        className="input input-sm"
-                        type="number" min="0.01" step="0.01"
-                        value={l.cantidad}
-                        onChange={e => actualizarLinea(l._key, { cantidad: Number(e.target.value) })}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    ) : fmt(l.cantidad)}
-                  </td>
-
-                  {/* Unidad */}
-                  <td>
-                    {enEdicion ? (
-                      <input
-                        className="input input-sm"
-                        value={l.unidad}
-                        onChange={e => actualizarLinea(l._key, { unidad: e.target.value })}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    ) : l.unidad}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input
+                          className="input input-sm"
+                          type="number" min="0.01" step="0.01"
+                          value={l.cantidad}
+                          style={{ width: 60 }}
+                          onChange={e => actualizarLinea(l._key, { cantidad: Number(e.target.value) })}
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>
+                          {unidadPorTipo(l.tipo)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span>
+                        {fmt(l.cantidad)}{' '}
+                        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{l.unidad || unidadPorTipo(l.tipo)}</span>
+                      </span>
+                    )}
                   </td>
 
                   {/* Coste — interno, nunca en PDF */}
@@ -394,7 +391,7 @@ export default function DocumentoEditor({
 
       {/* Botones de añadir */}
       {!readonly && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 8, padding: '8px 16px' }}>
           {onAbrirAlbaran && (
             <button className="btn btn-ghost btn-sm" onClick={onAbrirAlbaran}>
               + Desde albarán
@@ -424,7 +421,6 @@ export default function DocumentoEditor({
         </div>
       </div>
 
-      {/* Modal ítem manual */}
       {showModalManual && (
         <ModalItemManual
           margenDefecto={margenDefecto}

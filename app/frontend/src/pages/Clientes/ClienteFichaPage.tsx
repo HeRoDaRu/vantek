@@ -4,12 +4,12 @@ import { useClientesStore, Agrupador, TrabajoBrief } from '@store/clientes.store
 import { useConfigStore } from '@store/config.store';
 import Spinner from '@ui/Spinner';
 import Modal from '@ui/Modal';
+import Badge from '@ui/Badge';
 import ClienteModal from '@pages/Clientes/components/Modal/ClienteModal';
 import AgrupadorModal from '@pages/Clientes/components/Modal/AgrupadorModal';
 import TrabajoModal from '@pages/Clientes/components/Modal/TrabajoModal';
 import api from '@utils/api';
 
-// Icono chevron
 const ChevronIcon = ({ open }: { open: boolean }) => (
   <svg
     width="14" height="14" viewBox="0 0 14 14"
@@ -20,8 +20,6 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
   </svg>
 );
 
-// ─── Tipos locales para la lógica de documentos ───────────────────────────────
-
 type EstadoFactura = 'borrador' | 'cerrada' | 'entregada' | 'pendiente_pago' | 'pagada';
 type EstadoPresupuesto = 'borrador' | 'enviado' | 'aceptado' | 'rechazado' | 'caducado';
 
@@ -30,8 +28,6 @@ interface DocumentoExistente {
   estado: EstadoFactura | EstadoPresupuesto;
   numero?: string;
 }
-
-// ─── Hook para consultar documentos existentes de un trabajo ─────────────────
 
 async function getFacturasDelTrabajo(trabajoId: string): Promise<DocumentoExistente[]> {
   try {
@@ -51,42 +47,26 @@ async function getPresupuestosDelTrabajo(trabajoId: string): Promise<DocumentoEx
   }
 }
 
-// ─── Componente principal ────────────────────────────────────────────────────
-
 export default function ClienteFichaPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { selected, loading, error, fetchById, update, createAgrupador, updateAgrupador, createTrabajo } = useClientesStore();
+  const { selected, loading, error, fetchById, update, createAgrupador, updateAgrupador, createTrabajo, updateTrabajo } = useClientesStore();
   const { t } = useConfigStore();
 
-  // Agrupadores expandidos
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  // Modales de entidades
   const [editClienteOpen, setEditClienteOpen] = useState(false);
   const [nuevoAgrupadorOpen, setNuevoAgrupadorOpen] = useState(false);
   const [editAgrupador, setEditAgrupador] = useState<Agrupador | null>(null);
   const [nuevoTrabajo, setNuevoTrabajo] = useState<string | null>(null);
   const [editTrabajo, setEditTrabajo] = useState<{ agrupadorId: string; trabajo: TrabajoBrief } | null>(null);
 
-  // Estado de la lógica de documentos
   const [accionEnCurso, setAccionEnCurso] = useState(false);
 
-  // ─── Diálogos de decisión ─────────────────────────────────────────────────
-
-  // Factura en borrador existente
   const [dialogFacturaBorrador, setDialogFacturaBorrador] = useState<{ trabajo: TrabajoBrief; facturaId: string } | null>(null);
-
-  // Factura cerrada existente → rectificativa o gastos
   const [dialogFacturaCerrada, setDialogFacturaCerrada] = useState<{ trabajo: TrabajoBrief; facturaId: string; numero?: string } | null>(null);
-
-  // Presupuesto en borrador/enviado existente
   const [dialogPresupuestoBorrador, setDialogPresupuestoBorrador] = useState<{ trabajo: TrabajoBrief; presupuestoId: string; estado: string } | null>(null);
-
-  // Presupuesto rechazado/caducado → nuevo o reabrir
   const [dialogPresupuestoRechazado, setDialogPresupuestoRechazado] = useState<{ trabajo: TrabajoBrief; presupuestoId: string } | null>(null);
-
-  // Presupuesto aceptado → confirmación de ampliación
   const [dialogPresupuestoAceptado, setDialogPresupuestoAceptado] = useState<{ trabajo: TrabajoBrief } | null>(null);
 
   useEffect(() => {
@@ -100,29 +80,24 @@ export default function ClienteFichaPage() {
       return next;
     });
 
-  // ─── Lógica de nueva factura ──────────────────────────────────────────────
-
   const handleNuevaFactura = useCallback(async (trabajo: TrabajoBrief) => {
     setAccionEnCurso(true);
     try {
       const facturas = await getFacturasDelTrabajo(trabajo.id);
 
       if (facturas.length === 0) {
-        // Caso limpio: crear directamente
         const res = await api.post('/facturas', { trabajo_id: trabajo.id });
         const nuevaId = res.data.data?.id ?? res.data.id;
         navigate(`/facturas/${nuevaId}`);
         return;
       }
 
-      // Buscar la más relevante: prioridad borrador > cerrada/superior
       const borrador = facturas.find(f => f.estado === 'borrador');
       if (borrador) {
         setDialogFacturaBorrador({ trabajo, facturaId: borrador.id });
         return;
       }
 
-      // Hay alguna cerrada o en estado posterior
       const cerrada = facturas.find(f =>
         ['cerrada', 'entregada', 'pendiente_pago', 'pagada'].includes(f.estado as string)
       );
@@ -131,19 +106,16 @@ export default function ClienteFichaPage() {
         return;
       }
 
-      // Fallback: crear nueva igualmente
       const res = await api.post('/facturas', { trabajo_id: trabajo.id });
       const nuevaId = res.data.data?.id ?? res.data.id;
       navigate(`/facturas/${nuevaId}`);
     } catch (e: any) {
-      console.error('Error al gestionar factura:', e);
       alert(`Error: ${e.message ?? 'No se pudo crear la factura'}`);
     } finally {
       setAccionEnCurso(false);
     }
   }, [navigate]);
 
-  // Crear rectificativa: copia líneas de la factura original + marca
   const handleCrearRectificativa = useCallback(async (facturaOriginalId: string, trabajoId: string) => {
     setDialogFacturaCerrada(null);
     try {
@@ -155,11 +127,10 @@ export default function ClienteFichaPage() {
       const nuevaId = res.data.data?.id ?? res.data.id;
       navigate(`/facturas/${nuevaId}`);
     } catch (e: any) {
-      console.error('Error al crear rectificativa:', e);
+      alert(`Error: ${e.message ?? 'No se pudo crear la rectificativa'}`);
     }
   }, [navigate]);
 
-  // Crear factura de gastos posteriores: vacía
   const handleCrearFacturaGastos = useCallback(async (trabajoId: string) => {
     setDialogFacturaCerrada(null);
     try {
@@ -167,11 +138,9 @@ export default function ClienteFichaPage() {
       const nuevaId = res.data.data?.id ?? res.data.id;
       navigate(`/facturas/${nuevaId}`);
     } catch (e: any) {
-      console.error('Error al crear factura de gastos:', e);
+      alert(`Error: ${e.message ?? 'No se pudo crear la factura'}`);
     }
   }, [navigate]);
-
-  // ─── Lógica de nuevo presupuesto ─────────────────────────────────────────
 
   const handleNuevoPresupuesto = useCallback(async (trabajo: TrabajoBrief) => {
     setAccionEnCurso(true);
@@ -179,28 +148,24 @@ export default function ClienteFichaPage() {
       const presupuestos = await getPresupuestosDelTrabajo(trabajo.id);
 
       if (presupuestos.length === 0) {
-        // Caso limpio: crear directamente
         const res = await api.post('/presupuestos', { trabajo_id: trabajo.id });
         const nuevoId = res.data.data?.id ?? res.data.id;
         navigate(`/presupuestos/${nuevoId}`);
         return;
       }
 
-      // Borrador o enviado en curso: abrir el existente con warning
       const enCurso = presupuestos.find(p => ['borrador', 'enviado'].includes(p.estado as string));
       if (enCurso) {
         setDialogPresupuestoBorrador({ trabajo, presupuestoId: enCurso.id, estado: enCurso.estado as string });
         return;
       }
 
-      // Aceptado: confirmar si es ampliación/reducción
       const aceptado = presupuestos.find(p => p.estado === 'aceptado');
       if (aceptado) {
         setDialogPresupuestoAceptado({ trabajo });
         return;
       }
 
-      // Rechazado o caducado: ofrecer nuevo o reabrir
       const rechazadoOCaducado = presupuestos.find(p =>
         ['rechazado', 'caducado'].includes(p.estado as string)
       );
@@ -209,12 +174,10 @@ export default function ClienteFichaPage() {
         return;
       }
 
-      // Fallback
       const res = await api.post('/presupuestos', { trabajo_id: trabajo.id });
       const nuevoId = res.data.data?.id ?? res.data.id;
       navigate(`/presupuestos/${nuevoId}`);
     } catch (e: any) {
-      console.error('Error al gestionar presupuesto:', e);
       alert(`Error: ${e.message ?? 'No se pudo crear el presupuesto'}`);
     } finally {
       setAccionEnCurso(false);
@@ -229,11 +192,9 @@ export default function ClienteFichaPage() {
       const nuevoId = res.data.data?.id ?? res.data.id;
       navigate(`/presupuestos/${nuevoId}`);
     } catch (e: any) {
-      console.error('Error al crear presupuesto:', e);
+      alert(`Error: ${e.message ?? 'No se pudo crear el presupuesto'}`);
     }
   }, [navigate]);
-
-  // ─── Render ───────────────────────────────────────────────────────────────
 
   if (loading) return <Spinner label="Cargando…" />;
 
@@ -252,7 +213,6 @@ export default function ClienteFichaPage() {
 
   return (
     <div className="page">
-      {/* Header */}
       <div className="page-header">
         <div className="flex flex-col gap-1">
           <div className="breadcrumb">
@@ -308,7 +268,7 @@ export default function ClienteFichaPage() {
           </div>
         </div>
 
-        {/* Botones de acceso rápido a listados del cliente */}
+        {/* Acceso rápido a listados */}
         <div className="flex items-center gap-2" style={{ marginBottom: 20 }}>
           <button
             className="btn btn-ghost btn-sm"
@@ -404,9 +364,12 @@ export default function ClienteFichaPage() {
                     >
                       <div className="flex items-center gap-3">
                         <span className="font-medium" style={{ color: 'var(--text)' }}>{trabajo.nombre}</span>
+                        {/* Estado del trabajo visible directamente */}
+                        {trabajo.estado && (
+                          <Badge estado={trabajo.estado} />
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
-                        {/* Ver facturas del trabajo (filtrado) */}
                         <button
                           className="btn btn-ghost btn-sm"
                           onClick={() => navigate(
@@ -415,7 +378,6 @@ export default function ClienteFichaPage() {
                         >
                           Facturas
                         </button>
-                        {/* Nueva factura / acción inteligente */}
                         <button
                           className="btn btn-ghost btn-sm"
                           disabled={accionEnCurso}
@@ -423,7 +385,6 @@ export default function ClienteFichaPage() {
                         >
                           + Factura
                         </button>
-                        {/* Ver presupuestos del trabajo (filtrado) */}
                         <button
                           className="btn btn-ghost btn-sm"
                           onClick={() => navigate(
@@ -432,7 +393,6 @@ export default function ClienteFichaPage() {
                         >
                           Presupuestos
                         </button>
-                        {/* Nuevo presupuesto / acción inteligente */}
                         <button
                           className="btn btn-ghost btn-sm"
                           disabled={accionEnCurso}
@@ -496,8 +456,9 @@ export default function ClienteFichaPage() {
       <TrabajoModal
         open={!!editTrabajo}
         onClose={() => setEditTrabajo(null)}
-        onSubmit={async _data => {
-          // updateTrabajo pendiente de implementar en el store
+        onSubmit={async data => {
+          if (!editTrabajo) return;
+          await updateTrabajo(c.id, editTrabajo.agrupadorId, editTrabajo.trabajo.id, data);
           setEditTrabajo(null);
         }}
         inicial={editTrabajo?.trabajo}
@@ -529,7 +490,6 @@ export default function ClienteFichaPage() {
         >
           <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
             Ya existe una factura en borrador para «{dialogFacturaBorrador.trabajo.nombre}».
-            Deberías haberla abierto directamente desde el menú de Facturas.
             Se abrirá ese borrador.
           </p>
         </Modal>
@@ -577,7 +537,6 @@ export default function ClienteFichaPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 10px', background: 'var(--bg-3)', borderRadius: 'var(--radius)' }}>
               <strong style={{ color: 'var(--text-2)' }}>Rectificativa:</strong> copia las líneas de la factura original.
-              Se indicará que es una corrección.
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 10px', background: 'var(--bg-3)', borderRadius: 'var(--radius)' }}>
               <strong style={{ color: 'var(--text-2)' }}>Gastos posteriores:</strong> factura nueva vacía para gastos adicionales.
@@ -674,7 +633,7 @@ export default function ClienteFichaPage() {
         >
           <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
             El trabajo «{dialogPresupuestoAceptado.trabajo.nombre}» ya tiene un presupuesto aceptado.
-            Si hay un cambio de alcance (ampliación o reducción) puedes crear un nuevo presupuesto independiente.
+            Si hay un cambio de alcance puedes crear un nuevo presupuesto independiente.
           </p>
         </Modal>
       )}

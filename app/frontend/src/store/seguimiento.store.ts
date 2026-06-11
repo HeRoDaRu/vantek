@@ -10,7 +10,8 @@ export type EstadoSeguimiento =
   | 'en_curso'
   | 'pendiente_facturar'
   | 'entregada'
-  | 'pagada';
+  | 'pagada'
+  | 'cancelado';
 
 export interface Seguimiento {
   id: string;

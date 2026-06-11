@@ -13,7 +13,8 @@ export type EstadoSeguimiento =
   | 'en_curso'
   | 'pendiente_facturar'
   | 'entregada'
-  | 'pagada';
+  | 'pagada'
+  | 'cancelado';
 
 export interface Seguimiento {
   id: string;
@@ -212,7 +213,7 @@ export function cambiarEstado(id: string, nuevoEstado: EstadoSeguimiento): Segui
 
   // Sync hacia documentos (usa el trabajo_id actualizado si acaba de crearse)
   const actualizado = obtener(id)!;
-  if (actualizado.trabajo_id) {
+  if (actualizado.trabajo_id && nuevoEstado !== 'cancelado') {
     _syncDocumentosDesdeEstado(db, actualizado.trabajo_id, nuevoEstado);
   }
 
