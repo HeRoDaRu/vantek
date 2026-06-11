@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import { CONFIG_DIR } from '@utils/paths';
 
-const CONFIG_DIR = path.join(__dirname, '..', '..', 'config');
 const PROFILE_PATH = path.join(CONFIG_DIR, 'profile.config.json');
 const APP_PATH = path.join(CONFIG_DIR, 'app.config.json');
 
@@ -65,6 +65,7 @@ export interface AppConfig {
   };
   sistema: {
     email_errores: string;
+    chromium_modo?: 'bundled' | 'edge';
     actualizacion: {
       hora_inicio: string;
       hora_fin: string;

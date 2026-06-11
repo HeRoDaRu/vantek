@@ -1,0 +1,151 @@
+name: Release Windows
+
+# Empaqueta Vantek para el despliegue Windows (Node portable + servicio NSSM).
+# Se dispara al publicar un tag vX.Y.Z. Produce un único asset llamado
+# EXACTAMENTE "Vantek-release.zip" cuyo contenido raíz es el directorio de
+# instalación (app/, launcher/, node_modules/, config/, puppeteer/, version.json,
+# start.bat) MENOS node/ y tools/, que los aporta install.ps1 una sola vez.
+#
+# El launcher (launcher/launcher.js) descarga este mismo asset en cada
+# actualización y lo extrae sobre el directorio de instalación con Expand-Archive.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versión a publicar (ej. 1.2.3, sin la v). Solo para ejecuciones manuales.'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    env:
+      # Puppeteer descarga Chromium aquí durante la instalación. Esta carpeta se
+      # empaqueta luego como release/puppeteer y el launcher apunta a ella en
+      # tiempo de ejecución (PUPPETEER_CACHE_DIR = <instalación>\puppeteer).
+      PUPPETEER_CACHE_DIR: ${{ github.workspace }}\.puppeteer-cache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Resolver versión
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $v = $env:GITHUB_REF -replace '^refs/tags/v',''
+            $tag = $env:GITHUB_REF -replace '^refs/tags/',''
+          } elseif ('${{ github.event.inputs.version }}' -ne '') {
+            $v = '${{ github.event.inputs.version }}'
+            $tag = "v$v"
+          } else {
+            throw 'No se pudo determinar la versión: lanza con un tag vX.Y.Z o indica el input version.'
+          }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=$tag"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Versión a empaquetar: $v (tag $tag)"
+
+      - name: Instalar dependencias (incluye Chromium de Puppeteer)
+        shell: pwsh
+        run: npm ci --workspaces --include-workspace-root
+
+      - name: Compilar frontend, backend y launcher
+        shell: pwsh
+        run: npm run build
+
+      - name: Escribir version.json
+        shell: pwsh
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          @{ version = $v } | ConvertTo-Json | Set-Content -Path version.json -Encoding utf8
+          Get-Content version.json
+
+      - name: Podar dependencias de desarrollo
+        shell: pwsh
+        run: npm prune --omit=dev --workspaces --include-workspace-root
+
+      - name: Ensamblar carpeta de release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          function Copy-Tree($src, $dst) {
+            if (-not (Test-Path $src)) { throw "No existe el origen: $src" }
+            robocopy $src $dst /E /NFL /NDL /NJH /NJS /NP | Out-Null
+            if ($LASTEXITCODE -ge 8) { throw "robocopy fallo: $src -> $dst (codigo $LASTEXITCODE)" }
+            $global:LASTEXITCODE = 0
+          }
+
+          $rel = 'release'
+          if (Test-Path $rel) { Remove-Item $rel -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path "$rel\app\backend" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$rel\app\frontend" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$rel\launcher"     | Out-Null
+          New-Item -ItemType Directory -Force -Path "$rel\config"       | Out-Null
+
+          # Backend compilado + manifiesto (necesario para resolver dependencias)
+          Copy-Tree 'app\backend\dist' "$rel\app\backend\dist"
+          Copy-Item 'app\backend\package.json' "$rel\app\backend\package.json"
+
+          # Frontend compilado (Express lo sirve en Windows; incluye assets OCR)
+          Copy-Tree 'app\frontend\dist' "$rel\app\frontend\dist"
+
+          # node_modules de producción (hoisted en la raíz por npm workspaces).
+          # Incluye better-sqlite3 (nativo, ABI Node 22 win-x64) y puppeteer.
+          Copy-Tree 'node_modules' "$rel\node_modules"
+          if (Test-Path 'app\backend\node_modules') {
+            Copy-Tree 'app\backend\node_modules' "$rel\app\backend\node_modules"
+          }
+
+          # Launcher compilado + scripts de servicio
+          Copy-Item 'launcher\launcher.js'           "$rel\launcher\launcher.js"
+          Copy-Item 'launcher\install-service.bat'   "$rel\launcher\install-service.bat"
+          Copy-Item 'launcher\uninstall-service.bat' "$rel\launcher\uninstall-service.bat"
+
+          # Plantillas de configuración (el launcher inicializa la config desde ellas)
+          Copy-Item 'config\app.config.template.json'     "$rel\config\app.config.template.json"
+          Copy-Item 'config\profile.config.template.json' "$rel\config\profile.config.template.json"
+
+          # version.json, arranque manual y Chromium incluido
+          Copy-Item 'version.json' "$rel\version.json"
+          Copy-Item 'start.bat'    "$rel\start.bat"
+          Copy-Tree '.puppeteer-cache' "$rel\puppeteer"
+
+          Write-Host 'Contenido de release/:'
+          Get-ChildItem $rel | Select-Object Name
+
+      - name: Comprimir Vantek-release.zip
+        shell: pwsh
+        working-directory: release
+        run: |
+          $ErrorActionPreference = 'Stop'
+          7z a -tzip -mx=5 ..\Vantek-release.zip * | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "7z fallo (codigo $LASTEXITCODE)" }
+          $size = [math]::Round((Get-Item ..\Vantek-release.zip).Length / 1MB, 1)
+          Write-Host "Vantek-release.zip generado: $size MB"
+
+      - name: Publicar release y subir asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Vantek ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: Vantek-release.zip

@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '@middleware/errorHandler';
 import { getProfileConfig, getAppConfig, reloadProfileConfig, reloadAppConfig } from '@utils/config';
+import { CONFIG_DIR } from '@utils/paths';
 import fs from 'fs';
 import path from 'path';
 
 const router = Router();
 
-const CONFIG_DIR        = path.join(__dirname, '..', '..', 'config');
 const APP_CONFIG_PATH   = path.join(CONFIG_DIR, 'app.config.json');
 const PROFILE_CONFIG_PATH = path.join(CONFIG_DIR, 'profile.config.json');
 

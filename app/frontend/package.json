@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "setup:ocr": "node scripts/setup-ocr-assets.mjs",
+    "postinstall": "node scripts/setup-ocr-assets.mjs",
+    "prebuild": "node scripts/setup-ocr-assets.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

@@ -11,6 +11,7 @@ export type EstadoSeguimiento =
   | 'pendiente_facturar'
   | 'entregada'
   | 'pagada'
+  | 'completado'
   | 'cancelado';
 
 export interface Seguimiento {

@@ -14,6 +14,11 @@ COPY package*.json ./
 COPY app/backend/package.json ./app/backend/
 COPY app/frontend/package.json ./app/frontend/
 
+# El postinstall del frontend provisiona los assets de OCR (Tesseract):
+# copia el worker/core desde node_modules y descarga el modelo de idioma.
+# Necesita estar presente antes de `npm ci` para ejecutarse durante la instalación.
+COPY app/frontend/scripts ./app/frontend/scripts
+
 # Usamos caché únicamente para las descargas de red de npm (.npm)
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --workspaces

@@ -17,6 +17,7 @@ import { hayBorradorSucio } from '@services/facturas.service';
 import dashboardRouter from '@routes/dashboard.router';
 import configRouter from '@routes/config.router';
 import seguimientoRouter from './routes/seguimiento.router';
+import { APP_ROOT, PDFS_DIR } from '@utils/paths';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,11 +44,14 @@ app.use((req, res, next) => {
 });
 
 // ─── Estáticos (producción) ───────────────────────────────────────────────────
-const FRONTEND_DIST = path.join(__dirname,'..','..','dist')
+// En Windows/Node portable, Express sirve el frontend compilado por Vite
+// (app/frontend/dist). En Docker el frontend lo sirve nginx, por lo que esta
+// ruta no se usa (las rutas no-/api nunca llegan a Express tras el proxy).
+const FRONTEND_DIST = path.join(APP_ROOT, 'app', 'frontend', 'dist');
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(FRONTEND_DIST));
 }
-app.use('/pdfs', express.static(path.join(__dirname, '..', '..', 'data', 'pdfs')));
+app.use('/pdfs', express.static(PDFS_DIR));
 
 // ─── Config endpoints ─────────────────────────────────────────────────────────
 app.use('/api/config', configRouter);
@@ -79,7 +83,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ─── placeholders de actualización ────────────────────────────────────────────
-const UPDATE_STATE_PATH = path.join(__dirname, '..', '..', 'data', 'update-state.json');
+const UPDATE_STATE_PATH = path.join(APP_ROOT, 'data', 'update-state.json');
  
 function readUpdateState(): any {
   try {

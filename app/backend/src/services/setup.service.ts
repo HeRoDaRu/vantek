@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { PerfilNegocio, SetupPayload, DefaultConfig } from '../types';
 import { AppConfig, reloadAppConfig, reloadProfileConfig } from '@utils/config';
+import { CONFIG_DIR } from '@utils/paths';
 
-const CONFIG_DIR = path.join(__dirname, '..', '..', 'config');
 const APP_CONFIG_PATH = path.join(CONFIG_DIR, 'app.config.json');
 const DEFAULT_CONFIG_PATH = path.join(CONFIG_DIR, 'profile.config.json');
 
@@ -164,7 +164,7 @@ export function buildAppConfig(payload: SetupPayload): AppConfig {
       iva_porcentaje: 21,
       margen_defecto: 20,
       max_versiones: 10,
-      numeracion_factura: {
+      numeracion_facturas: {
         contador: 0,
         anio: new Date().getFullYear(),
       },

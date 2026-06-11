@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
 import { getAppConfig, getProfileConfig } from '@utils/config';
+import { PDFS_DIR } from '@utils/paths';
 
 // ─── Tipos mínimos que necesita el template ───────────────────────────────────
 
@@ -36,7 +37,7 @@ type TipoDocumento = 'factura' | 'presupuesto';
 // ─── Directorio de salida ─────────────────────────────────────────────────────
 
 function dirPdfs(): string {
-  const dir = path.join(__dirname, '..','..','data', 'pdfs');
+  const dir = PDFS_DIR;
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -212,6 +213,57 @@ ${doc.notas ? `<div class="notas">${doc.notas}</div>` : ''}
 </html>`;
 }
 
+// ─── Lanzador de navegador (Chromium incluido o Edge del sistema) ─────────────
+
+function encontrarEdge(): string | undefined {
+  const candidatos = [
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+  ];
+  for (const ruta of candidatos) {
+    try {
+      if (fs.existsSync(ruta)) return ruta;
+    } catch {
+      /* ignorar */
+    }
+  }
+  return undefined;
+}
+
+async function lanzarNavegador() {
+  const baseArgs = ['--no-sandbox', '--disable-setuid-sandbox'];
+
+  const lanzarBundled = () =>
+    puppeteer.launch({ headless: true, args: baseArgs });
+
+  const lanzarEdge = () => {
+    const edgePath = encontrarEdge();
+    if (!edgePath) {
+      throw new Error('No se encontró Microsoft Edge instalado en el sistema');
+    }
+    return puppeteer.launch({ headless: true, args: baseArgs, executablePath: edgePath });
+  };
+
+  const modo = getAppConfig().sistema?.chromium_modo === 'edge' ? 'edge' : 'bundled';
+  const primario = modo === 'edge' ? lanzarEdge : lanzarBundled;
+  const secundario = modo === 'edge' ? lanzarBundled : lanzarEdge;
+  const nombrePrimario = modo === 'edge' ? 'Edge del sistema' : 'Chromium incluido';
+  const nombreSecundario = modo === 'edge' ? 'Chromium incluido' : 'Edge del sistema';
+
+  try {
+    const browser = await primario();
+    console.log(`[pdf] Generando PDF con ${nombrePrimario}`);
+    return browser;
+  } catch (err) {
+    console.warn(
+      `[pdf] Falló ${nombrePrimario} (${(err as Error).message}); probando ${nombreSecundario}`
+    );
+    const browser = await secundario();
+    console.log(`[pdf] Generando PDF con ${nombreSecundario} (fallback)`);
+    return browser;
+  }
+}
+
 // ─── Generar PDF ──────────────────────────────────────────────────────────────
 
 export async function generarPdf(
@@ -222,10 +274,7 @@ export async function generarPdf(
   const nombre = `${tipo}-${doc.id}-${Date.now()}.pdf`;
   const outputPath = path.join(dirPdfs(), nombre);
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  const browser = await lanzarNavegador();
 
   try {
     const page = await browser.newPage();

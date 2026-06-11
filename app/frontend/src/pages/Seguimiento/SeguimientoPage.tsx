@@ -17,6 +17,7 @@ const ESTADOS_SEGUIMIENTO: { value: EstadoSeguimiento | ''; label: string }[] = 
   { value: 'pendiente_facturar', label: 'Pendiente facturar' },
   { value: 'entregada', label: 'Entregada' },
   { value: 'pagada', label: 'Pagada' },
+  { value: 'completado', label: 'Completado' },
 ];
 
 function fmtFecha(iso: string) {

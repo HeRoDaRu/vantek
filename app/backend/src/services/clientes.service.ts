@@ -34,8 +34,12 @@ export const clientesService = {
 
     for (const agrupador of agrupadores) {
       agrupador.trabajos = db.prepare(`
-        SELECT id, nombre, estado, created_at FROM trabajos
-        WHERE agrupador_id = ? ORDER BY created_at DESC
+        SELECT
+          t.id, t.nombre, t.estado, t.created_at,
+          s.estado AS estado_seguimiento
+        FROM trabajos t
+        LEFT JOIN seguimiento s ON s.trabajo_id = t.id
+        WHERE t.agrupador_id = ? ORDER BY t.created_at DESC
       `).all(agrupador.id) as TrabajoBrief[];
     }
 

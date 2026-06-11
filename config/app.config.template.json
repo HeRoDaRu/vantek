@@ -41,6 +41,7 @@
     "ventana_inicio": "15:00",
     "ventana_fin": "16:00",
     "minutos_inactividad": 15,
-    "email_errores": ""
+    "email_errores": "",
+    "chromium_modo": "bundled"
   }
 }

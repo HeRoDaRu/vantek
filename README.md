@@ -9,18 +9,20 @@ vantek/
 ├── app/
 │   ├── backend/     Express + TypeScript + SQLite
 │   └── frontend/    Vite + React + TypeScript
-├── launcher/        Arranque automático y actualizaciones
+├── launcher/        Arranque automático y actualizaciones (Windows)
 ├── config/          Configuración del perfil y la app
 ├── data/            Base de datos SQLite (generada automáticamente)
 ├── logs/            Logs del servicio
-├── node/            Node.js portable (producción)
+├── node/            Node.js portable (lo aporta install.ps1)
+├── tools/           NSSM (lo aporta install.ps1)
+├── puppeteer/       Chromium incluido (generado en build/install)
 └── version.json     Versión actual
 ```
 
 ## Requisitos (desarrollo)
 
-- Node.js 18+
-- npm 8+
+- Node.js 22+
+- npm 10+
 
 ## Desarrollo
 
@@ -37,11 +39,45 @@ npm run build
 
 ## Instalación en producción (Windows)
 
-1. Copiar la carpeta completa al equipo destino
-2. Asegurarse de que `node/node.exe` existe (Node.js portable)
-3. Compilar el proyecto: `npm run build`
-4. Configurar `config/app.config.json`
-5. Ejecutar como Administrador: `launcher/install-service.bat`
+El despliegue Windows es totalmente autónomo: no instala nada de forma global en
+el equipo. Node.js portable y NSSM viajan dentro de la propia carpeta de Vantek,
+de modo que nada externo puede romper la aplicación.
+
+### Primera instalación (la realiza el técnico)
+
+1. Descargar `install.ps1` (de este repositorio o del último release).
+2. Abrir **PowerShell como Administrador** y ejecutar:
+
+   ```powershell
+   Set-ExecutionPolicy -Scope Process Bypass -Force
+   .\install.ps1
+   ```
+
+   El script descarga el último release (`Vantek-release.zip`) desde GitHub, lo
+   extrae en `C:\Vantek` (configurable con `-InstallDir`), descarga Node.js 22
+   portable en `node\`, NSSM en `tools\nssm.exe` y registra el servicio de
+   Windows **VANTEK**.
+
+3. Abrir la aplicación en `http://localhost:3000`. La primera vez, la propia
+   aplicación muestra el asistente de configuración.
+
+### Arranque manual (sin servicio)
+
+Para pruebas puede ejecutarse `start.bat`, que lanza el mismo runtime que el
+servicio pero en primer plano.
+
+### Generación de releases (CI)
+
+Al publicar un tag `vX.Y.Z`, el workflow `.github/workflows/release.yml`
+(GitHub Actions sobre `windows-latest`) compila frontend, backend y launcher,
+incluye el Chromium de Puppeteer y publica el asset `Vantek-release.zip`.
+
+### Motor de PDF (Chromium)
+
+La generación de PDF usa por defecto el Chromium incluido. Puede cambiarse a
+Microsoft Edge del sistema con `sistema.chromium_modo: "edge"` en
+`config/app.config.json`. Si el motor elegido falla, se reintenta con el otro
+automáticamente.
 
 ## Perfiles disponibles
 
@@ -54,5 +90,8 @@ El perfil de negocio se configura en `config/profile.config.json`.
 
 ## Actualización de la app
 
-Las actualizaciones son automáticas (descarga desde GitHub Releases).
-También se pueden aplicar manualmente desde Configuración > Sistema.
+Las actualizaciones son automáticas: el launcher descarga el mismo
+`Vantek-release.zip` de cada nueva release de GitHub y lo aplica en la ventana
+horaria configurada. `node\` y `tools\` no viajan en las actualizaciones, por lo
+que sobreviven a cada update. También pueden aplicarse manualmente desde
+Configuración > Sistema.

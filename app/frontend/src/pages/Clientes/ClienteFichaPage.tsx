@@ -50,7 +50,7 @@ async function getPresupuestosDelTrabajo(trabajoId: string): Promise<DocumentoEx
 export default function ClienteFichaPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { selected, loading, error, fetchById, update, createAgrupador, updateAgrupador, createTrabajo, updateTrabajo } = useClientesStore();
+  const { selected, loading, error, fetchById, update, createAgrupador, updateAgrupador, createTrabajo, updateTrabajo, remove } = useClientesStore();
   const { t } = useConfigStore();
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -62,6 +62,10 @@ export default function ClienteFichaPage() {
   const [editTrabajo, setEditTrabajo] = useState<{ agrupadorId: string; trabajo: TrabajoBrief } | null>(null);
 
   const [accionEnCurso, setAccionEnCurso] = useState(false);
+
+  const [eliminarClienteOpen, setEliminarClienteOpen] = useState(false);
+  const [eliminandoCliente, setEliminandoCliente] = useState(false);
+  const [eliminarClienteErr, setEliminarClienteErr] = useState('');
 
   const [dialogFacturaBorrador, setDialogFacturaBorrador] = useState<{ trabajo: TrabajoBrief; facturaId: string } | null>(null);
   const [dialogFacturaCerrada, setDialogFacturaCerrada] = useState<{ trabajo: TrabajoBrief; facturaId: string; numero?: string } | null>(null);
@@ -196,6 +200,20 @@ export default function ClienteFichaPage() {
     }
   }, [navigate]);
 
+  const handleEliminarCliente = async () => {
+    if (!id) return;
+    setEliminandoCliente(true);
+    setEliminarClienteErr('');
+    try {
+      await remove(id);
+      navigate('/clientes');
+    } catch (e: any) {
+      setEliminarClienteErr(e.response?.data?.error ?? e.message ?? `No se pudo eliminar el ${t('entidades.cliente').toLowerCase()}`);
+    } finally {
+      setEliminandoCliente(false);
+    }
+  };
+
   if (loading) return <Spinner label="Cargando…" />;
 
   if (error || !selected || selected.id !== id) {
@@ -225,6 +243,12 @@ export default function ClienteFichaPage() {
         <div className="flex items-center gap-2">
           <button className="btn btn-ghost btn-sm" onClick={() => setEditClienteOpen(true)}>
             Editar
+          </button>
+          <button
+            className="btn btn-ghost btn-sm btn-icon-danger"
+            onClick={() => { setEliminarClienteErr(''); setEliminarClienteOpen(true); }}
+          >
+            Eliminar
           </button>
         </div>
       </div>
@@ -364,9 +388,9 @@ export default function ClienteFichaPage() {
                     >
                       <div className="flex items-center gap-3">
                         <span className="font-medium" style={{ color: 'var(--text)' }}>{trabajo.nombre}</span>
-                        {/* Estado del trabajo visible directamente */}
-                        {trabajo.estado && (
-                          <Badge estado={trabajo.estado} />
+                        {/* Estado del seguimiento vinculado; si no hay, el del trabajo */}
+                        {(trabajo.estado_seguimiento ?? trabajo.estado) && (
+                          <Badge estado={trabajo.estado_seguimiento ?? trabajo.estado} />
                         )}
                       </div>
                       <div className="flex items-center gap-2">
@@ -425,6 +449,27 @@ export default function ClienteFichaPage() {
         titulo={`Editar ${t('entidades.cliente')}`}
         inicial={c}
       />
+
+      <Modal
+        open={eliminarClienteOpen}
+        onClose={() => setEliminarClienteOpen(false)}
+        title={`Eliminar ${t('entidades.cliente').toLowerCase()}`}
+        size="sm"
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setEliminarClienteOpen(false)} disabled={eliminandoCliente}>Cancelar</button>
+            <button className="btn btn-danger" onClick={handleEliminarCliente} disabled={eliminandoCliente}>
+              {eliminandoCliente ? 'Eliminando…' : 'Eliminar'}
+            </button>
+          </>
+        }
+      >
+        <p style={{ color: 'var(--text)' }}>
+          ¿Seguro que quieres eliminar a <strong>{c.nombre}</strong>? Dejará de aparecer en los listados.
+          Sus documentos históricos se conservan.
+        </p>
+        {eliminarClienteErr && <span className="form-error" style={{ display: 'block', marginTop: 8 }}>{eliminarClienteErr}</span>}
+      </Modal>
 
       <AgrupadorModal
         open={nuevoAgrupadorOpen}

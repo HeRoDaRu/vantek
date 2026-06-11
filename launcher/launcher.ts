@@ -23,7 +23,7 @@ const { spawn, execSync } = require('child_process');
 
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 
-const ROOT                   = path.resolve(__dirname, '..', '..');
+const ROOT                   = path.resolve(__dirname, '..');
 const CONFIG_PATH            = path.join(ROOT, 'config', 'app.config.json');
 const CONFIG_TEMPLATE_PATH   = path.join(ROOT, 'config', 'app.config.template.json');
 const PROFILE_PATH           = path.join(ROOT, 'config', 'profile.config.json');
@@ -35,7 +35,7 @@ const UPDATE_STATE           = path.join(ROOT, 'data', 'update-state.json');
 
 // ─── GitHub ───────────────────────────────────────────────────────────────────
 
-const GITHUB_OWNER = 'herodaru';
+const GITHUB_OWNER = 'HeRoDaRu';
 const GITHUB_REPO  = 'vantek';
 const GITHUB_API   = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 
@@ -579,7 +579,7 @@ async function checkAndUpdateAlArrancar(): Promise<void> {
     const dirty = await hasDirtyDraft();
     if (!dirty) {
       await downloadUpdate();
-      if (state.phase === 'listo_para_aplicar') {
+      if ((state.phase as UpdatePhase) === 'listo_para_aplicar') {
         await applyUpdate();
       }
     }
@@ -600,7 +600,15 @@ function startServer(): void {
   log('Arrancando servidor Vantek...');
 
   const server = spawn(process.execPath, [serverPath], {
-    env: { ...process.env, NODE_ENV: 'production' },
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      VANTEK_ROOT: ROOT,
+      // Chromium incluido (modo "bundled"): puppeteer descarga el navegador en
+      // esta carpeta durante el build y aquí le indicamos dónde encontrarlo en
+      // la instalación del cliente. El modo "edge" usa msedge.exe del sistema.
+      PUPPETEER_CACHE_DIR: path.join(ROOT, 'puppeteer'),
+    },
     cwd: ROOT,
     stdio: 'inherit',
   });

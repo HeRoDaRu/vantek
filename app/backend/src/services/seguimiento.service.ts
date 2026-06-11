@@ -14,6 +14,7 @@ export type EstadoSeguimiento =
   | 'pendiente_facturar'
   | 'entregada'
   | 'pagada'
+  | 'completado'
   | 'cancelado';
 
 export interface Seguimiento {
@@ -213,8 +214,11 @@ export function cambiarEstado(id: string, nuevoEstado: EstadoSeguimiento): Segui
 
   // Sync hacia documentos (usa el trabajo_id actualizado si acaba de crearse)
   const actualizado = obtener(id)!;
-  if (actualizado.trabajo_id && nuevoEstado !== 'cancelado') {
-    _syncDocumentosDesdeEstado(db, actualizado.trabajo_id, nuevoEstado);
+  if (actualizado.trabajo_id) {
+    if (nuevoEstado !== 'cancelado') {
+      _syncDocumentosDesdeEstado(db, actualizado.trabajo_id, nuevoEstado);
+    }
+    _syncTrabajoDesdeEstado(db, actualizado.trabajo_id, nuevoEstado);
   }
 
   return obtener(id)!;
@@ -254,6 +258,7 @@ export function syncSeguimientoDesdeDocumento(
     db.prepare(`
       UPDATE seguimiento SET estado = ?, updated_at = datetime('now') WHERE id = ?
     `).run(nuevoEstadoSeg, seg.id);
+    _syncTrabajoDesdeEstado(db, trabajoId, nuevoEstadoSeg);
   }
 }
 
@@ -302,6 +307,33 @@ function _convertirACliente(
   db.prepare(`
     UPDATE seguimiento SET trabajo_id = ?, updated_at = datetime('now') WHERE id = ?
   `).run(trabajoId, segId);
+}
+
+/**
+ * Mantiene trabajo.estado en sincronía con el estado del seguimiento.
+ * El trabajo solo tiene 3 estados: 'activo' | 'completado' | 'cancelado'.
+ * - entregada/pagada/completado → completado
+ * - cancelado                   → cancelado
+ * - resto                       → activo (reabre si el seguimiento retrocede)
+ */
+function _syncTrabajoDesdeEstado(
+  db: ReturnType<typeof getDb>,
+  trabajoId: string,
+  estado: EstadoSeguimiento,
+): void {
+  let estadoTrabajo: 'activo' | 'completado' | 'cancelado';
+  if (estado === 'entregada' || estado === 'pagada' || estado === 'completado') {
+    estadoTrabajo = 'completado';
+  } else if (estado === 'cancelado') {
+    estadoTrabajo = 'cancelado';
+  } else {
+    estadoTrabajo = 'activo';
+  }
+
+  db.prepare(`
+    UPDATE trabajos SET estado = ?, updated_at = datetime('now')
+    WHERE id = ? AND estado != ?
+  `).run(estadoTrabajo, trabajoId, estadoTrabajo);
 }
 
 function _syncDocumentosDesdeEstado(

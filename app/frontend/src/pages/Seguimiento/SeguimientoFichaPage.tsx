@@ -9,7 +9,7 @@ import api from '@utils/api';
 
 // ─── Máquina de estados ───────────────────────────────────────────────────────
 
-const ESTADOS_FINALES: EstadoSeguimiento[] = ['pagada', 'cancelado'];
+const ESTADOS_FINALES: EstadoSeguimiento[] = ['completado', 'cancelado'];
 
 const TRANSICIONES_BASE: Record<EstadoSeguimiento, EstadoSeguimiento[]> = {
   nuevo:                  ['contactado'],
@@ -20,7 +20,8 @@ const TRANSICIONES_BASE: Record<EstadoSeguimiento, EstadoSeguimiento[]> = {
   en_curso:               ['pendiente_facturar'],
   pendiente_facturar:     ['entregada'],
   entregada:              ['pagada'],
-  pagada:                 [],
+  pagada:                 ['completado'],
+  completado:             [],
   cancelado:              [],
 };
 
@@ -33,7 +34,7 @@ function getTransiciones(estado: EstadoSeguimiento): EstadoSeguimiento[] {
 }
 
 const ESTADOS_TALLER: EstadoSeguimiento[] = [
-  'nuevo', 'en_curso', 'pendiente_facturar', 'entregada', 'pagada', 'cancelado',
+  'nuevo', 'en_curso', 'pendiente_facturar', 'entregada', 'pagada', 'completado', 'cancelado',
 ];
 
 const ESTADO_LABELS: Record<EstadoSeguimiento, string> = {
@@ -46,6 +47,7 @@ const ESTADO_LABELS: Record<EstadoSeguimiento, string> = {
   pendiente_facturar: 'Pendiente facturar',
   entregada: 'Entregada',
   pagada: 'Pagada',
+  completado: 'Completado',
   cancelado: 'Cancelado',
 };
 

@@ -222,6 +222,76 @@ const migrations: { version: number; sql: string }[] = [
       ALTER TABLE seguimiento ADD COLUMN firma_entrada TEXT;
       ALTER TABLE seguimiento ADD COLUMN firma_salida TEXT;
     `
+  },
+  {
+    version: 4,
+    sql: `
+      -- Reconciliar trabajo.estado con el estado de su seguimiento vinculado.
+      UPDATE trabajos SET estado = 'completado', updated_at = datetime('now')
+      WHERE estado != 'completado' AND id IN (
+        SELECT trabajo_id FROM seguimiento
+        WHERE trabajo_id IS NOT NULL AND estado IN ('entregada', 'pagada')
+      );
+
+      UPDATE trabajos SET estado = 'cancelado', updated_at = datetime('now')
+      WHERE estado != 'cancelado' AND id IN (
+        SELECT trabajo_id FROM seguimiento
+        WHERE trabajo_id IS NOT NULL AND estado = 'cancelado'
+      );
+    `
+  },
+  {
+    version: 5,
+    sql: `
+      -- Ampliar el CHECK de seguimiento.estado para incluir 'cancelado' y 'completado'.
+      -- SQLite no permite modificar un CHECK in-place: se reconstruye la tabla.
+      PRAGMA foreign_keys=OFF;
+
+      CREATE TABLE seguimiento_new (
+        id TEXT PRIMARY KEY,
+        cliente_id TEXT REFERENCES clientes(id),
+        nombre TEXT NOT NULL,
+        telefono TEXT,
+        direccion TEXT,
+        dni_cif TEXT,
+        accion_peticion TEXT,
+        estado TEXT NOT NULL DEFAULT 'nuevo' CHECK(estado IN (
+          'nuevo','contactado','visita_agendada','pendiente_presupuesto',
+          'a_la_espera','en_curso','pendiente_facturar','entregada','pagada',
+          'completado','cancelado'
+        )),
+        trabajo_id TEXT REFERENCES trabajos(id),
+        notas TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        fecha_visita TEXT,
+        matricula TEXT,
+        marca_modelo TEXT,
+        fecha_entrada TEXT,
+        fecha_salida_estimada TEXT,
+        descripcion_problema TEXT,
+        firma_entrada TEXT,
+        firma_salida TEXT
+      );
+
+      INSERT INTO seguimiento_new (
+        id, cliente_id, nombre, telefono, direccion, dni_cif, accion_peticion,
+        estado, trabajo_id, notas, created_at, updated_at,
+        fecha_visita, matricula, marca_modelo, fecha_entrada, fecha_salida_estimada,
+        descripcion_problema, firma_entrada, firma_salida
+      )
+      SELECT
+        id, cliente_id, nombre, telefono, direccion, dni_cif, accion_peticion,
+        estado, trabajo_id, notas, created_at, updated_at,
+        fecha_visita, matricula, marca_modelo, fecha_entrada, fecha_salida_estimada,
+        descripcion_problema, firma_entrada, firma_salida
+      FROM seguimiento;
+
+      DROP TABLE seguimiento;
+      ALTER TABLE seguimiento_new RENAME TO seguimiento;
+
+      PRAGMA foreign_keys=ON;
+    `
   }
 ];
 

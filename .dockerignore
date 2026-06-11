@@ -30,3 +30,12 @@ config/profile.config.json
 .vscode
 .idea
 *.swp
+
+# AI files
+CLAUDE.md
+context.md
+memory.md
+
+# OCR assets — se regeneran dentro del build (no copiar artefactos del host)
+app/frontend/public/tesseract-worker
+app/frontend/public/tessdata

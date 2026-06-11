@@ -3,6 +3,7 @@ import api from '@utils/api';
 
 export interface TrabajoBrief {
   id: string; nombre: string; estado: string; created_at: string;
+  estado_seguimiento?: string;
   descripcion?: string; margen_porcentaje?: number;
 }
 

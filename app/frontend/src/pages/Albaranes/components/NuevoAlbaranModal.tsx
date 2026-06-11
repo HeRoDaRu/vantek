@@ -2,21 +2,37 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '@ui/Modal';
 import api from '@utils/api';
+import OCRAlbaranModal, { type ResultadoOCR } from './OCRAlbaranModal';
 
 interface LineaNueva {
   _key: string;
+  id?: string;              // presente solo en líneas ya existentes (modo edición)
   descripcion: string;
   cantidad: string;
   unidad: string;
   precio_unitario: string; // coste en albaranes
 }
 
+/** Datos de un albarán existente para abrir el modal en modo edición */
+export interface AlbaranInicial {
+  id: string;
+  numero?: string;
+  fecha: string;
+  proveedor_nombre?: string;
+  notas?: string;
+  lineas: { id: string; descripcion: string; cantidad: number; precio_unitario: number; unidad?: string }[];
+}
+
 interface NuevoAlbaranModalProps {
   /** Si se pasa, el albarán se asigna automáticamente a ese trabajo al crear */
   trabajoId?: string;
+  /** Si se pasa, el modal abre en modo edición (PUT) en lugar de creación */
+  albaranInicial?: AlbaranInicial;
   onClose: () => void;
-  /** Callback opcional si el padre quiere reaccionar sin navegar */
+  /** Callback opcional si el padre quiere reaccionar sin navegar (creación) */
   onCreado?: (albaranId: string) => void;
+  /** Callback opcional tras editar un albarán existente */
+  onActualizado?: () => void;
 }
 
 function nuevaLinea(): LineaNueva {
@@ -29,15 +45,42 @@ function nuevaLinea(): LineaNueva {
   };
 }
 
-export default function NuevoAlbaranModal({ trabajoId, onClose, onCreado }: NuevoAlbaranModalProps) {
-  const navigate = useNavigate();
+/** Convierte una fecha dd/mm/aaaa o dd-mm-aaaa al formato yyyy-mm-dd del input date */
+function normalizarFecha(s: string): string {
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    const [, d, mes, a] = m;
+    const anio = a.length === 2 ? `20${a}` : a;
+    return `${anio}-${mes.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return '';
+}
 
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
-  const [proveedor, setProveedor] = useState('');
-  const [numero, setNumero] = useState('');
-  const [lineas, setLineas] = useState<LineaNueva[]>([nuevaLinea()]);
+export default function NuevoAlbaranModal({ trabajoId, albaranInicial, onClose, onCreado, onActualizado }: NuevoAlbaranModalProps) {
+  const navigate = useNavigate();
+  const esEdicion = !!albaranInicial;
+
+  const [fecha, setFecha] = useState(() =>
+    albaranInicial ? normalizarFecha(albaranInicial.fecha) : new Date().toISOString().slice(0, 10));
+  const [proveedor, setProveedor] = useState(albaranInicial?.proveedor_nombre ?? '');
+  const [numero, setNumero] = useState(albaranInicial?.numero ?? '');
+  const [lineas, setLineas] = useState<LineaNueva[]>(() =>
+    albaranInicial && albaranInicial.lineas.length > 0
+      ? albaranInicial.lineas.map(l => ({
+          _key: Math.random().toString(36).slice(2),
+          id: l.id,
+          descripcion: l.descripcion,
+          cantidad: String(l.cantidad),
+          unidad: l.unidad ?? 'ud',
+          precio_unitario: String(l.precio_unitario),
+        }))
+      : [nuevaLinea()]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+  const [ocrAbierto, setOcrAbierto] = useState(false);
+
 
   // ─── Gestión de líneas ───────────────────────────────────────────────────
 
@@ -53,7 +96,27 @@ export default function NuevoAlbaranModal({ trabajoId, onClose, onCreado }: Nuev
     setLineas(prev => prev.filter(l => l._key !== key));
   }, []);
 
+  // ─── Importar resultado del OCR al formulario ─────────────────────────────
+
+  const aplicarOCR = useCallback((r: ResultadoOCR) => {
+    if (r.proveedor) setProveedor(r.proveedor);
+    if (r.numero_albaran) setNumero(r.numero_albaran);
+    const f = normalizarFecha(r.fecha);
+    if (f) setFecha(f);
+    if (r.lineas.length > 0) {
+      setLineas(r.lineas.map(l => ({
+        _key: Math.random().toString(36).slice(2),
+        descripcion: l.descripcion,
+        cantidad: String(l.cantidad || 1),
+        unidad: 'ud',
+        precio_unitario: String(l.precio_unitario || ''),
+      })));
+    }
+    setOcrAbierto(false);
+  }, []);
+
   // ─── Validación ──────────────────────────────────────────────────────────
+
 
   const valido = fecha.trim() !== '' &&
     lineas.length > 0 &&
@@ -67,16 +130,38 @@ export default function NuevoAlbaranModal({ trabajoId, onClose, onCreado }: Nuev
     setError('');
 
     try {
+      const lineasBody = lineas.map(l => ({
+        descripcion: l.descripcion.trim(),
+        cantidad: Number(l.cantidad),
+        unidad: l.unidad.trim() || null,
+        precio_unitario: Number(l.precio_unitario) || 0,
+      }));
+
+      // ── Modo edición: PUT ──
+      if (esEdicion && albaranInicial) {
+        await api.put(`/albaranes/${albaranInicial.id}`, {
+          fecha,
+          proveedor_nombre: proveedor.trim() || undefined,
+          numero: numero.trim() || undefined,
+          lineas: lineas.map((l) => ({
+            id: l.id, // conserva el id de líneas existentes; undefined en nuevas
+            descripcion: l.descripcion.trim(),
+            cantidad: Number(l.cantidad),
+            unidad: l.unidad.trim() || null,
+            precio_unitario: Number(l.precio_unitario) || 0,
+          })),
+        });
+        onClose();
+        onActualizado?.();
+        return;
+      }
+
+      // ── Modo creación: POST ──
       const body: Record<string, unknown> = {
         fecha,
         proveedor_nombre: proveedor.trim() || undefined,
         numero: numero.trim() || undefined,
-        lineas: lineas.map(l => ({
-          descripcion: l.descripcion.trim(),
-          cantidad: Number(l.cantidad),
-          unidad: l.unidad.trim() || null,
-          precio_unitario: Number(l.precio_unitario) || 0,
-        })),
+        lineas: lineasBody,
       };
 
       // Si viene de FacturaPage, asignar directamente al trabajo
@@ -95,17 +180,18 @@ export default function NuevoAlbaranModal({ trabajoId, onClose, onCreado }: Nuev
         navigate(`/albaranes/${albaranId}`);
       }
     } catch (e: any) {
-      setError(e.response?.data?.error ?? e.message ?? 'Error al crear el albarán');
+      setError(e.response?.data?.error ?? e.message ?? 'Error al guardar el albarán');
     } finally {
       setGuardando(false);
     }
-  }, [valido, fecha, proveedor, numero, lineas, trabajoId, onClose, onCreado, navigate]);
+  }, [valido, esEdicion, albaranInicial, fecha, proveedor, numero, lineas, trabajoId, onClose, onCreado, onActualizado, navigate]);
+
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
     <Modal
-      title="Nuevo albarán"
+      title={esEdicion ? 'Editar albarán' : 'Nuevo albarán'}
       size="lg"
       onClose={onClose}
       footer={
@@ -118,11 +204,26 @@ export default function NuevoAlbaranModal({ trabajoId, onClose, onCreado }: Nuev
             onClick={handleCrear}
             disabled={!valido || guardando}
           >
-            {guardando ? 'Creando…' : 'Crear albarán'}
+            {guardando
+              ? (esEdicion ? 'Guardando…' : 'Creando…')
+              : (esEdicion ? 'Guardar cambios' : 'Crear albarán')}
           </button>
         </>
       }
     >
+      {/* Importar desde OCR (solo en creación) */}
+      {!esEdicion && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setOcrAbierto(true)} title="Escanear albarán con OCR">
+            <svg viewBox="0 0 24 24" style={{ width: 14, height: 14, marginRight: 6, stroke: 'currentColor', fill: 'none', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+            </svg>
+            Escanear OCR
+          </button>
+        </div>
+      )}
+
       {/* Cabecera del albarán */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
         <div className="form-group">
@@ -261,6 +362,14 @@ export default function NuevoAlbaranModal({ trabajoId, onClose, onCreado }: Nuev
         }}>
           {error}
         </div>
+      )}
+
+      {/* Modal OCR anidado (importar datos antes de crear) */}
+      {ocrAbierto && (
+        <OCRAlbaranModal
+          onConfirmar={aplicarOCR}
+          onCerrar={() => setOcrAbierto(false)}
+        />
       )}
     </Modal>
   );
