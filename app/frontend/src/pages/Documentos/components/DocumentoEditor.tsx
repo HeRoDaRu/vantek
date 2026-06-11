@@ -222,7 +222,8 @@ export default function DocumentoEditor({
   }, [lineas, onChange]);
 
   const añadirManual = useCallback((linea: Omit<LineaEditor, '_key'>) => {
-    onChange([...lineas, { ...linea, _key: genKey() }]);
+    const unidad = linea.unidad || unidadPorTipo(linea.tipo as any);
+    onChange([...lineas, { ...linea, unidad, _key: genKey() }]);
     setShowModalManual(false);
   }, [lineas, onChange]);
 
@@ -308,7 +309,7 @@ export default function DocumentoEditor({
                           onClick={e => e.stopPropagation()}
                         />
                         <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>
-                          {unidadPorTipo(l.tipo)}
+                          {l.unidad || unidadPorTipo(l.tipo)}
                         </span>
                       </div>
                     ) : (
