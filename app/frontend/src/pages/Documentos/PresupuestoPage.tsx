@@ -1,24 +1,43 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { usePresupuestosStore, LineaPresupuesto, EstadoPresupuesto } from '../../store/presupuestos.store';
-import Spinner from '../../components/UI/Spinner';
-import Modal from '../../components/UI/Modal';
-import DocumentoEditor, { LineaEditor } from './components/DocumentoEditor';
-import BarraAcciones from './components/BarraAcciones';
-import PanelHistorial from './components/PanelHistorial';
+import { usePresupuestosStore, LineaPresupuesto } from '@store/presupuestos.store';
+import Spinner from '@ui/Spinner';
+import Modal from '@ui/Modal';
+import DocumentoEditor, { LineaEditor, genKey } from '@pages/Documentos/components/DocumentoEditor';
+import BarraAcciones from '@pages/Documentos/components/BarraAcciones';
+import PanelHistorial from '@pages/Documentos/components/PanelHistorial';
+import api from '@utils/api';
 
 const AUTOSAVE_MS = 3 * 60 * 1000;
+
+function presupuestoLineaToEditor(l: LineaPresupuesto): LineaEditor {
+  return {
+    _key: genKey(),
+    descripcion: l.descripcion,
+    cantidad: l.cantidad,
+    unidad: l.unidad ?? '',
+    precio_unitario: l.precio_unitario,
+    coste_unitario: l.coste_unitario ?? null,
+    margen_porcentaje: l.margen_porcentaje ?? null,
+    tipo: l.tipo ?? 'concepto',
+    es_libre: true,
+    albaran_linea_id: null,
+  };
+}
 
 export default function PresupuestoPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { actual, loading, error, cargarPresupuesto, guardarLineas,
-          guardarBorrador, cambiarEstado, generarPdf } = usePresupuestosStore();
+          guardarBorrador, cambiarEstado, generarPdf, eliminar } = usePresupuestosStore();
 
-  const [lineasEditor, setLineasEditor] = useState<LineaEditor[]>([]);
+  const [lineas, setLineas] = useState<LineaEditor[]>([]);
+
   const [guardando, setGuardando] = useState(false);
   const [showHistorial, setShowHistorial] = useState(false);
   const [showEnviar, setShowEnviar] = useState(false);
+  const [showConvertir, setShowConvertir] = useState(false);
+  const [convirtiendoFactura, setConvirtiendoFactura] = useState(false);
   const [errorCierre, setErrorCierre] = useState<string | null>(null);
 
   const autosaveTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -29,9 +48,14 @@ export default function PresupuestoPage() {
   }, [id]);
 
   useEffect(() => {
+    if (!actual) return;
+    setLineas(actual.lineas.map(presupuestoLineaToEditor));
+  }, [actual?.id]);
+
+  useEffect(() => {
     if (!actual || !id || actual.estado !== 'borrador') return;
     autosaveTimer.current = setInterval(() => {
-      guardarBorrador(id, { lineas: lineasEditor });
+      guardarBorrador(id, { lineas });
     }, AUTOSAVE_MS);
     return () => { if (autosaveTimer.current) clearInterval(autosaveTimer.current); };
   }, [actual?.id, actual?.estado]);
@@ -40,7 +64,7 @@ export default function PresupuestoPage() {
     if (!id || !actual) return;
     setGuardando(true);
     try {
-      const lineasBack = lineasEditor.map(l => ({
+      const lineasBack = lineas.map(l => ({
         descripcion: l.descripcion,
         cantidad: l.cantidad,
         unidad: l.unidad || null,
@@ -48,35 +72,69 @@ export default function PresupuestoPage() {
         coste_unitario: l.coste_unitario,
         margen_porcentaje: l.margen_porcentaje,
         tipo: l.tipo,
-      } as Omit<LineaPresupuesto, 'id' | 'presupuesto_id' | 'orden'>));
+        es_libre: l.es_libre,
+      }));
       await guardarLineas(id, lineasBack);
       await generarPdf(id);
     } finally {
       setGuardando(false);
     }
-  }, [id, lineasEditor]);
+  }, [id, lineas, guardarLineas, generarPdf]);
 
   const handleCerrar = useCallback(async () => {
     if (!id) return;
-    // Verificación: al menos una línea
-    if (lineasEditor.length === 0) {
+    if (lineas.length === 0) {
       setErrorCierre('El presupuesto debe tener al menos una línea antes de cerrarse.');
       return;
     }
     await handleGuardar();
     await cambiarEstado(id, 'enviado');
-  }, [id, lineasEditor, handleGuardar, cambiarEstado]);
+  }, [id, lineas, handleGuardar, cambiarEstado]);
 
   const handlePdf = useCallback(async () => {
     if (!id) return;
     await generarPdf(id);
     window.open(`/api/presupuestos/${id}/pdf/latest`, '_blank');
-  }, [id]);
+  }, [id, generarPdf]);
 
   const handleReabrir = useCallback(async () => {
     if (!id) return;
     await cambiarEstado(id, 'borrador');
   }, [id, cambiarEstado]);
+
+  async function handleEliminar() {
+    if (!actual) return;
+    try {
+      await eliminar(actual.id);
+      navigate(-1);
+    } catch (e: any) {
+      alert(e.response?.data?.error ?? e.message ?? 'Error al eliminar presupuesto');
+    }
+  }
+
+  // Convertir presupuesto aceptado a factura
+  async function handleConvertirFactura() {
+    if (!actual) return;
+    setConvirtiendoFactura(true);
+    try {
+      // Marcar como aceptado si aún no lo está
+      if (actual.estado !== 'aceptado') {
+        await cambiarEstado(actual.id, 'aceptado');
+      }
+      // Crear factura importando líneas del presupuesto
+      const res = await api.post('/facturas', {
+        trabajo_id: actual.trabajo_id,
+        presupuesto_origen_id: actual.id,
+      });
+      const nuevaId = res.data.data?.id ?? res.data.id;
+      setShowConvertir(false);
+      navigate(`/facturas/${nuevaId}`);
+    } catch (e: any) {
+      alert(e.response?.data?.error ?? e.message ?? 'Error creando factura');
+    } finally {
+      setConvirtiendoFactura(false);
+    }
+  }
 
   if (loading && !actual) return <Spinner label="Cargando presupuesto…" />;
   if (error) return <div className="page-error">{error}</div>;
@@ -87,56 +145,63 @@ export default function PresupuestoPage() {
   return (
     <div className="page">
 
-      <div className="breadcrumb">
-        <button className="btn-link" onClick={() => navigate(-1)}>← Volver</button>
-        <span>{actual.cliente_nombre}</span>
-        <span>›</span>
-        <span>{actual.agrupador_label}</span>
-        <span>›</span>
-        <span>{actual.trabajo_nombre}</span>
-        <span>›</span>
-        <span>Presupuesto {actual.numero ?? 'Borrador'}</span>
-      </div>
-
-      <BarraAcciones
-        tipo="presupuesto"
-        estado={actual.estado}
-        numero={actual.numero}
-        guardando={guardando}
-        onGuardar={handleGuardar}
-        onCerrar={handleCerrar}
-        onPdf={handlePdf}
-        onEnviar={() => setShowEnviar(true)}
-        onHistorial={() => setShowHistorial(true)}
-        onReabrir={handleReabrir}
-      />
-
-      <div className="card" style={{ marginTop: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div>
-            <div className="form-label">Cliente</div>
-            <div style={{ fontWeight: 600 }}>{actual.cliente_nombre}</div>
-          </div>
-          <div>
-            <div className="form-label">Dirección / Obra</div>
-            <div style={{ color: 'var(--text-2)' }}>{actual.agrupador_label}</div>
-          </div>
-          <div>
-            <div className="form-label">Fecha</div>
-            <div>{actual.fecha}</div>
-          </div>
+      <div className="page-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+        <div className="breadcrumb">
+          <button className="btn-link" onClick={() => navigate(-1)}>← Volver</button>
+          <span>{actual.cliente_nombre}</span>
+          <span>›</span>
+          <span>{actual.agrupador_label}</span>
+          <span>›</span>
+          <span>{actual.trabajo_nombre}</span>
+          <span>›</span>
+          <span>Presupuesto {actual.numero ?? 'Borrador'}</span>
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 12 }}>
-        <DocumentoEditor
+      <div className="page-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <BarraAcciones
           tipo="presupuesto"
-          trabajoId={actual.trabajo_id}
-          lineasIniciales={actual.lineas}
-          iva_porcentaje={actual.iva_porcentaje}
-          readonly={readonly}
-          onChange={setLineasEditor}
+          estado={actual.estado}
+          numero={actual.numero}
+          guardando={guardando}
+          onGuardar={handleGuardar}
+          onCerrar={handleCerrar}
+          onPdf={handlePdf}
+          onEnviar={() => setShowEnviar(true)}
+          onHistorial={() => setShowHistorial(true)}
+          onReabrir={handleReabrir}
+          onEliminar={handleEliminar}
+          onConvertirFactura={actual.estado === 'aceptado' ? () => setShowConvertir(true) : undefined}
         />
+
+        <div className="card">
+          <div className="card-body">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <div className="form-label">Cliente</div>
+                <div style={{ fontWeight: 600 }}>{actual.cliente_nombre}</div>
+              </div>
+              <div>
+                <div className="form-label">Dirección / Obra</div>
+                <div style={{ color: 'var(--text-2)' }}>{actual.agrupador_label}</div>
+              </div>
+              <div>
+                <div className="form-label">Fecha</div>
+                <div>{actual.fecha}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <DocumentoEditor
+            tipo="presupuesto"
+            lineas={lineas}
+            onChange={setLineas}
+            iva_porcentaje={actual.iva_porcentaje}
+            readonly={readonly}
+          />
+        </div>
       </div>
 
       {errorCierre && (
@@ -163,6 +228,31 @@ export default function PresupuestoPage() {
           <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
             ¿Confirmas que el presupuesto ha sido entregado al cliente?
             El estado cambiará a «Enviado».
+          </p>
+        </Modal>
+      )}
+
+      {showConvertir && (
+        <Modal title="Crear factura desde este presupuesto" size="sm" onClose={() => setShowConvertir(false)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setShowConvertir(false)} disabled={convirtiendoFactura}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleConvertirFactura} disabled={convirtiendoFactura}>
+                {convirtiendoFactura ? 'Creando…' : 'Crear factura'}
+              </button>
+            </>
+          }
+        >
+          <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
+            Se creará una nueva factura para <strong>{actual.trabajo_nombre}</strong> importando
+            las líneas de este presupuesto.
+            {actual.estado !== 'aceptado' && (
+              <span style={{ display: 'block', marginTop: 8, color: 'var(--yellow)', fontSize: 12 }}>
+                El presupuesto pasará a estado «Aceptado» automáticamente.
+              </span>
+            )}
           </p>
         </Modal>
       )}

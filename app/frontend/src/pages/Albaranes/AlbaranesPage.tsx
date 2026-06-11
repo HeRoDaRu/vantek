@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../utils/api';
-import Badge from '../../components/UI/Badge';
-import Spinner from '../../components/UI/Spinner';
-import { useConfigStore } from '../../store/config.store';
+import api from '@utils/api';
+import Badge from '@ui/Badge';
+import Spinner from '@ui/Spinner';
+import { useConfigStore } from '@store/config.store';
+import NuevoAlbaranModal from './components/NuevoAlbaranModal';
 
 interface AlbaranListItem {
   id: string;
@@ -26,6 +27,7 @@ export default function AlbaranesPage() {
   const [albaranes, setAlbaranes] = useState<AlbaranListItem[]>([]);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
+  const [showNuevo, setShowNuevo] = useState(false);
 
   // Filtros
   const [estado, setEstado]         = useState('');
@@ -61,13 +63,18 @@ export default function AlbaranesPage() {
   return (
     <div className="page">
       {/* Header */}
-      <div className="page-header">
+      <div className="page-header" style={{ paddingTop: 22 }}>
         <h1 className="page-title">Albaranes</h1>
+        <button className="btn btn-primary" onClick={() => setShowNuevo(true)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>Nuevo albarán
+        </button>
       </div>
 
       {/* Filtros */}
       <div
-        className="flex items-center gap-3"
+        className="flex items-center gap-2"
         style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', flexShrink: 0, flexWrap: 'wrap' }}
       >
         <select className="select" style={{ width: 160 }} value={estado} onChange={e => setEstado(e.target.value)}>
@@ -115,6 +122,7 @@ export default function AlbaranesPage() {
         {!loading && !error && albaranes.length === 0 && (
           <div className="empty">
             <span className="empty-title">No hay albaranes</span>
+            <span className="empty-desc">Crea el primero con el botón «+ Nuevo albarán».</span>
           </div>
         )}
 
@@ -161,6 +169,17 @@ export default function AlbaranesPage() {
           </div>
         )}
       </div>
+
+      {/* Modal nuevo albarán */}
+      {showNuevo && (
+        <NuevoAlbaranModal
+          onClose={() => setShowNuevo(false)}
+          onCreado={albaranId => {
+            setShowNuevo(false);
+            navigate(`/albaranes/${albaranId}`);
+          }}
+        />
+      )}
     </div>
   );
 }

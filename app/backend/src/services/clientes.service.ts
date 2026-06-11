@@ -1,23 +1,46 @@
-import { getDb } from '../db/connection';
+import { getDb } from '@db/connection';
 import { v4 as uuidv4 } from 'uuid';
-import { Cliente, ClienteConAgrupadores, AgrupadorConTrabajos, TrabajoBrief } from '../types';
+import { Cliente, ClienteConAgrupadores, Agrupador, AgrupadorConTrabajos, TrabajoBrief } from '../types';
 
 export const clientesService = {
 
-  findAll(search?: string): Cliente[] {
+  findAll(search?: string): (Cliente & { agrupadores: Agrupador[] })[] {
     const db = getDb();
+    let clientes: Cliente[];
     if (search) {
       const term = `%${search}%`;
-      return db.prepare(`
+      clientes = db.prepare(`
         SELECT * FROM clientes
         WHERE activo = 1
           AND (nombre LIKE ? OR empresa LIKE ? OR dni_cif LIKE ?)
         ORDER BY nombre ASC
       `).all(term, term, term) as Cliente[];
+    } else {
+      clientes = db.prepare(`
+        SELECT * FROM clientes WHERE activo = 1 ORDER BY nombre ASC
+      `).all() as Cliente[];
     }
-    return db.prepare(`
-      SELECT * FROM clientes WHERE activo = 1 ORDER BY nombre ASC
-    `).all() as Cliente[];
+
+    if (clientes.length === 0) return [];
+
+    // Adjuntar las direcciones (labels de agrupadores) para distinguir
+    // clientes homónimos en el listado.
+    const ids = clientes.map(c => c.id);
+    const placeholders = ids.map(() => '?').join(', ');
+    const agrupadores = db.prepare(`
+      SELECT * FROM agrupadores
+      WHERE activo = 1 AND cliente_id IN (${placeholders})
+      ORDER BY created_at DESC
+    `).all(...ids) as Agrupador[];
+
+    const porCliente = new Map<string, Agrupador[]>();
+    for (const a of agrupadores) {
+      const lista = porCliente.get(a.cliente_id) ?? [];
+      lista.push(a);
+      porCliente.set(a.cliente_id, lista);
+    }
+
+    return clientes.map(c => ({ ...c, agrupadores: porCliente.get(c.id) ?? [] }));
   },
 
   findById(id: string): ClienteConAgrupadores | null {
@@ -34,8 +57,12 @@ export const clientesService = {
 
     for (const agrupador of agrupadores) {
       agrupador.trabajos = db.prepare(`
-        SELECT id, nombre, estado, created_at FROM trabajos
-        WHERE agrupador_id = ? ORDER BY created_at DESC
+        SELECT
+          t.id, t.nombre, t.estado, t.created_at,
+          s.estado AS estado_seguimiento
+        FROM trabajos t
+        LEFT JOIN seguimiento s ON s.trabajo_id = t.id
+        WHERE t.agrupador_id = ? ORDER BY t.created_at DESC
       `).all(agrupador.id) as TrabajoBrief[];
     }
 

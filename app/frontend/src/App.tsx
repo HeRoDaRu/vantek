@@ -1,33 +1,35 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useConfigStore } from './store/config.store';
-import Layout from './components/Layout/Layout';
-import ClientesPage from './pages/Clientes/ClientesPage';
-import ClienteFichaPage from './pages/Clientes/ClienteFichaPage';
-import AlbaranesPage from './pages/Albaranes/AlbaranesPage';
-import AlbaranFichaPage from './pages/Albaranes/AlbaranFichaPage';
-import SetupPage from './pages/Setup/SetupPage';
-import FacturasListPage from './pages/Documentos/FacturasListPage';
-import PresupuestosListPage from './pages/Documentos/PresupuestosListPage';
-import FacturaPage from './pages/Documentos/FacturaPage';
-import PresupuestoPage from './pages/Documentos/PresupuestoPage';
+import { useConfigStore } from '@store/config.store';
+import Layout from '@components/Layout/Layout';
+import ClientesPage from '@pages/Clientes/ClientesPage';
+import ClienteFichaPage from '@pages/Clientes/ClienteFichaPage';
+import AlbaranesPage from '@pages/Albaranes/AlbaranesPage';
+import AlbaranFichaPage from '@pages/Albaranes/AlbaranFichaPage';
+import SetupPage from '@pages/Setup/SetupPage';
+import FacturasListPage from '@pages/Documentos/FacturasListPage';
+import PresupuestosListPage from '@pages/Documentos/PresupuestosListPage';
+import FacturaPage from '@pages/Documentos/FacturaPage';
+import PresupuestoPage from '@pages/Documentos/PresupuestoPage';
+import DashboardPage from '@pages/Dashboard/DashboardPage';
+import ConfigPage from '@pages/Config/ConfigPage';
+import SeguimientoPage from '@pages/Seguimiento/SeguimientoPage';
+import SeguimientoFichaPage from '@pages/Seguimiento/SeguimientoFichaPage';
+import Spinner from '@ui/Spinner';
 
 export default function App() {
   const { load } = useConfigStore();
   const [configState, setConfigState] = useState<'loading' | 'setup' | 'ready' | 'error'>('loading');
+
   useEffect(() => {
     async function init() {
       try {
-        // Primero comprobamos si el setup es necesario
         const res = await fetch('/api/setup/status');
         const data = await res.json();
-
         if (data.necesita_setup) {
           setConfigState('setup');
           return;
         }
-
-        // Si no, cargamos la config normal del perfil
         await load();
         setConfigState('ready');
       } catch {
@@ -40,13 +42,9 @@ export default function App() {
   if (configState === 'loading') {
     return (
       <div className="loading-page">
-        <div className="spinner spinner-lg" />
+        <Spinner size="lg" />
       </div>
     );
-  }
-
-  if (configState === 'setup') {
-    return <SetupPage />;
   }
 
   if (configState === 'error') {
@@ -63,17 +61,25 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/clientes" replace />} />
-          <Route path="clientes" element={<ClientesPage />} />
-          <Route path="clientes/:id" element={<ClienteFichaPage />} />
-          <Route path="albaranes" element={<AlbaranesPage />} />
-          <Route path="albaranes/:id" element={<AlbaranFichaPage />} />
-          <Route path="/facturas" element={<FacturasListPage />} />
-          <Route path="/facturas/:id" element={<FacturaPage />} />
-          <Route path="/presupuestos" element={<PresupuestosListPage />} />
-          <Route path="/presupuestos/:id" element={<PresupuestoPage />} />
-        </Route>
+        {configState === 'setup' ? (
+          <Route path="*" element={<SetupPage />} />
+        ) : (
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="clientes" element={<ClientesPage />} />
+            <Route path="clientes/:id" element={<ClienteFichaPage />} />
+            <Route path="albaranes" element={<AlbaranesPage />} />
+            <Route path="albaranes/:id" element={<AlbaranFichaPage />} />
+            <Route path="facturas" element={<FacturasListPage />} />
+            <Route path="facturas/:id" element={<FacturaPage />} />
+            <Route path="presupuestos" element={<PresupuestosListPage />} />
+            <Route path="presupuestos/:id" element={<PresupuestoPage />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="configuracion" element={<ConfigPage />} />
+            <Route path="seguimiento" element={<SeguimientoPage />} />
+            <Route path="seguimiento/:id" element={<SeguimientoFichaPage />} />
+          </Route>
+        )}
       </Routes>
     </BrowserRouter>
   );

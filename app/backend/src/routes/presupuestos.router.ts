@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import * as svc from '../services/presupuestos.service';
-import { generarPdf } from '../services/pdf.service';
-import { guardarVersion } from '../services/presupuestos.service';
+import { asyncHandler } from '@middleware/errorHandler';
+import * as svc from '@services/presupuestos.service';
+import { generarPdf } from '@services/pdf.service';
+import { guardarVersion } from '@services/presupuestos.service';
 
 const router = Router();
 
@@ -76,7 +76,7 @@ router.get('/:id/pdf/latest', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Sin PDF disponible' });
   }
   const ultima = presupuesto.versiones[0] as { pdf_path: string };
-  res.sendFile(ultima.pdf_path, { root: process.cwd() });
+  res.sendFile(ultima.pdf_path, { root: __dirname });
 }));
 
 // Eliminar

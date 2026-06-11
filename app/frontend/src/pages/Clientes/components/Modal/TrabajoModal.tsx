@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Modal from '../../../components/UI/Modal';
-import { useConfigStore } from '../../../store/config.store';
-import { TrabajoBrief } from '../../../store/clientes.store';
+import Modal from '@ui/Modal';
+import { useConfigStore } from '@store/config.store';
+import { TrabajoBrief } from '@store/clientes.store';
 
 interface Props {
   open: boolean;

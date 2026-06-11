@@ -74,6 +74,7 @@ export interface TrabajoBrief {
   id: string;
   nombre: string;
   estado: TrabajoEstado;
+  estado_seguimiento?: string;
   created_at: string;
 }
 

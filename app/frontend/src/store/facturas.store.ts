@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api } from '../utils/api';
+import api from '@utils/api';
 
 export type EstadoFactura =
   | 'borrador' | 'cerrada' | 'entregada' | 'pendiente_pago' | 'pagada';

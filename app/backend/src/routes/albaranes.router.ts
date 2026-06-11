@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import { albanesService } from '../services/albaranes.service';
+import { asyncHandler } from '@middleware/errorHandler';
+import { albanesService } from '@services/albaranes.service';
 
 const router = Router();
 
@@ -38,6 +38,23 @@ router.post('/', asyncHandler(async (req, res) => {
   res.status(201).json({ data: albaran });
 }));
 
+// PUT /api/albaranes/:id — editar cabecera y líneas
+router.put('/:id', asyncHandler(async (req, res) => {
+  const { proveedor_nombre, numero, fecha, notas, lineas } = req.body;
+  if (!fecha) return res.status(400).json({ error: 'La fecha es obligatoria' });
+  if (!lineas?.length) return res.status(400).json({ error: 'El albarán debe tener al menos una línea' });
+  try {
+    const albaran = albanesService.update(req.params.id, { proveedor_nombre, numero, fecha, notas, lineas });
+    if (!albaran) return res.status(404).json({ error: 'Albarán no encontrado' });
+    res.json({ data: albaran });
+  } catch (e: any) {
+    if (String(e?.code).startsWith('SQLITE_CONSTRAINT')) {
+      return res.status(409).json({ error: 'No se puede eliminar una línea que ya está usada en una factura o presupuesto' });
+    }
+    throw e;
+  }
+}));
+
 // POST /api/albaranes/:id/asignar
 // body: { trabajo_id, linea_ids? } — si no se pasan linea_ids, asigna todas
 router.post('/:id/asignar', asyncHandler(async (req, res) => {
@@ -67,6 +84,20 @@ router.post('/lineas/desasignar', asyncHandler(async (req, res) => {
   }
   albanesService.desasignarLineas(linea_ids, trabajo_id);
   res.json({ message: 'Líneas desasignadas correctamente' });
+}));
+
+// DELETE /api/albaranes/:id — eliminar albarán (bloqueado si está usado en una factura)
+router.delete('/:id', asyncHandler(async (req, res) => {
+  const resultado = albanesService.delete(req.params.id);
+  if (resultado === 'no_existe') {
+    return res.status(404).json({ error: 'Albarán no encontrado' });
+  }
+  if (resultado === 'en_uso') {
+    return res.status(409).json({
+      error: 'No se puede eliminar: este albarán tiene líneas usadas en una factura. Quítalas de la factura primero.',
+    });
+  }
+  res.json({ message: 'Albarán eliminado correctamente' });
 }));
 
 export default router;

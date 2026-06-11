@@ -3,16 +3,21 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import path from 'path';
+import fs from 'fs';
 import asyncHandler from 'express-async-handler';
-import { runMigrations } from './db/migrate';
-import { getAppConfig, getProfileConfig } from './utils/config';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-import clientesRouter from './routes/clientes.router';
-import albanesRouter from './routes/albaranes.router';
-import setupRouter from './routes/setup.router';
-import presupuestosRouter from './routes/presupuestos.router';
-import facturasRouter from './routes/facturas.router';
-import { hayBorradorSucio } from './services/facturas.service';
+import { runMigrations } from '@db/migrate';
+import { migrateConfig } from '@utils/config';
+import { errorHandler, notFoundHandler } from '@middleware/errorHandler';
+import clientesRouter from '@routes/clientes.router';
+import albanesRouter from '@routes/albaranes.router';
+import setupRouter from '@routes/setup.router';
+import presupuestosRouter from '@routes/presupuestos.router';
+import facturasRouter from '@routes/facturas.router';
+import { hayBorradorSucio } from '@services/facturas.service';
+import dashboardRouter from '@routes/dashboard.router';
+import configRouter from '@routes/config.router';
+import seguimientoRouter from './routes/seguimiento.router';
+import { APP_ROOT, PDFS_DIR } from '@utils/paths';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,15 +29,32 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// ─── HTTP request logger ──────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const color = res.statusCode >= 500 ? '\x1b[31m'  // rojo
+                : res.statusCode >= 400 ? '\x1b[33m'  // amarillo
+                : res.statusCode >= 300 ? '\x1b[36m'  // cyan
+                : '\x1b[32m';                          // verde
+    console.log(`${color}${res.statusCode}\x1b[0m ${req.method} ${req.path} \x1b[90m${ms}ms\x1b[0m`);
+  });
+  next();
+});
+
 // ─── Estáticos (producción) ───────────────────────────────────────────────────
-const FRONTEND_DIST = path.resolve(process.cwd(), '../../dist/public');
+// En Windows/Node portable, Express sirve el frontend compilado por Vite
+// (app/frontend/dist). En Docker el frontend lo sirve nginx, por lo que esta
+// ruta no se usa (las rutas no-/api nunca llegan a Express tras el proxy).
+const FRONTEND_DIST = path.join(APP_ROOT, 'app', 'frontend', 'dist');
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(FRONTEND_DIST));
 }
+app.use('/pdfs', express.static(PDFS_DIR));
 
 // ─── Config endpoints ─────────────────────────────────────────────────────────
-app.get('/api/config/profile', (_req, res) => { res.json(getProfileConfig()); });
-app.get('/api/config/app', (_req, res) => { res.json(getAppConfig()); });
+app.use('/api/config', configRouter);
 
 // ─── Status (usado por el launcher para verificar borrador sucio) ─────────────
 app.get('/api/status', (_req, res) => {
@@ -41,7 +63,7 @@ app.get('/api/status', (_req, res) => {
 
 app.get('/api/status/draft', asyncHandler(async (_req, res) => {
   const sucio = await hayBorradorSucio();
-  res.json({ dirty: sucio });
+  res.json({ sucio });
 }));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
@@ -50,10 +72,8 @@ app.use('/api/clientes', clientesRouter);
 app.use('/api/albaranes', albanesRouter);
 app.use('/api/presupuestos', presupuestosRouter);
 app.use('/api/facturas', facturasRouter);
-
-// Fase 5:
-// import seguimientoRouter from './routes/seguimiento.router';
-// app.use('/api/seguimiento', seguimientoRouter);
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/seguimiento', seguimientoRouter);
 
 // ─── SPA fallback (producción) ────────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
@@ -61,6 +81,46 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
   });
 }
+
+// ─── placeholders de actualización ────────────────────────────────────────────
+const UPDATE_STATE_PATH = path.join(APP_ROOT, 'data', 'update-state.json');
+ 
+function readUpdateState(): any {
+  try {
+    return JSON.parse(fs.readFileSync(UPDATE_STATE_PATH, 'utf-8'));
+  } catch {
+    return { phase: 'idle', version_disponible: null, version_actual: null, error: null };
+  }
+}
+ 
+function writeUpdateState(partial: object): void {
+  const current = readUpdateState();
+  fs.writeFileSync(UPDATE_STATE_PATH, JSON.stringify({ ...current, ...partial }, null, 2));
+}
+ 
+// GET /api/status/update
+// Devuelve el estado actual de actualización para el panel de ConfigPage.
+app.get('/api/status/update', (_req, res) => {
+  const s = readUpdateState();
+  res.json({
+    phase: s.phase ?? 'idle',
+    hay_update: !!s.version_disponible,
+    version_disponible: s.version_disponible ?? null,
+    version_actual: s.version_actual ?? null,
+    ultimo_check: s.ultimo_check ?? null,
+    error: s.error ?? null,
+  });
+});
+ 
+// POST /api/status/update/apply
+// El frontend pide al launcher que descargue y/o aplique la actualización.
+// El launcher monitoriza update-state.json con fs.watchFile y reacciona al flag.
+app.post('/api/status/update/apply', (req, res) => {
+  const reiniciar_ahora = req.body?.reiniciar_ahora === true;
+  writeUpdateState({ apply_requested: true, reiniciar_ahora });
+  res.json({ ok: true, reiniciar_ahora });
+});
+
 
 // ─── Error handlers (siempre al final) ───────────────────────────────────────
 app.use(notFoundHandler);
@@ -70,6 +130,7 @@ app.use(errorHandler);
 function start() {
   try {
     console.log('[Vantek] Iniciando...');
+    migrateConfig();           // ← añadir esta línea
     runMigrations();
     console.log('[Vantek] Base de datos lista.');
     app.listen(PORT, () => {

@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getDb } from '../db/connection';
-import { getAppConfig } from '../utils/config';
+import { getDb } from '@db/connection';
+import { getAppConfig } from '@utils/config';
+import { syncSeguimientoDesdeDocumento } from './seguimiento.service';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -110,7 +111,7 @@ export async function obtenerPresupuesto(id: string) {
         a.id AS agrupador_id, a.label AS agrupador_label,
         c.id AS cliente_id, c.nombre AS cliente_nombre,
         c.empresa AS cliente_empresa, c.dni_cif AS cliente_dni_cif,
-        c.direccion AS cliente_direccion
+        a.label AS cliente_direccion
        FROM presupuestos p
        JOIN trabajos t ON t.id = p.trabajo_id
        JOIN agrupadores a ON a.id = t.agrupador_id
@@ -160,29 +161,33 @@ export async function crearPresupuesto(data: {
   const fecha = data.fecha ?? new Date().toISOString().slice(0, 10);
   const iva = config.documentos?.iva_porcentaje ?? 21;
 
-  db.prepare(
-    `INSERT INTO presupuestos
-     (id, trabajo_id, estado, fecha, notas, iva_porcentaje, created_at, updated_at)
-     VALUES (?, ?, 'borrador', ?, ?, ?, datetime('now'), datetime('now'))`
-  ).run(id, data.trabajo_id, fecha, data.notas ?? null, iva);
+  const resultado = db.transaction(() => {
+    db.prepare(
+      `INSERT INTO presupuestos
+       (id, trabajo_id, estado, fecha, notas, iva_porcentaje, created_at, updated_at)
+       VALUES (?, ?, 'borrador', ?, ?, ?, datetime('now'), datetime('now'))`
+    ).run(id, data.trabajo_id, fecha, data.notas ?? null, iva);
 
-  if (data.lineas?.length) {
-    const stmtLinea = db.prepare(
-      `INSERT INTO presupuesto_lineas
-       (id, presupuesto_id, descripcion, cantidad, unidad,
-        precio_unitario, coste_unitario, margen_porcentaje, tipo, orden)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-    data.lineas.forEach((l, idx) => {
-      stmtLinea.run(
-        uuidv4(), id, l.descripcion, l.cantidad, l.unidad ?? null,
-        l.precio_unitario, l.coste_unitario ?? null,
-        l.margen_porcentaje ?? null, l.tipo, idx
+    if (data.lineas?.length) {
+      const stmtLinea = db.prepare(
+        `INSERT INTO presupuesto_lineas
+         (id, presupuesto_id, descripcion, cantidad, unidad,
+          precio_unitario, coste_unitario, margen_porcentaje, tipo, orden)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
-    });
-  }
+      data.lineas.forEach((l, idx) => {
+        stmtLinea.run(
+          uuidv4(), id, l.descripcion, l.cantidad, l.unidad ?? null,
+          l.precio_unitario, l.coste_unitario ?? null,
+          l.margen_porcentaje ?? null, l.tipo, idx
+        );
+      });
+    }
 
-  return obtenerPresupuesto(id);
+    return id;
+  })();
+
+  return obtenerPresupuesto(resultado);
 }
 
 // ─── Actualizar cabecera ──────────────────────────────────────────────────────
@@ -268,6 +273,9 @@ export async function cambiarEstado(
      WHERE id = ?`
   ).run(estado, id);
 
+  if (id) {
+    syncSeguimientoDesdeDocumento(id, 'presupuesto', estado);
+  }
   return obtenerPresupuesto(id);
 }
 
@@ -335,7 +343,7 @@ export async function exportarLineasParaFactura(presupuesto_id: string) {
        WHERE presupuesto_id = ?
        ORDER BY orden ASC`
     )
-    .all(presupuesto_id) as Omit
+    .all(presupuesto_id) as Omit<
       LineaPresupuesto,
       'id' | 'presupuesto_id' | 'orden'
     >[];

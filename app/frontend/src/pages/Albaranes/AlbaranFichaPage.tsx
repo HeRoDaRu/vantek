@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import api from '../../utils/api';
-import Badge from '../../components/UI/Badge';
-import Spinner from '../../components/UI/Spinner';
-import Modal from '../../components/UI/Modal';
-import { useConfigStore } from '../../store/config.store';
+import api from '@utils/api';
+import Badge from '@ui/Badge';
+import Spinner from '@ui/Spinner';
+import Modal from '@ui/Modal';
+import { useConfigStore } from '@store/config.store';
+import NuevoAlbaranModal from './components/NuevoAlbaranModal';
 
 interface LineaAlbaran {
   id: string;
@@ -49,6 +50,20 @@ export default function AlbaranFichaPage() {
   const [moving, setMoving]               = useState(false);
   const [moveErr, setMoveErr]             = useState('');
 
+  // Modal editar albarán
+  const [editarAbierto, setEditarAbierto] = useState(false);
+
+  // Modal asignar a obra
+  const [asignarAbierto, setAsignarAbierto] = useState(false);
+  const [asignarTrabajoId, setAsignarTrabajo] = useState('');
+  const [asignando, setAsignando]           = useState(false);
+  const [asignarErr, setAsignarErr]         = useState('');
+
+  // Modal eliminar
+  const [eliminarAbierto, setEliminarAbierto] = useState(false);
+  const [eliminando, setEliminando]           = useState(false);
+  const [eliminarErr, setEliminarErr]         = useState('');
+
   const cargar = async () => {
     if (!id) return;
     setLoading(true);
@@ -65,13 +80,8 @@ export default function AlbaranFichaPage() {
 
   useEffect(() => { cargar(); }, [id]);
 
-  const abrirMover = async (linea: LineaAlbaran) => {
-    setMoveLinea(linea);
-    setDesdeTrabajo(linea.trabajos_asignados[0]?.id ?? '');
-    setHastaTrabajo('');
-    setMoveErr('');
-    // Carga la lista de trabajos disponibles (ruta general de clientes anidados no existe,
-    // usamos búsqueda de clientes con sus trabajos)
+  // Carga la lista completa de trabajos (cliente → agrupador → trabajo)
+  const cargarTrabajos = async () => {
     try {
       const res = await api.get('/clientes', { params: {} });
       const opciones: TrabajoOpcion[] = [];
@@ -85,6 +95,52 @@ export default function AlbaranFichaPage() {
       }
       setTrabajos(opciones);
     } catch { /* ignorar — el usuario verá la lista vacía */ }
+  };
+
+  const abrirMover = async (linea: LineaAlbaran) => {
+    setMoveLinea(linea);
+    setDesdeTrabajo(linea.trabajos_asignados[0]?.id ?? '');
+    setHastaTrabajo('');
+    setMoveErr('');
+    await cargarTrabajos();
+  };
+
+  const abrirAsignar = async () => {
+    setAsignarAbierto(true);
+    setAsignarTrabajo('');
+    setAsignarErr('');
+    await cargarTrabajos();
+  };
+
+  const handleAsignar = async () => {
+    if (!id || !asignarTrabajoId) {
+      setAsignarErr(`Selecciona un ${t('entidades.trabajo').toLowerCase()}`); return;
+    }
+    setAsignando(true);
+    setAsignarErr('');
+    try {
+      await api.post(`/albaranes/${id}/asignar`, { trabajo_id: asignarTrabajoId });
+      setAsignarAbierto(false);
+      cargar();
+    } catch (e: any) {
+      setAsignarErr(e.response?.data?.error ?? e.message);
+    } finally {
+      setAsignando(false);
+    }
+  };
+
+  const handleEliminar = async () => {
+    if (!id) return;
+    setEliminando(true);
+    setEliminarErr('');
+    try {
+      await api.delete(`/albaranes/${id}`);
+      navigate('/albaranes');
+    } catch (e: any) {
+      setEliminarErr(e.response?.data?.error ?? e.message ?? 'No se pudo eliminar el albarán');
+    } finally {
+      setEliminando(false);
+    }
   };
 
   const handleMover = async () => {
@@ -141,12 +197,37 @@ export default function AlbaranFichaPage() {
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{a.numero ?? a.id.slice(0, 8)}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <h1 className="page-title">
               {a.proveedor_nombre ?? 'Sin proveedor'} — {formatFecha(a.fecha)}
             </h1>
             <Badge estado={a.estado} />
           </div>
+        </div>
+
+        {/* Acciones */}
+        <div className="flex items-center gap-2">
+          <button
+            className="btn btn-ghost"
+            onClick={abrirAsignar}
+            title={`Asignar este albarán a una ${t('entidades.trabajo').toLowerCase()}`}
+          >
+            Asignar a {t('entidades.trabajo').toLowerCase()}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => setEditarAbierto(true)}
+            title="Editar datos del albarán"
+          >
+            Editar
+          </button>
+          <button
+            className="btn btn-ghost btn-icon-danger"
+            onClick={() => { setEliminarErr(''); setEliminarAbierto(true); }}
+            title="Eliminar albarán"
+          >
+            Eliminar
+          </button>
         </div>
       </div>
 
@@ -293,6 +374,87 @@ export default function AlbaranFichaPage() {
           </div>
           {moveErr && <span className="form-error">{moveErr}</span>}
         </div>
+      </Modal>
+
+      {/* Modal asignar a obra */}
+      <Modal
+        open={asignarAbierto}
+        onClose={() => setAsignarAbierto(false)}
+        title={`Asignar albarán a una ${t('entidades.trabajo').toLowerCase()}`}
+        size="sm"
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setAsignarAbierto(false)} disabled={asignando}>Cancelar</button>
+            <button className="btn btn-primary" onClick={handleAsignar} disabled={asignando}>
+              {asignando ? 'Asignando…' : 'Asignar'}
+            </button>
+          </>
+        }
+      >
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">{t('entidades.trabajo')}</label>
+            <select
+              className="select"
+              value={asignarTrabajoId}
+              onChange={e => setAsignarTrabajo(e.target.value)}
+            >
+              <option value="">Seleccionar…</option>
+              {trabajos.map(tr => (
+                <option key={tr.id} value={tr.id}>
+                  {tr.cliente_nombre} — {tr.agrupador_label} — {tr.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-muted text-xs">
+            Todas las líneas del albarán se asignarán a esta {t('entidades.trabajo').toLowerCase()}.
+            Después podrás mover líneas individuales a otras.
+          </p>
+          {asignarErr && <span className="form-error">{asignarErr}</span>}
+        </div>
+      </Modal>
+
+      {/* Modal editar albarán */}
+      {editarAbierto && (
+        <NuevoAlbaranModal
+          albaranInicial={{
+            id: a.id,
+            numero: a.numero,
+            fecha: a.fecha,
+            proveedor_nombre: a.proveedor_nombre,
+            notas: a.notas,
+            lineas: a.lineas.map(l => ({
+              id: l.id,
+              descripcion: l.descripcion,
+              cantidad: l.cantidad,
+              precio_unitario: l.precio_unitario,
+            })),
+          }}
+          onClose={() => setEditarAbierto(false)}
+          onActualizado={() => { setEditarAbierto(false); cargar(); }}
+        />
+      )}
+
+      {/* Modal eliminar albarán */}
+      <Modal
+        open={eliminarAbierto}
+        onClose={() => setEliminarAbierto(false)}
+        title="Eliminar albarán"
+        size="sm"
+        footer={
+          <>
+            <button className="btn btn-ghost" onClick={() => setEliminarAbierto(false)} disabled={eliminando}>Cancelar</button>
+            <button className="btn btn-danger" onClick={handleEliminar} disabled={eliminando}>
+              {eliminando ? 'Eliminando…' : 'Eliminar'}
+            </button>
+          </>
+        }
+      >
+        <p style={{ color: 'var(--text)' }}>
+          ¿Seguro que quieres eliminar este albarán? Esta acción es permanente y borra también sus líneas.
+        </p>
+        {eliminarErr && <span className="form-error" style={{ display: 'block', marginTop: 8 }}>{eliminarErr}</span>}
       </Modal>
     </div>
   );

@@ -8,10 +8,14 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=app/backend & npm run dev --workspace=app/frontend",
-    "build": "npm run build --workspace=app/frontend && npm run build --workspace=app/backend",
+    "build": "npm run build --workspace=app/frontend && npm run build --workspace=app/backend && npm run build:launcher",
+    "build:launcher": "tsc -p launcher/tsconfig.json",
     "start": "npm run start --workspace=app/backend"
   },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   }
 }

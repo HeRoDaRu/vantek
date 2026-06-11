@@ -1,0 +1,41 @@
+# Node modules — se instalan dentro del contenedor
+node_modules
+app/backend/node_modules
+app/frontend/node_modules
+
+# Builds anteriores
+app/backend/dist
+app/frontend/dist
+
+# Datos locales — estos vienen de volúmenes en producción
+data/
+logs/
+
+# Launcher de Windows — no se usa en Docker
+launcher/
+node/
+
+# Git y herramientas de desarrollo
+.git
+.gitignore
+*.md
+
+# Variables de entorno locales
+.env
+.env.*
+config/app.config.json
+config/profile.config.json
+
+# Configuración de editores
+.vscode
+.idea
+*.swp
+
+# AI files
+CLAUDE.md
+context.md
+memory.md
+
+# OCR assets — se regeneran dentro del build (no copiar artefactos del host)
+app/frontend/public/tesseract-worker
+app/frontend/public/tessdata

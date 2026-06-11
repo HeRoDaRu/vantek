@@ -1,14 +1,17 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useFacturasStore, LineaFactura } from '../../store/facturas.store';
-import Spinner from '../../components/UI/Spinner';
-import Modal from '../../components/UI/Modal';
-import DocumentoEditor, { LineaEditor, genKey } from './components/DocumentoEditor';
-import BarraAcciones from './components/BarraAcciones';
-import PanelHistorial from './components/PanelHistorial';
-import ModalAñadirAlbaran from './components/ModalAñadirAlbaran';
+import { useFacturasStore, LineaFactura } from '@store/facturas.store';
+import Spinner from '@ui/Spinner';
+import Modal from '@ui/Modal';
+import DocumentoEditor, { LineaEditor, genKey } from '@pages/Documentos/components/DocumentoEditor';
+import BarraAcciones from '@pages/Documentos/components/BarraAcciones';
+import PanelHistorial from '@pages/Documentos/components/PanelHistorial';
+import ModalAñadirAlbaran from '@pages/Documentos/components/ModalAñadirAlbaran';
+import { useConfigStore } from '@store/config.store';
 
 const AUTOSAVE_MS = 3 * 60 * 1000;
+
+
 
 // Convierte una LineaFactura del backend al formato del editor
 function facturaLineaToEditor(l: LineaFactura): LineaEditor {
@@ -44,10 +47,11 @@ function editorLineaToBack(l: LineaEditor): Omit<LineaFactura, 'id' | 'factura_i
 export default function FacturaPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const appConfig = useConfigStore(state => state.appConfig);
   const {
     actual, loading, error,
     cargarFactura, guardarLineas, guardarBorrador,
-    cerrarFactura, cambiarEstado, generarPdf, enviar,
+    cerrarFactura, cambiarEstado, generarPdf, enviar, eliminar
   } = useFacturasStore();
 
   // ─── Estado controlado de líneas (Opción A) ─────────────────────────────────
@@ -167,6 +171,15 @@ export default function FacturaPage() {
     await cambiarEstado(id, 'borrador');
   }, [id, cambiarEstado]);
 
+  async function handleEliminar() {
+    if (!actual) return;
+    try {
+      await eliminar(actual.id);
+      navigate(-1);
+    } catch (e: any) {
+      console.error('Error al eliminar factura:', e);
+    }
+  }
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   if (loading && !actual) return <Spinner label="Cargando factura…" />;
@@ -209,6 +222,7 @@ export default function FacturaPage() {
         onAlbaranes={() => navigate(`/albaranes?trabajo_id=${actual.trabajo_id}`)}
         onHistorial={() => setShowHistorial(true)}
         onReabrir={handleReabrir}
+        onEliminar={handleEliminar}
       />
 
       {/* Cabecera del documento */}
@@ -258,7 +272,7 @@ export default function FacturaPage() {
       {showModalAlbaran && (
         <ModalAñadirAlbaran
           trabajoId={actual.trabajo_id}
-          margenTrabajo={actual.trabajo_margen ?? appConfig?.documentos?.margen_defecto ?? 0}
+          margenTrabajo={appConfig?.documentos.margen_defecto ?? 10}
           lineasYaUsadas={lineasYaUsadas}
           onConfirm={handleLineasAlbaran}
           onClose={() => setShowModalAlbaran(false)}

@@ -1,7 +1,8 @@
 import nodemailer from 'nodemailer';
+import { Attachment } from 'nodemailer/lib/mailer';
 import path from 'path';
 import fs from 'fs';
-import { getAppConfig } from '../utils/config';
+import { getAppConfig } from '@utils/config';
 
 export async function enviarFactura(
   factura: {
@@ -14,6 +15,7 @@ export async function enviarFactura(
 ): Promise<void> {
   const config = getAppConfig();
   const smtp = config.email?.smtp;
+  const auth = config.email?.auth;
 
   if (!smtp) throw new Error('SMTP no configurado en app.config.json');
 
@@ -21,20 +23,22 @@ export async function enviarFactura(
     host: smtp.host,
     port: smtp.port ?? 587,
     secure: smtp.secure ?? false,
-    auth: smtp.user
-      ? { user: smtp.user, pass: smtp.pass }
+    auth: auth.user
+      ? { user: auth.user, pass: auth.pass }
       : undefined,
   });
 
   const empresa = config.empresa?.nombre ?? 'Vantek';
   const numero = factura.numero ?? 'borrador';
   const clienteNombre = factura.cliente_nombre ?? '';
+  const email = config.empresa?.email ?? config.email?.auth?.user;
 
   // Adjuntar la última versión del PDF si existe
-  const adjuntos: nodemailer.Attachment[] = [];
+  const adjuntos: Attachment[] = [];
+  
   if (factura.versiones?.length) {
     const ultima = factura.versiones[0] as { pdf_path: string };
-    const pdfAbs = path.join(process.cwd(), ultima.pdf_path);
+    const pdfAbs = path.join(__dirname, ultima.pdf_path);
     if (fs.existsSync(pdfAbs)) {
       adjuntos.push({
         filename: `Factura-${numero}.pdf`,
@@ -45,7 +49,7 @@ export async function enviarFactura(
   }
 
   await transporter.sendMail({
-    from: `"${empresa}" <${smtp.from ?? smtp.user}>`,
+    from: `"${empresa}" <${email}>`,
     to: emailDestino,
     subject: `Factura ${numero} — ${empresa}`,
     text: `Estimado/a ${clienteNombre},\n\nAdjuntamos la factura ${numero}.\n\nUn saludo,\n${empresa}`,

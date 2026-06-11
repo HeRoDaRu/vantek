@@ -1,3 +1,4 @@
+#BUILD files
 node_modules/
 dist/
 data/
@@ -9,5 +10,26 @@ node/
 .env
 .env.local
 
-# Frontend build
+#CONFIG files
+config/*.config.json
+
+#Frontend build
 app/frontend/dist/
+
+# AI files
+CLAUDE.md
+context.md
+memory.md
+
+# OCR assets — dependencia descargada/generada en build o install
+# (ver app/frontend/scripts/setup-ocr-assets.mjs), no se versiona
+app/frontend/public/tesseract-worker/
+app/frontend/public/tessdata/
+
+# Empaquetado Windows — artefactos generados (no se versionan)
+launcher/launcher.js
+tools/
+puppeteer/
+.puppeteer-cache/
+release/
+Vantek-release.zip

@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection';
+import { getDb } from '@db/connection';
 import { v4 as uuidv4 } from 'uuid';
 import { Albaran, AlbaranListItem, AlbaranLinea } from '../types';
 
@@ -150,6 +150,70 @@ export const albanesService = {
     return this.findById(id)!;
   },
 
+  // Editar cabecera y líneas de un albarán existente.
+  // Las líneas con id existente se actualizan; las nuevas (sin id) se insertan;
+  // las que ya no vienen en el payload se eliminan (cascada a sus asignaciones).
+  update(id: string, data: {
+    proveedor_nombre?: string;
+    numero?: string;
+    fecha: string;
+    notas?: string;
+    lineas: {
+      id?: string;
+      descripcion: string;
+      cantidad: number;
+      precio_unitario: number;
+      unidad?: string;
+    }[];
+  }): Albaran | null {
+    const db = getDb();
+    const existe = db.prepare(`SELECT id FROM albaranes WHERE id = ?`).get(id);
+    if (!existe) return null;
+
+    const now = new Date().toISOString();
+
+    const actualizar = db.transaction(() => {
+      db.prepare(`
+        UPDATE albaranes
+        SET proveedor_nombre = ?, numero = ?, fecha = ?, notas = ?, updated_at = ?
+        WHERE id = ?
+      `).run(data.proveedor_nombre ?? null, data.numero ?? null,
+             data.fecha, data.notas ?? null, now, id);
+
+      const existentes = (db.prepare(`SELECT id FROM albaran_lineas WHERE albaran_id = ?`)
+        .all(id) as { id: string }[]).map(r => r.id);
+      const entrantes = data.lineas.filter(l => l.id).map(l => l.id as string);
+
+      // Eliminar líneas que ya no están en el payload
+      for (const lid of existentes) {
+        if (!entrantes.includes(lid)) {
+          db.prepare(`DELETE FROM albaran_lineas WHERE id = ?`).run(lid);
+        }
+      }
+
+      // Insertar / actualizar manteniendo el orden del array
+      data.lineas.forEach((linea, i) => {
+        if (linea.id && existentes.includes(linea.id)) {
+          db.prepare(`
+            UPDATE albaran_lineas
+            SET descripcion = ?, cantidad = ?, precio_unitario = ?, unidad = ?, orden = ?
+            WHERE id = ?
+          `).run(linea.descripcion, linea.cantidad, linea.precio_unitario,
+                 linea.unidad ?? null, i, linea.id);
+        } else {
+          db.prepare(`
+            INSERT INTO albaran_lineas (id, albaran_id, descripcion, cantidad, precio_unitario, unidad, orden, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(uuidv4(), id, linea.descripcion, linea.cantidad,
+                 linea.precio_unitario, linea.unidad ?? null, i, now);
+        }
+      });
+    });
+
+    actualizar();
+    return this.findById(id)!;
+  },
+
   // Asignar líneas a un trabajo (por defecto todas si no se especifican)
   asignarLineas(albaranId: string, trabajoId: string, lineaIds?: string[]): void {
     const db = getDb();
@@ -193,5 +257,27 @@ export const albanesService = {
       }
     });
     desasignar();
+  },
+
+  // Eliminar un albarán completo (cabecera + líneas + asignaciones por cascada).
+  // Se bloquea si alguna línea ya se usó en una factura.
+  // Devuelve 'no_existe' | 'en_uso' | 'ok'.
+  delete(id: string): 'no_existe' | 'en_uso' | 'ok' {
+    const db = getDb();
+    const existe = db.prepare(`SELECT id FROM albaranes WHERE id = ?`).get(id);
+    if (!existe) return 'no_existe';
+
+    const enUso = db.prepare(`
+      SELECT COUNT(*) AS n
+      FROM factura_lineas fl
+      JOIN albaran_lineas al ON al.id = fl.albaran_linea_id
+      WHERE al.albaran_id = ?
+    `).get(id) as { n: number };
+
+    if (enUso.n > 0) return 'en_uso';
+
+    // albaran_lineas y albaran_linea_trabajo se borran por ON DELETE CASCADE
+    db.prepare(`DELETE FROM albaranes WHERE id = ?`).run(id);
+    return 'ok';
   }
 };

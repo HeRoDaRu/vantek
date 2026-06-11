@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../../utils/api';
+import api from '@utils/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -108,7 +107,6 @@ function ProgressBar({ step }: { step: 1 | 2 | 3 }) {
 // ─── Opción de perfil ─────────────────────────────────────────────────────────
 
 function ProfileOption({
-  id,
   icon,
   name,
   desc,
@@ -531,7 +529,7 @@ function StepDone({ empresa, onOpen }: { empresa: Empresa; onOpen: () => void })
           empresa.telefono ? ['Teléfono', empresa.telefono] : null,
           empresa.email ? ['Email', empresa.email] : null,
         ]
-          .filter(Boolean)
+          .filter((x): x is string[] => x !== null)
           .map(([k, v]) => (
             <div
               key={k}
@@ -567,7 +565,6 @@ function StepDone({ empresa, onOpen }: { empresa: Empresa; onOpen: () => void })
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function SetupPage() {
-  const navigate = useNavigate();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [perfil, setPerfil] = useState<Perfil>('reformas');

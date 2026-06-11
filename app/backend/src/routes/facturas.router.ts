@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import * as svc from '../services/facturas.service';
-import { generarPdf } from '../services/pdf.service';
-import { enviarFactura } from '../services/email.service';
+import { asyncHandler } from '@middleware/errorHandler';
+import * as svc from '@services/facturas.service';
+import { generarPdf } from '@services/pdf.service';
+import { enviarFactura } from '@services/email.service';
 
 const router = Router();
 
@@ -53,8 +53,8 @@ router.post('/:id/borrador', asyncHandler(async (req, res) => {
 router.post('/:id/cerrar', asyncHandler(async (req, res) => {
   const resultado = await svc.cerrarFactura(req.params.id);
 
-  if (!resultado.ok && resultado.bloqueante) {
-    return res.status(422).json({ error: resultado.bloqueante, bloqueante: true });
+  if (!resultado.ok) {
+    return res.status(422).json({ error: (resultado as any).error });
   }
 
   // Si hay aviso pero no es bloqueante, lo incluimos en la respuesta
@@ -87,7 +87,7 @@ router.get('/:id/pdf/latest', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Sin PDF disponible' });
   }
   const ultima = factura.versiones[0] as { pdf_path: string };
-  res.sendFile(ultima.pdf_path, { root: process.cwd() });
+  res.sendFile(ultima.pdf_path, { root: __dirname });
 }));
 
 // Enviar por email
@@ -99,7 +99,7 @@ router.post('/:id/enviar', asyncHandler(async (req, res) => {
   const dest = email_destino || (factura as Record<string, unknown>).cliente_email;
   if (!dest) return res.status(400).json({ error: 'No hay email de destino' });
 
-  await enviarFactura(factura, dest as string);
+  await enviarFactura(factura as any, dest as string);
   await svc.cambiarEstado(req.params.id, 'entregada');
 
   res.json({ ok: true });

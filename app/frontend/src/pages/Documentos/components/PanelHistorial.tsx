@@ -1,4 +1,4 @@
-import Modal from '../../../components/UI/Modal';
+import Modal from '@ui/Modal';
 
 interface Version {
   id: string;
@@ -54,7 +54,7 @@ export default function PanelHistorial({
                     target="_blank"
                     rel="noreferrer"
                     className="btn btn-ghost btn-sm"
-                  >
+                  <a>
                     Ver PDF
                   </a>
                 </td>

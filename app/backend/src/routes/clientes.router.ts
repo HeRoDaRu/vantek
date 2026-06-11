@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import { clientesService } from '../services/clientes.service';
-import { agrupadoresService } from '../services/agrupadores.service';
-import { trabajosService } from '../services/trabajos.service';
+import { asyncHandler } from '@middleware/errorHandler';
+import { clientesService } from '@services/clientes.service';
+import { agrupadoresService } from '@services/agrupadores.service';
+import { trabajosService } from '@services/trabajos.service';
 
 const router = Router();
 

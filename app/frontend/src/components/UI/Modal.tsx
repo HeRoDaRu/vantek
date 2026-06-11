@@ -1,7 +1,7 @@
 import { useEffect, ReactNode } from 'react';
 
 interface ModalProps {
-  open: boolean;
+  open?: boolean;
   onClose: () => void;
   title: string;
   size?: 'sm' | 'md' | 'lg';
@@ -9,7 +9,7 @@ interface ModalProps {
   footer?: ReactNode;
 }
 
-export default function Modal({ open, onClose, title, size = 'md', children, footer }: ModalProps) {
+export default function Modal({ open = true, onClose, title, size = 'md', children, footer }: ModalProps) {
   // Cerrar con Escape
   useEffect(() => {
     if (!open) return;
