@@ -56,7 +56,9 @@ jobs:
             $v = '${{ github.event.inputs.version }}'
             $tag = "v$v"
           } else {
-            throw 'No se pudo determinar la versión: lanza con un tag vX.Y.Z o indica el input version.'
+            # Ejecución manual sin input: versión de prueba (no se publica release).
+            $v = '0.0.0-test'
+            $tag = "v$v"
           }
           "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "tag=$tag"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -152,7 +154,16 @@ jobs:
           $size = [math]::Round((Get-Item ..\Vantek-release.zip).Length / 1MB, 1)
           Write-Host "Vantek-release.zip generado: $size MB"
 
+      - name: Subir artefacto de prueba (solo ejecuciones manuales)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vantek-release
+          path: Vantek-release.zip
+          retention-days: 7
+
       - name: Publicar release y subir asset
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
