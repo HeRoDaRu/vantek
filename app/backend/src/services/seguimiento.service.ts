@@ -297,26 +297,53 @@ function _convertirACliente(
   seg: Seguimiento,
   segId: string,
 ): void {
-  // Reutilizar cliente si el DNI/CIF ya existe
-  const clienteExistente = db
-    .prepare('SELECT id FROM clientes WHERE dni_cif = ? AND activo = 1')
-    .get(seg.dni_cif) as { id: string } | undefined;
+  // Reutilizar cliente existente para no duplicarlo:
+  //   1) por DNI/CIF si está presente (identificador fiscal único)
+  //   2) en su defecto, por nombre + teléfono (el DNI/CIF ya no es obligatorio;
+  //      sin este fallback, dni_cif = NULL nunca casa en SQL y se crearían duplicados)
+  const dniCif   = seg.dni_cif?.trim() || null;
+  const telefono = seg.telefono?.trim() || null;
+
+  let clienteExistente: { id: string } | undefined;
+  if (dniCif) {
+    clienteExistente = db
+      .prepare('SELECT id FROM clientes WHERE dni_cif = ? AND activo = 1')
+      .get(dniCif) as { id: string } | undefined;
+  } else if (seg.nombre) {
+    // `IS` es null-safe en SQLite: casa tanto valores iguales como ambos NULL.
+    clienteExistente = db
+      .prepare('SELECT id FROM clientes WHERE nombre = ? AND telefono IS ? AND activo = 1')
+      .get(seg.nombre, telefono) as { id: string } | undefined;
+  }
 
   const clienteId = clienteExistente?.id ?? (() => {
     const newId = uuidv4();
     db.prepare(`
       INSERT INTO clientes (id, nombre, dni_cif, telefono, activo, created_at, updated_at)
       VALUES (?, ?, ?, ?, 1, datetime('now'), datetime('now'))
-    `).run(newId, seg.nombre, seg.dni_cif, seg.telefono ?? null);
+    `).run(newId, seg.nombre, dniCif, telefono);
     return newId;
   })();
 
-  // Siempre se crea un agrupador nuevo (dirección distinta aunque sea el mismo cliente)
-  const agrupadorId = uuidv4();
-  db.prepare(`
-    INSERT INTO agrupadores (id, cliente_id, label, activo, created_at, updated_at)
-    VALUES (?, ?, ?, 1, datetime('now'), datetime('now'))
-  `).run(agrupadorId, clienteId, seg.direccion ?? 'Sin dirección');
+  // Resolver el agrupador (dirección de la obra) sin duplicarlo:
+  // un cliente puede tener varios agrupadores, así que si el cliente ya existía
+  // y tiene un agrupador con la misma dirección, se reutiliza esa obra; en caso
+  // contrario se crea un agrupador nuevo vinculado al cliente.
+  const labelAgrupador = seg.direccion ?? 'Sin dirección';
+  let agrupadorId: string | undefined;
+  if (clienteExistente) {
+    const agrupadorExistente = db
+      .prepare('SELECT id FROM agrupadores WHERE cliente_id = ? AND label = ? AND activo = 1')
+      .get(clienteId, labelAgrupador) as { id: string } | undefined;
+    agrupadorId = agrupadorExistente?.id;
+  }
+  if (!agrupadorId) {
+    agrupadorId = uuidv4();
+    db.prepare(`
+      INSERT INTO agrupadores (id, cliente_id, label, activo, created_at, updated_at)
+      VALUES (?, ?, ?, 1, datetime('now'), datetime('now'))
+    `).run(agrupadorId, clienteId, labelAgrupador);
+  }
 
   // Margen heredado de la configuración global
   let margenDefecto = 0;
