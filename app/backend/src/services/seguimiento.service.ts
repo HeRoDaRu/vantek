@@ -292,28 +292,98 @@ export function syncSeguimientoDesdeDocumento(
 
 // ─── Helpers privados ─────────────────────────────────────────────────────────
 
+/**
+ * Normaliza un texto para comparar entidades sin que pequeñas diferencias
+ * tipográficas generen duplicados: pasa a minúsculas, elimina acentos y
+ * diacríticos (incluido el ordinal 'ª'/'º'), colapsa cualquier carácter no
+ * alfanumérico a un único espacio y recorta. Así 'Calle Concepción 4ª' y
+ * 'calle concepcion 4' se consideran la misma dirección.
+ */
+function _normalizar(valor: string | null | undefined): string {
+  return (valor ?? '')
+    .normalize('NFD')                 // separa los diacríticos de su letra base
+    .replace(/[\u0300-\u036f]/g, '')  // elimina los diacríticos
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')      // todo lo no alfanumérico → espacio (quita 'ª', comas, etc.)
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Distancia de Levenshtein entre dos cadenas: nº mínimo de inserciones,
+ * borrados o sustituciones para transformar una en la otra. Implementación
+ * iterativa con una sola fila (O(n) memoria), sin dependencias externas.
+ */
+function _levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  let fila = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let anterior = fila[0];
+    fila[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const temp = fila[j];
+      const coste = a[i - 1] === b[j - 1] ? 0 : 1;
+      fila[j] = Math.min(
+        fila[j] + 1,        // borrado
+        fila[j - 1] + 1,    // inserción
+        anterior + coste,   // sustitución
+      );
+      anterior = temp;
+    }
+  }
+  return fila[b.length];
+}
+
+/**
+ * Compara dos textos ya normalizados de forma difusa (tolerante a erratas):
+ * son "el mismo" si son idénticos o si su distancia de Levenshtein no supera
+ * un umbral proporcional a la longitud (≈15 %, mínimo 1, máximo 3 caracteres).
+ * Así 'concepcion arenal 136 entl 4' y '...136 entl 4 a' se consideran iguales,
+ * pero direcciones realmente distintas no se fusionan por error.
+ */
+function _coincideDifuso(a: string, b: string): boolean {
+  if (!a || !b) return a === b;
+  if (a === b) return true;
+  const maxLen = Math.max(a.length, b.length);
+  const umbral = Math.min(3, Math.max(1, Math.floor(maxLen * 0.15)));
+  return _levenshtein(a, b) <= umbral;
+}
+
 function _convertirACliente(
   db: ReturnType<typeof getDb>,
   seg: Seguimiento,
   segId: string,
 ): void {
   // Reutilizar cliente existente para no duplicarlo:
-  //   1) por DNI/CIF si está presente (identificador fiscal único)
-  //   2) en su defecto, por nombre + teléfono (el DNI/CIF ya no es obligatorio;
-  //      sin este fallback, dni_cif = NULL nunca casa en SQL y se crearían duplicados)
+  //   1) por DNI/CIF si está presente (identificador fiscal único, comparación exacta)
+  //   2) en su defecto, por nombre (difuso) + teléfono (exacto)
+  // La comparación normaliza acentos/mayúsculas/puntuación y además tolera
+  // pequeñas erratas en el nombre, de modo que un mismo cliente no se duplique
+  // por una letra escrita de más o de menos.
   const dniCif   = seg.dni_cif?.trim() || null;
   const telefono = seg.telefono?.trim() || null;
 
+  const clientesActivos = db
+    .prepare('SELECT id, nombre, telefono, dni_cif FROM clientes WHERE activo = 1')
+    .all() as { id: string; nombre: string | null; telefono: string | null; dni_cif: string | null }[];
+
+  const dniNorm    = _normalizar(dniCif);
+  const nombreNorm = _normalizar(seg.nombre);
+  const telNorm    = _normalizar(telefono);
+
   let clienteExistente: { id: string } | undefined;
-  if (dniCif) {
-    clienteExistente = db
-      .prepare('SELECT id FROM clientes WHERE dni_cif = ? AND activo = 1')
-      .get(dniCif) as { id: string } | undefined;
-  } else if (seg.nombre) {
-    // `IS` es null-safe en SQLite: casa tanto valores iguales como ambos NULL.
-    clienteExistente = db
-      .prepare('SELECT id FROM clientes WHERE nombre = ? AND telefono IS ? AND activo = 1')
-      .get(seg.nombre, telefono) as { id: string } | undefined;
+  if (dniNorm) {
+    // El DNI/CIF es un identificador exacto: aquí no se aplica tolerancia.
+    clienteExistente = clientesActivos.find((c) => _normalizar(c.dni_cif) === dniNorm);
+  }
+  if (!clienteExistente && nombreNorm) {
+    // El teléfono debe coincidir exacto (anclaje fiable); el nombre, difuso.
+    clienteExistente = clientesActivos.find(
+      (c) => _normalizar(c.telefono) === telNorm && _coincideDifuso(_normalizar(c.nombre), nombreNorm),
+    );
   }
 
   const clienteId = clienteExistente?.id ?? (() => {
@@ -327,15 +397,17 @@ function _convertirACliente(
 
   // Resolver el agrupador (dirección de la obra) sin duplicarlo:
   // un cliente puede tener varios agrupadores, así que si el cliente ya existía
-  // y tiene un agrupador con la misma dirección, se reutiliza esa obra; en caso
-  // contrario se crea un agrupador nuevo vinculado al cliente.
+  // y tiene un agrupador con una dirección equivalente (comparación difusa
+  // sobre el texto normalizado), se reutiliza esa obra; en caso contrario se
+  // crea un agrupador nuevo.
   const labelAgrupador = seg.direccion ?? 'Sin dirección';
   let agrupadorId: string | undefined;
   if (clienteExistente) {
-    const agrupadorExistente = db
-      .prepare('SELECT id FROM agrupadores WHERE cliente_id = ? AND label = ? AND activo = 1')
-      .get(clienteId, labelAgrupador) as { id: string } | undefined;
-    agrupadorId = agrupadorExistente?.id;
+    const labelNorm = _normalizar(labelAgrupador);
+    const agrupadores = db
+      .prepare('SELECT id, label FROM agrupadores WHERE cliente_id = ? AND activo = 1')
+      .all(clienteId) as { id: string; label: string | null }[];
+    agrupadorId = agrupadores.find((a) => _coincideDifuso(_normalizar(a.label), labelNorm))?.id;
   }
   if (!agrupadorId) {
     agrupadorId = uuidv4();
