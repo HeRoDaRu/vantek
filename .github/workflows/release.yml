@@ -66,6 +66,17 @@ jobs:
         shell: pwsh
         run: npm ci --workspaces --include-workspace-root
 
+      - name: Descargar Chromium de Puppeteer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npx puppeteer browsers install chrome
+          if ($LASTEXITCODE -ne 0) { throw "puppeteer browsers install fallo (codigo $LASTEXITCODE)" }
+          if (-not (Test-Path $env:PUPPETEER_CACHE_DIR)) {
+            throw "Puppeteer no creo la cache en $env:PUPPETEER_CACHE_DIR"
+          }
+          Get-ChildItem $env:PUPPETEER_CACHE_DIR
+
       - name: Compilar frontend, backend y launcher
         shell: pwsh
         run: npm run build
