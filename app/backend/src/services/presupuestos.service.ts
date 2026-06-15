@@ -111,6 +111,7 @@ export async function obtenerPresupuesto(id: string) {
         a.id AS agrupador_id, a.label AS agrupador_label,
         c.id AS cliente_id, c.nombre AS cliente_nombre,
         c.empresa AS cliente_empresa, c.dni_cif AS cliente_dni_cif,
+        c.email AS cliente_email,
         a.label AS cliente_direccion
        FROM presupuestos p
        JOIN trabajos t ON t.id = p.trabajo_id
@@ -298,11 +299,15 @@ export async function guardarVersion(
     .get(presupuesto_id) as { last: number | null };
   const numero_version = (last.last ?? 0) + 1;
 
+  // Snapshot del documento para la columna datos (NOT NULL)
+  const snapshot = await obtenerPresupuesto(presupuesto_id);
+  const datos = JSON.stringify(snapshot ?? {});
+
   db.prepare(
     `INSERT INTO presupuesto_versiones
-     (id, presupuesto_id, numero_version, pdf_path, created_at)
-     VALUES (?, ?, ?, ?, datetime('now'))`
-  ).run(uuidv4(), presupuesto_id, numero_version, pdf_path);
+     (id, presupuesto_id, numero_version, datos, pdf_path, created_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))`
+  ).run(uuidv4(), presupuesto_id, numero_version, datos, pdf_path);
 
   // Purgar versiones antiguas si se supera el límite
   const versiones = db

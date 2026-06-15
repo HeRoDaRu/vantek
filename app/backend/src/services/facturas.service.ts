@@ -335,11 +335,15 @@ export async function guardarVersion(factura_id: string, pdf_path: string) {
     .get(factura_id) as { last: number | null };
   const numero_version = (last.last ?? 0) + 1;
 
+  // Snapshot del documento para la columna datos (NOT NULL)
+  const snapshot = await obtenerFactura(factura_id);
+  const datos = JSON.stringify(snapshot ?? {});
+
   db.prepare(
     `INSERT INTO factura_versiones
-     (id, factura_id, numero_version, pdf_path, created_at)
-     VALUES (?, ?, ?, ?, datetime('now'))`
-  ).run(uuidv4(), factura_id, numero_version, pdf_path);
+     (id, factura_id, numero_version, datos, pdf_path, created_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))`
+  ).run(uuidv4(), factura_id, numero_version, datos, pdf_path);
 
   // Purgar antiguas
   const versiones = db

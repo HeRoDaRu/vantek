@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import SplashScreen from './pages/Splash/SplashScreen';
+import Toaster from '@components/UI/Toaster';
 import './index.css';
 
 function Root() {
@@ -17,5 +18,6 @@ function Root() {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Root />
+    <Toaster />
   </React.StrictMode>
 );

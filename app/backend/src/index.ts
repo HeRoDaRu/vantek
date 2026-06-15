@@ -75,13 +75,6 @@ app.use('/api/facturas', facturasRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/seguimiento', seguimientoRouter);
 
-// ─── SPA fallback (producción) ────────────────────────────────────────────────
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
-  });
-}
-
 // ─── placeholders de actualización ────────────────────────────────────────────
 const UPDATE_STATE_PATH = path.join(APP_ROOT, 'data', 'update-state.json');
  
@@ -121,6 +114,15 @@ app.post('/api/status/update/apply', (req, res) => {
   res.json({ ok: true, reiniciar_ahora });
 });
 
+// ─── SPA fallback (producción) ────────────────────────────────────────────────
+// Debe ir tras TODAS las rutas /api para no interceptarlas. En Windows/Node
+// portable sirve el index.html del frontend compilado; en Docker nunca se
+// alcanza porque nginx atiende las rutas no-/api.
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
+  });
+}
 
 // ─── Error handlers (siempre al final) ───────────────────────────────────────
 app.use(notFoundHandler);
