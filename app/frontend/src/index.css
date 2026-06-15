@@ -1131,14 +1131,15 @@ tbody tr:hover td {
 .sidebar-collapse-btn {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
+  justify-content: center;
+  padding: 9px;
   background: transparent;
   border: none;
   cursor: pointer;
   color: var(--text-3);
   border-radius: var(--radius);
   transition: all 150ms ease;
-  width: 100%;
+  flex-shrink: 0;
 }
 
 .sidebar-collapse-btn:hover {
@@ -1166,9 +1167,23 @@ tbody tr:hover td {
 }
 
 .mobile-topbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.mobile-topbar-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--accent);
+  flex-shrink: 0;
 }
 
 .mobile-menu-btn {
@@ -1299,7 +1314,7 @@ tbody tr:hover td {
 
   .kpi-value {
     font-size: 20px !important;
-    line-height: 1;
+    line-height: 1.2;
     margin-bottom: 0 !important;
     margin-left: auto;
   }

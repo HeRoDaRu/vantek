@@ -20,7 +20,15 @@ export default function Layout() {
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
-        <span className="mobile-topbar-brand">Vantek</span>
+        <span className="mobile-topbar-brand">
+          <span className="mobile-topbar-logo" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" fill="none" stroke="white" strokeWidth="1.5" />
+            </svg>
+          </span>
+          Vantek
+        </span>
       </header>
 
       {/* Fondo oscuro al abrir el menú en móvil */}

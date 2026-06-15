@@ -140,13 +140,14 @@ export default function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: 
       </nav>
 
       {/* configuración + colapsar */}
-      <div style={{ padding: '8px 8px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <NavItem to="/configuracion" icon={<IconConfig />} label="Configuración" collapsed={collapsed} onNavigate={onClose} />
+      <div style={{ padding: '8px 8px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: collapsed ? 'column' : 'row', alignItems: 'center', gap: 4 }}>
+        <div style={{ flex: 1, minWidth: 0, width: collapsed ? '100%' : 'auto' }}>
+          <NavItem to="/configuracion" icon={<IconConfig />} label="Configuración" collapsed={collapsed} onNavigate={onClose} />
+        </div>
         <button
           onClick={() => setCollapsed(c => !c)}
           title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
           className="sidebar-collapse-btn"
-          style={{ justifyContent: collapsed ? 'center' : 'flex-end' }}
         >
           <IconCollapse collapsed={collapsed} />
         </button>
