@@ -24,7 +24,7 @@
     {{#if empresa_telefono}}<div class="empresa-dato">T.L.F.: {{empresa_telefono}}</div>{{/if}}
   </div>
   <div class="header-right">
-    <div class="num-doc">{{etiqueta_numero}} <strong>{{numero}}</strong></div>
+    {{#if mostrar_numero}}<div class="num-doc">{{etiqueta_numero}} <strong>{{numero}}</strong></div>{{/if}}
     <div class="titulo-doc">{{titulo_doc}}</div>
   </div>
 </div>

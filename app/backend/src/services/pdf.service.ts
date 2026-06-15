@@ -259,7 +259,8 @@ function construirContexto(doc: DocumentoParaPdf, tipo: TipoDocumento): Contexto
     STYLES: leerCss(),
     titulo_doc: tituloDoc,
     etiqueta_numero: tipo === 'factura' ? 'Nº Factura:' : 'Nº Presupuesto:',
-    numero: doc.numero ?? 'BORRADOR',
+    numero: doc.numero ?? '',
+    mostrar_numero: Boolean(doc.numero),
     mostrar_sello: tipo === 'factura' && doc.estado === 'pagada',
 
     has_logo: Boolean(logo),

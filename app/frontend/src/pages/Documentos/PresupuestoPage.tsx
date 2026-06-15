@@ -102,7 +102,8 @@ export default function PresupuestoPage() {
     const url = window.URL.createObjectURL(res.data as Blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Presupuesto-${actual?.cliente_nombre ?? id}.pdf`;
+    const nombreCliente = (actual?.cliente_nombre ?? id ?? '').replace(/\s+/g, '_');
+    a.download = `Presupuesto_${nombreCliente}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
