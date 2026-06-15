@@ -49,6 +49,22 @@ interface AppConfig {
 
 // ─── hook para cargar y guardar config ───────────────────────────────────────
 
+// Normaliza configuraciones antiguas: la clave de numeración pasó de
+// `numeracion_facturas` (plural) a `numeracion_factura` (singular). Algunas
+// instalaciones tienen el fichero antiguo; lo migramos al vuelo para que la
+// sección Documentos no falle y se guarde ya con la clave correcta.
+function normalizarConfig(raw: any): AppConfig {
+  const doc = raw?.documentos ?? {};
+  if (!doc.numeracion_factura && doc.numeracion_facturas) {
+    doc.numeracion_factura = doc.numeracion_facturas;
+    delete doc.numeracion_facturas;
+  }
+  if (!doc.numeracion_factura) {
+    doc.numeracion_factura = { contador: 0, anio: new Date().getFullYear() };
+  }
+  return raw as AppConfig;
+}
+
 function useAppConfig() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -57,7 +73,7 @@ function useAppConfig() {
 
   useEffect(() => {
     api.get<AppConfig>('/config/app').then(r => {
-      setConfig(r.data);
+      setConfig(normalizarConfig(r.data));
       setCargando(false);
     });
   }, []);
@@ -487,10 +503,10 @@ export default function ConfigPage() {
         />
       )}
 
-      <div style={{ display: 'flex', height: '100%' }}>
+      <div className="config-layout" style={{ display: 'flex', height: '100%' }}>
 
-        {/* ── nav lateral ──────────────────────────────────────────────── */}
-        <nav style={{
+        {/* ── nav lateral ─────────────────────────────── */}
+        <nav className="config-nav" style={{
           width: 180, flexShrink: 0,
           borderRight: '1px solid var(--border)',
           padding: '24px 0',
@@ -518,7 +534,7 @@ export default function ConfigPage() {
         </nav>
 
         {/* ── contenido ────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <div className="config-content" style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
           <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 24 }}>
 
             {/* EMPRESA */}

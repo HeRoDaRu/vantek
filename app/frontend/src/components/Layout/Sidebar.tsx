@@ -62,14 +62,15 @@ const IconCollapse = ({ collapsed }: { collapsed: boolean }) => (
 // ─── item de menú ─────────────────────────────────────────────────────────────
 
 function NavItem({
-  to, icon, label, collapsed,
+  to, icon, label, collapsed, onNavigate,
 }: {
-  to: string; icon: React.ReactNode; label: string; collapsed: boolean;
+  to: string; icon: React.ReactNode; label: string; collapsed: boolean; onNavigate?: () => void;
 }) {
   return (
     <NavLink
       to={to}
       title={collapsed ? label : undefined}
+      onClick={onNavigate}
       className={({ isActive }) =>
         `nav-item${collapsed ? ' collapsed' : ''}${isActive ? ' active' : ''}`
       }
@@ -82,7 +83,7 @@ function NavItem({
 
 // ─── sidebar ──────────────────────────────────────────────────────────────────
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean; onClose?: () => void } = {}) {
   const [collapsed, setCollapsed] = useState(false);
   const { profile } = useConfigStore();
   const modulos = profile?.modulos ?? {} as { albaranes?: boolean; seguimiento?: boolean };
@@ -90,14 +91,17 @@ export default function Sidebar() {
   const W = collapsed ? 56 : 210;
 
   return (
-    <aside style={{
-      width: W, flexShrink: 0,
-      background: 'var(--bg-2)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column',
-      transition: 'width 200ms ease',
-      overflow: 'hidden',
-    }}>
+    <aside
+      className={`sidebar${mobileOpen ? ' sidebar-open' : ''}`}
+      style={{
+        width: W, flexShrink: 0,
+        background: 'var(--bg-2)',
+        borderRight: '1px solid var(--border)',
+        display: 'flex', flexDirection: 'column',
+        transition: 'width 200ms ease',
+        overflow: 'hidden',
+      }}
+    >
 
       {/* logo */}
       <div style={{
@@ -123,21 +127,21 @@ export default function Sidebar() {
 
       {/* nav */}
       <nav style={{ flex: 1, padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-        <NavItem to="/dashboard" icon={<IconDashboard />} label="Dashboard" collapsed={collapsed} />
-        <NavItem to="/clientes" icon={<IconClientes />} label="Clientes" collapsed={collapsed} />
-        <NavItem to="/presupuestos" icon={<IconPresupuestos />} label="Presupuestos" collapsed={collapsed} />
-        <NavItem to="/facturas" icon={<IconFacturas />} label="Facturas" collapsed={collapsed} />
+        <NavItem to="/dashboard" icon={<IconDashboard />} label="Dashboard" collapsed={collapsed} onNavigate={onClose} />
+        <NavItem to="/clientes" icon={<IconClientes />} label="Clientes" collapsed={collapsed} onNavigate={onClose} />
+        <NavItem to="/presupuestos" icon={<IconPresupuestos />} label="Presupuestos" collapsed={collapsed} onNavigate={onClose} />
+        <NavItem to="/facturas" icon={<IconFacturas />} label="Facturas" collapsed={collapsed} onNavigate={onClose} />
         {modulos.albaranes && (
-          <NavItem to="/albaranes" icon={<IconAlbaranes />} label="Albaranes" collapsed={collapsed} />
+          <NavItem to="/albaranes" icon={<IconAlbaranes />} label="Albaranes" collapsed={collapsed} onNavigate={onClose} />
         )}
         {modulos.seguimiento && (
-          <NavItem to="/seguimiento" icon={<IconSeguimiento />} label="Trabajos" collapsed={collapsed} />
+          <NavItem to="/seguimiento" icon={<IconSeguimiento />} label="Trabajos" collapsed={collapsed} onNavigate={onClose} />
         )}
       </nav>
 
       {/* configuración + colapsar */}
       <div style={{ padding: '8px 8px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <NavItem to="/configuracion" icon={<IconConfig />} label="Configuración" collapsed={collapsed} />
+        <NavItem to="/configuracion" icon={<IconConfig />} label="Configuración" collapsed={collapsed} onNavigate={onClose} />
         <button
           onClick={() => setCollapsed(c => !c)}
           title={collapsed ? 'Expandir menú' : 'Colapsar menú'}

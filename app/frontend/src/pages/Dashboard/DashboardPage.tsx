@@ -78,7 +78,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="dashboard-page" style={{ padding: '24px 28px', maxWidth: 1100, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Cabecera */}
       <div>
@@ -87,7 +87,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         <KpiCard
           label="Cobrado (real)"
           valor={resumen ? fmt(resumen.total_pagado) : '—'}
@@ -118,7 +118,7 @@ export default function DashboardPage() {
         background: 'var(--bg-2)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius-lg)', overflow: 'hidden',
       }}>
-        <div style={{
+        <div className="grafico-header" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 20px', borderBottom: '1px solid var(--border)',
         }}>
@@ -128,7 +128,7 @@ export default function DashboardPage() {
               Barras = cobrado real · Línea = proyección
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div className="grafico-header-btns" style={{ display: 'flex', gap: 4 }}>
             {AGRUPACIONES.map(a => (
               <button
                 key={a.value}
@@ -209,7 +209,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="dash-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '10px 20px', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-3)', width: 120 }}>Tipo</th>
@@ -276,18 +276,18 @@ function KpiCard({ label, valor, sub, acento }: {
   label: string; valor: string; sub: string; acento: string;
 }) {
   return (
-    <div style={{
+    <div className="kpi-card" style={{
       background: 'var(--bg-2)', border: '1px solid var(--border)',
       borderRadius: 'var(--radius-lg)', padding: '18px 20px',
       borderTop: `2px solid ${acento}`, position: 'relative', overflow: 'hidden',
     }}>
-      <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+      <div className="kpi-label" style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
         {label}
       </div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', marginBottom: 4 }}>
+      <div className="kpi-value" style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', marginBottom: 4 }}>
         {valor}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+      <div className="kpi-sub" style={{ fontSize: 11, color: 'var(--text-3)' }}>
         {sub}
       </div>
     </div>

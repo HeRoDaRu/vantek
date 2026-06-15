@@ -44,6 +44,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -105,6 +106,7 @@ body {
 .btn-primary {
   background: var(--accent);
   color: #fff;
+  border: 1px solid transparent;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -1142,4 +1144,291 @@ tbody tr:hover td {
 .sidebar-collapse-btn:hover {
   background: var(--bg-3);
   color: var(--text);
+}
+
+/* ─── Responsive — barra superior móvil y cajón lateral ────────────────────
+   En escritorio nada de esto se ve. En móvil/tablet aparece una barra fija
+   superior con el botón hamburguesa; el contenido se desplaza hacia abajo
+   uniformemente, evitando solapes con las cabeceras de cada página. */
+.mobile-topbar {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  z-index: 140;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.mobile-topbar-brand {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.mobile-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mobile-menu-btn:hover {
+  background: var(--bg-3);
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 158;
+  animation: fadeIn 0.15s ease;
+}
+
+/* Las páginas con cabecera propia (Dashboard, Seguimiento) gestionan su
+   propio scroll vertical para no quedar recortadas por el contenedor
+   principal, que tiene overflow: hidden. */
+.dashboard-page,
+.scroll-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+}
+
+/* Estas páginas son flex en columna; sin esto, sus hijos se comprimen para
+   caber en la altura disponible (flex-shrink por defecto = 1), recortando el
+   gráfico y la tabla en lugar de permitir el scroll. */
+.dashboard-page > *,
+.scroll-page > * {
+  flex-shrink: 0;
+}
+
+/* ─── Tablet y móvil (≤ 900px) ─────────────────────────────────────────────
+   El sidebar pasa a ser un cajón deslizante (off-canvas). Se usa !important
+   para sobreescribir los estilos inline del componente Sidebar. */
+@media (max-width: 900px) {
+  .mobile-topbar {
+    display: flex;
+  }
+
+  /* Empuja todo el contenido por debajo de la barra superior */
+  .app-main {
+    padding-top: 52px;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100% !important;
+    width: 250px !important;
+    z-index: 160;
+    transform: translateX(-100%);
+    transition: transform 220ms ease !important;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* El botón de colapsar no aplica en modo cajón */
+  .sidebar-collapse-btn {
+    display: none !important;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+  }
+
+  .page-body {
+    padding: 18px;
+  }
+
+  /* Cabeceras de página que envuelven en lugar de solaparse */
+  .page-header,
+  .page-head {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* Las rejillas de formulario pasan a una columna */
+  .form-grid-2,
+  .form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  /* KPIs del dashboard apilados (móvil y tablet por igual) */
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+
+  /* KPIs compactos: la etiqueta y el número van en la MISMA fila (caja plana).
+     El subtítulo ocupa el ancho completo y baja debajo. Así el número queda
+     alineado verticalmente con la etiqueta y no flotando entre el título y el
+     subtítulo. */
+  .kpi-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 2px;
+    padding: 12px 16px !important;
+  }
+
+  .kpi-label {
+    margin-bottom: 0 !important;
+    color: var(--text-2) !important;
+  }
+
+  .kpi-value {
+    font-size: 20px !important;
+    line-height: 1;
+    margin-bottom: 0 !important;
+    margin-left: auto;
+  }
+
+  .kpi-sub {
+    flex-basis: 100%;
+  }
+
+  /* ── Configuración: la nav lateral se convierte en pestañas horizontales ── */
+  .config-layout {
+    flex-direction: column;
+    height: auto !important;
+    min-height: 0;
+  }
+
+  .config-nav {
+    width: 100% !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px !important;
+    gap: 4px !important;
+  }
+
+  /* Oculta el título "Configuración" de la nav cuando está en horizontal */
+  .config-nav > div:first-child {
+    display: none;
+  }
+
+  .config-nav button {
+    white-space: nowrap;
+    border-left: none !important;
+    border-bottom: 2px solid transparent;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .config-content {
+    padding: 18px !important;
+  }
+}
+
+/* ─── Móvil (≤ 640px) ──────────────────────────────────────────────────────  */
+@media (max-width: 640px) {
+  .page-header {
+    padding: 14px 14px;
+  }
+
+  .page-title {
+    font-size: 16px;
+  }
+
+  .page-body {
+    padding: 14px;
+  }
+
+  /* La búsqueda y los botones de cabecera ocupan todo el ancho */
+  .page-header > .flex {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .page-header .search-wrap {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .page-header .search-wrap .input {
+    width: 100% !important;
+  }
+
+  /* Cabecera del gráfico "Resumen económico": los botones bajan a su propia
+     fila (alineados a la derecha) para que no queden pegados al borde ni se
+     amontonen sobre el título y el subtítulo. */
+  .grafico-header {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 10px;
+    padding: 14px 20px !important;
+  }
+
+  .grafico-header-btns {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  /* Tablas del dashboard: forzar scroll horizontal en vez de recortar */
+  .dash-table {
+    min-width: 540px;
+  }
+
+  /* Barra de acciones del editor: que envuelva en lugar de desbordar */
+  .barra-acciones {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .barra-left {
+    flex-wrap: wrap;
+  }
+
+  /* Modales casi a pantalla completa */
+  .modal-overlay {
+    padding: 10px;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-height: 94vh;
+  }
+
+  .modal-sm,
+  .modal-md,
+  .modal-lg {
+    max-width: 100%;
+  }
+
+  /* Totales del documento ocupan el ancho disponible */
+  .doc-totales {
+    align-items: stretch;
+  }
+
+  .totales-row {
+    min-width: 0;
+  }
+
+  /* Botones más cómodos para el dedo */
+  .btn {
+    padding: 8px 14px;
+  }
 }
