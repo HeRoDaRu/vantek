@@ -1,8 +1,8 @@
 import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
-import { getAppConfig, getProfileConfig } from '@utils/config';
-import { PDFS_DIR } from '@utils/paths';
+import { getAppConfig, getProfileConfig, AppConfig } from '@utils/config';
+import { APP_ROOT, PDFS_DIR } from '@utils/paths';
 
 // ─── Tipos mínimos que necesita el template ───────────────────────────────────
 
@@ -48,169 +48,256 @@ function fmt(n: number): string {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// ─── Template HTML ────────────────────────────────────────────────────────────
+const MESES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
 
-function buildHtml(doc: DocumentoParaPdf, tipo: TipoDocumento): string {
+// Formatea una fecha tipo "2025-01-22" como "22 de Enero 2025".
+function fmtFecha(fecha?: string | null): string {
+  if (!fecha) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(fecha);
+  if (!m) return fecha;
+  const dia = parseInt(m[3], 10);
+  const mes = MESES_ES[parseInt(m[2], 10) - 1] ?? '';
+  return `${dia} de ${mes} ${m[1]}`;
+}
+
+// Escapa texto para insertarlo de forma segura en el HTML del template.
+function esc(valor: unknown): string {
+  if (valor === null || valor === undefined) return '';
+  return String(valor)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ─── Logo ─────────────────────────────────────────────────────────────────────
+
+// Devuelve un src usable en <img> para el logo de la empresa. Acepta un data URI
+// (lo más habitual, subido desde Configuración) o una ruta de fichero en disco,
+// que se lee y se convierte a data URI. Devuelve cadena vacía si no hay logo.
+function logoSrc(valor?: string | null): string {
+  if (!valor) return '';
+  const v = valor.trim();
+  if (!v) return '';
+  if (v.startsWith('data:')) return v;
+  try {
+    if (!fs.existsSync(v)) return '';
+    const buf = fs.readFileSync(v);
+    const ext = path.extname(v).toLowerCase();
+    const mime =
+      ext === '.png' ? 'image/png'
+      : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg'
+      : ext === '.gif' ? 'image/gif'
+      : ext === '.svg' ? 'image/svg+xml'
+      : ext === '.webp' ? 'image/webp'
+      : 'application/octet-stream';
+    return `data:${mime};base64,${buf.toString('base64')}`;
+  } catch {
+    return '';
+  }
+}
+
+// ─── Carga de plantillas ──────────────────────────────────────────────────────
+
+// Las plantillas (.html/.css) viven en src/templates y se copian a dist/templates
+// en el build (scripts/copy-templates.mjs). Se resuelven relativas al fichero
+// compilado, de modo que funciona igual en dev (tsx → src/templates) y en
+// producción (dist/templates), en Windows portable y en Docker.
+const TEMPLATES_DIR = path.join(__dirname, '..', 'templates');
+
+function leerCss(): string {
+  try {
+    return fs.readFileSync(path.join(TEMPLATES_DIR, 'documento.css'), 'utf-8');
+  } catch {
+    return '';
+  }
+}
+
+// Devuelve el HTML de la plantilla a usar. Precedencia:
+//   1. documentos.template_html  — plantilla en línea editada desde Configuración
+//   2. documentos.template_path  — fichero HTML externo apuntado por el usuario
+//   3. plantilla incluida (dist/templates/documento.html)
+function cargarPlantilla(): string {
+  const docs = getAppConfig().documentos ?? {};
+
+  if (docs.template_html && docs.template_html.trim()) {
+    return docs.template_html;
+  }
+
+  if (docs.template_path && docs.template_path.trim()) {
+    const ruta = path.isAbsolute(docs.template_path)
+      ? docs.template_path
+      : path.join(APP_ROOT, docs.template_path);
+    try {
+      if (fs.existsSync(ruta)) return fs.readFileSync(ruta, 'utf-8');
+    } catch {
+      /* cae a la plantilla incluida */
+    }
+  }
+
+  return fs.readFileSync(path.join(TEMPLATES_DIR, 'documento.html'), 'utf-8');
+}
+
+// ─── Motor de plantillas ──────────────────────────────────────────────────────
+// Mini-motor sin dependencias. Soporta:
+//   {{clave}}        valor escapado
+//   {{{clave}}}      valor sin escapar (logo, CSS…)
+//   {{#if clave}}…{{else}}…{{/if}}
+//   {{#each lista}}…{{/each}}   (las claves del elemento quedan accesibles dentro)
+// Los bloques pueden anidarse.
+
+type Contexto = Record<string, unknown>;
+
+function lookup(ctx: Contexto, clave: string): unknown {
+  return clave
+    .split('.')
+    .reduce<unknown>((o, k) => (o == null ? undefined : (o as Contexto)[k]), ctx);
+}
+
+function esTruthy(v: unknown): boolean {
+  if (Array.isArray(v)) return v.length > 0;
+  return Boolean(v);
+}
+
+// Sustituye las interpolaciones de un fragmento que ya no contiene bloques.
+function interpolar(tpl: string, ctx: Contexto): string {
+  return tpl
+    .replace(/\{\{\{\s*([\w.]+)\s*\}\}\}/g, (_m, k: string) => {
+      const v = lookup(ctx, k);
+      return v == null ? '' : String(v);
+    })
+    .replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_m, k: string) => esc(lookup(ctx, k)));
+}
+
+// Localiza el cierre del bloque abierto en `desde`, respetando anidamiento.
+function finBloque(s: string, desde: number): { inner: string; fin: number } {
+  const re = /\{\{#(?:if|each)\s+[\w.]+\s*\}\}|\{\{\/(?:if|each)\}\}/g;
+  re.lastIndex = desde;
+  let depth = 1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    if (m[0].startsWith('{{#')) depth++;
+    else depth--;
+    if (depth === 0) return { inner: s.slice(desde, m.index), fin: re.lastIndex };
+  }
+  return { inner: s.slice(desde), fin: s.length };
+}
+
+// Separa el cuerpo de un {{#if}} en sus ramas por el {{else}} de nivel superior.
+function partirElse(inner: string): [string, string] {
+  const re = /\{\{#(?:if|each)\s+[\w.]+\s*\}\}|\{\{\/(?:if|each)\}\}|\{\{else\}\}/g;
+  let depth = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(inner)) !== null) {
+    if (m[0] === '{{else}}') {
+      if (depth === 0) return [inner.slice(0, m.index), inner.slice(re.lastIndex)];
+    } else if (m[0].startsWith('{{#')) {
+      depth++;
+    } else {
+      depth--;
+    }
+  }
+  return [inner, ''];
+}
+
+function renderTemplate(tpl: string, ctx: Contexto): string {
+  const apertura = /\{\{#(if|each)\s+([\w.]+)\s*\}\}/;
+  let salida = '';
+  let resto = tpl;
+  let m: RegExpExecArray | null;
+
+  while ((m = apertura.exec(resto)) !== null) {
+    salida += interpolar(resto.slice(0, m.index), ctx);
+
+    const tipo = m[1];
+    const clave = m[2];
+    const inicio = m.index + m[0].length;
+    const { inner, fin } = finBloque(resto, inicio);
+    const valor = lookup(ctx, clave);
+
+    if (tipo === 'if') {
+      const [siRama, noRama] = partirElse(inner);
+      salida += esTruthy(valor) ? renderTemplate(siRama, ctx) : renderTemplate(noRama, ctx);
+    } else if (Array.isArray(valor)) {
+      for (const item of valor) {
+        const hijo: Contexto =
+          item !== null && typeof item === 'object'
+            ? { ...ctx, ...(item as Contexto) }
+            : { ...ctx };
+        salida += renderTemplate(inner, hijo);
+      }
+    }
+
+    resto = resto.slice(fin);
+  }
+
+  salida += interpolar(resto, ctx);
+  return salida;
+}
+
+// ─── Construcción del contexto del documento ──────────────────────────────────
+
+function construirContexto(doc: DocumentoParaPdf, tipo: TipoDocumento): Contexto {
   const appConfig = getAppConfig();
   const profileConfig = getProfileConfig();
 
-  const empresa = appConfig.empresa ?? {};
+  const empresa = appConfig.empresa ?? ({} as AppConfig['empresa']);
   const footerTexto =
     tipo === 'factura'
       ? (profileConfig.footer?.factura ?? '')
       : (profileConfig.footer?.presupuesto ?? '');
 
-  const marcaAgua = tipo === 'factura' ? 'FACTURA' : 'PRESUPUESTO';
-  const mostrarSelloPagada = tipo === 'factura' && doc.estado === 'pagada';
+  const tituloDoc = tipo === 'factura' ? 'FACTURA' : 'PRESUPUESTO';
   const mostrarIva = tipo === 'factura';
+  const ivaPct = doc.totales.iva_porcentaje ?? doc.iva_porcentaje ?? 0;
+  const logo = logoSrc(empresa.logo);
 
-  const filas = doc.lineas
-    .map(
-      l => `
-      <tr>
-        <td class="desc">${l.descripcion}</td>
-        <td class="num">${fmt(l.cantidad)}</td>
-        <td class="num">${l.unidad ?? ''}</td>
-        <td class="num">${fmt(l.precio_unitario)}</td>
-        <td class="num">${fmt(l.cantidad * l.precio_unitario)}</td>
-      </tr>`
-    )
-    .join('');
+  return {
+    STYLES: leerCss(),
+    titulo_doc: tituloDoc,
+    etiqueta_numero: tipo === 'factura' ? 'Nº Factura:' : 'Nº Presupuesto:',
+    numero: doc.numero ?? '',
+    mostrar_numero: Boolean(doc.numero),
+    mostrar_sello: tipo === 'factura' && doc.estado === 'pagada',
 
-  const ivaFila = mostrarIva
-    ? `<tr class="total-row">
-         <td colspan="4" class="total-label">IVA (${doc.iva_porcentaje}%)</td>
-         <td class="num">${fmt(doc.totales.iva ?? 0)}</td>
-       </tr>`
-    : '';
+    has_logo: Boolean(logo),
+    logo,
+    empresa_nombre: empresa.nombre ?? '',
+    empresa_cif: empresa.cif ?? '',
+    empresa_direccion: empresa.direccion ?? '',
+    empresa_email: empresa.email ?? '',
+    empresa_telefono: empresa.telefono ?? '',
 
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 11px; color: #1a1a2e; background: #fff;
-    padding: 28px 36px;
-  }
+    cliente_nombre: doc.cliente_empresa || doc.cliente_nombre || '',
+    cliente_dni_cif: doc.cliente_dni_cif ?? '',
+    cliente_direccion: doc.cliente_direccion ?? doc.agrupador_label ?? '',
+    fecha: fmtFecha(doc.fecha),
 
-  /* Marca de agua diagonal */
-  .watermark {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%) rotate(-35deg);
-    font-size: 90px; font-weight: 900; letter-spacing: 0.1em;
-    color: rgba(0,0,0,0.04); pointer-events: none; user-select: none;
-    white-space: nowrap; z-index: 0;
-  }
+    lineas: doc.lineas.map(l => ({
+      descripcion: l.descripcion ?? '',
+      cantidad: fmt(l.cantidad),
+      unidad: l.unidad ?? '',
+      precio: `${fmt(l.precio_unitario)} €`,
+      importe: `${fmt(l.cantidad * l.precio_unitario)} €`,
+    })),
 
-  /* Sello PAGADA */
-  .sello-pagada {
-    position: absolute; top: 60px; right: 36px;
-    border: 4px solid #16a34a; border-radius: 6px;
-    padding: 6px 14px; transform: rotate(-12deg);
-    color: #16a34a; font-size: 22px; font-weight: 900;
-    letter-spacing: 0.15em; opacity: 0.85;
-  }
+    mostrar_iva: mostrarIva,
+    iva_pct: ivaPct,
+    iva_importe: `${fmt(doc.totales.iva ?? 0)} €`,
+    subtotal: `${fmt(doc.totales.subtotal)} €`,
+    total: `${fmt(doc.totales.total)} €`,
+    mostrar_nota_iva: tipo === 'presupuesto',
 
-  /* Cabecera */
-  .header { display: flex; justify-content: space-between; margin-bottom: 28px; position: relative; }
-  .header-left { flex: 1; }
-  .header-right { flex: 1; text-align: right; }
-  .empresa-nombre { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-  .empresa-dato { color: #555; margin-bottom: 2px; }
-  .doc-numero { font-size: 22px; font-weight: 800; color: #1e3a5f; margin-bottom: 4px; }
-  .doc-fecha { color: #666; margin-bottom: 12px; }
-  .cliente-nombre { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-  .cliente-dato { color: #555; margin-bottom: 2px; }
+    notas: doc.notas ?? '',
+    footer: footerTexto,
+  };
+}
 
-  /* Separador */
-  hr { border: none; border-top: 2px solid #1e3a5f; margin: 0 0 20px; }
-
-  /* Tabla de líneas */
-  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-  thead tr { background: #1e3a5f; color: #fff; }
-  thead th { padding: 7px 8px; text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; }
-  thead th.num { text-align: right; }
-  tbody tr:nth-child(even) { background: #f7f9fc; }
-  tbody td { padding: 6px 8px; border-bottom: 1px solid #e8edf3; vertical-align: top; }
-  td.desc { width: 50%; }
-  td.num { text-align: right; white-space: nowrap; }
-
-  /* Totales */
-  .totales { display: flex; justify-content: flex-end; }
-  .totales-tabla { width: 260px; }
-  .total-row td { padding: 4px 8px; }
-  .total-label { text-align: right; color: #555; }
-  .total-final td { font-size: 14px; font-weight: 800; color: #1e3a5f; border-top: 2px solid #1e3a5f; padding-top: 8px; }
-
-  /* Notas */
-  .notas { margin-top: 24px; padding: 12px 14px; background: #f7f9fc; border-left: 3px solid #1e3a5f; font-size: 10px; color: #555; }
-
-  /* Footer */
-  .footer { margin-top: 36px; padding-top: 12px; border-top: 1px solid #dde3ec; font-size: 9px; color: #888; text-align: center; }
-</style>
-</head>
-<body>
-
-<div class="watermark">${marcaAgua}</div>
-
-${mostrarSelloPagada ? '<div class="sello-pagada">PAGADA</div>' : ''}
-
-<div class="header">
-  <div class="header-left">
-    <div class="empresa-nombre">${empresa.nombre ?? ''}</div>
-    <div class="empresa-dato">${empresa.cif ?? ''}</div>
-    <div class="empresa-dato">${empresa.direccion ?? ''}</div>
-    <div class="empresa-dato">${empresa.telefono ?? ''}</div>
-    <div class="empresa-dato">${empresa.email ?? ''}</div>
-  </div>
-  <div class="header-right">
-    <div class="doc-numero">${doc.numero ?? 'BORRADOR'}</div>
-    <div class="doc-fecha">${doc.fecha}</div>
-    <div class="cliente-nombre">${doc.cliente_nombre ?? ''} ${doc.cliente_empresa ? `· ${doc.cliente_empresa}` : ''}</div>
-    <div class="cliente-dato">${doc.cliente_dni_cif ?? ''}</div>
-    <div class="cliente-dato">${doc.agrupador_label ?? ''}</div>
-    <div class="cliente-dato">${doc.cliente_direccion ?? ''}</div>
-  </div>
-</div>
-
-<hr>
-
-<table>
-  <thead>
-    <tr>
-      <th class="desc">Descripción</th>
-      <th class="num">Cant.</th>
-      <th class="num">Ud.</th>
-      <th class="num">Precio u.</th>
-      <th class="num">Total</th>
-    </tr>
-  </thead>
-  <tbody>${filas}</tbody>
-</table>
-
-<div class="totales">
-  <table class="totales-tabla">
-    <tr class="total-row">
-      <td colspan="4" class="total-label">Subtotal</td>
-      <td class="num">${fmt(doc.totales.subtotal)} €</td>
-    </tr>
-    ${ivaFila}
-    <tr class="total-final">
-      <td colspan="4" class="total-label">TOTAL</td>
-      <td class="num">${fmt(doc.totales.total)} €</td>
-    </tr>
-  </table>
-</div>
-
-${doc.notas ? `<div class="notas">${doc.notas}</div>` : ''}
-
-<div class="footer">${footerTexto}</div>
-
-</body>
-</html>`;
+function buildHtml(doc: DocumentoParaPdf, tipo: TipoDocumento): string {
+  return renderTemplate(cargarPlantilla(), construirContexto(doc, tipo));
 }
 
 // ─── Lanzador de navegador (Chromium incluido o Edge del sistema) ─────────────

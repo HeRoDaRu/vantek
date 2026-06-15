@@ -25,6 +25,7 @@ export interface Presupuesto {
   agrupador_label: string;
   cliente_id: string;
   cliente_nombre: string;
+  cliente_email: string | null;
   numero: string | null;
   estado: EstadoPresupuesto;
   fecha: string;
@@ -66,6 +67,7 @@ interface PresupuestosStore {
   guardarBorrador: (id: string, data: unknown) => Promise<void>;
   cambiarEstado: (id: string, estado: EstadoPresupuesto) => Promise<void>;
   generarPdf: (id: string) => Promise<{ pdf_path: string; version: number }>;
+  enviar: (id: string, email_destino?: string) => Promise<void>;
   eliminar: (id: string) => Promise<void>;
   limpiarActual: () => void;
 }
@@ -130,6 +132,10 @@ export const usePresupuestosStore = create<PresupuestosStore>((set) => ({
   generarPdf: async (id) => {
     const res = await api.post(`/presupuestos/${id}/pdf`);
     return res.data;
+  },
+
+  enviar: async (id, email_destino) => {
+    await api.post(`/presupuestos/${id}/enviar`, { email_destino });
   },
 
   eliminar: async (id) => {

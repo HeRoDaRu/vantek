@@ -1,0 +1,99 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root { --rojo: #d40000; }
+
+body {
+  font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  font-size: 11px;
+  color: #111;
+  background: #fff;
+  padding: 28px 36px;
+}
+
+/* Marca de agua diagonal */
+.watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-35deg);
+  font-size: 90px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: rgba(212, 0, 0, 0.05);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  z-index: 0;
+}
+
+/* Sello PAGADA */
+.sello-pagada {
+  position: absolute;
+  top: 200px;
+  right: 60px;
+  border: 4px solid #16a34a;
+  border-radius: 6px;
+  padding: 6px 14px;
+  transform: rotate(-12deg);
+  color: #16a34a;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  opacity: 0.85;
+  z-index: 5;
+}
+
+/* Cabecera */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  position: relative;
+}
+.header-left { flex: 1; min-width: 0; }
+.header-right { text-align: right; white-space: nowrap; }
+.logo { max-width: 320px; max-height: 90px; margin-bottom: 10px; display: block; }
+.empresa-nombre { font-size: 15px; font-weight: 700; color: var(--rojo); margin-bottom: 4px; }
+.empresa-dato { color: var(--rojo); font-weight: 700; font-size: 10px; margin-bottom: 2px; }
+.num-doc { color: var(--rojo); font-weight: 700; font-size: 11px; }
+.num-doc strong { font-size: 12px; }
+.titulo-doc { color: var(--rojo); font-weight: 800; font-size: 22px; letter-spacing: 0.04em; margin-top: 28px; }
+
+/* Bloque cliente */
+.cliente-box { margin: 22px 0 6px; }
+.cliente-titulo { color: var(--rojo); font-weight: 700; font-size: 11px; margin-bottom: 6px; }
+.cliente-grid { display: flex; justify-content: space-between; gap: 24px; }
+.cliente-col { flex: 1; }
+.cliente-row { display: flex; gap: 8px; margin-bottom: 3px; font-size: 10.5px; }
+.cliente-row .lbl { color: var(--rojo); font-weight: 700; min-width: 64px; }
+.cliente-row .val { color: #111; }
+
+/* Separador */
+hr { border: none; border-top: 2px solid var(--rojo); margin: 8px 0 14px; }
+
+/* Tabla de líneas */
+table.lineas { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+table.lineas thead tr { border-bottom: 2px solid var(--rojo); }
+table.lineas thead th { padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 700; color: var(--rojo); text-transform: uppercase; letter-spacing: 0.03em; }
+table.lineas thead th.num { text-align: right; }
+table.lineas tbody td { padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+td.desc { width: 50%; }
+td.num { text-align: right; white-space: nowrap; }
+td.num.strong { font-weight: 700; }
+
+/* Totales */
+.totales { display: flex; justify-content: flex-end; }
+.totales-tabla { width: 280px; border-collapse: collapse; }
+.total-row td { padding: 4px 8px; font-size: 11px; }
+.total-label { text-align: right; color: #444; }
+.total-final td { font-size: 14px; font-weight: 800; color: var(--rojo); border-top: 2px solid var(--rojo); padding-top: 8px; }
+
+/* Nota de IVA */
+.nota-iva { margin-top: 18px; font-size: 10px; color: #333; font-style: italic; }
+
+/* Notas */
+.notas { margin-top: 18px; padding: 12px 14px; background: #faf3f3; border-left: 3px solid var(--rojo); font-size: 10px; color: #444; white-space: pre-wrap; }
+
+/* Footer */
+.footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e2c9c9; font-size: 9px; color: #888; text-align: center; white-space: pre-wrap; }

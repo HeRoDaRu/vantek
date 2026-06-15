@@ -59,10 +59,10 @@ export default function SeguimientoPage() {
   if (cargando && lista.length === 0) return <Spinner label={`Cargando ${label.toLowerCase()}…`} />;
 
   return (
-    <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 1100 }}>
+    <div className="scroll-page" style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 1100 }}>
 
       {/* Cabecera */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="page-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 2 }}>{label}</h1>
           <p style={{ fontSize: 13, color: 'var(--text-2)' }}>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>{{{STYLES}}}</style>
+</head>
+<body>
+
+<div class="watermark">{{titulo_doc}}</div>
+
+{{#if mostrar_sello}}<div class="sello-pagada">PAGADA</div>{{/if}}
+
+<div class="header">
+  <div class="header-left">
+    {{#if has_logo}}
+      <img class="logo" src="{{{logo}}}" alt="logo">
+      {{#if empresa_nombre}}<div class="empresa-nombre">{{empresa_nombre}}</div>{{/if}}
+    {{else}}
+      <div class="empresa-nombre">{{empresa_nombre}}</div>
+    {{/if}}
+    {{#if empresa_cif}}<div class="empresa-dato">{{empresa_cif}}</div>{{/if}}
+    {{#if empresa_direccion}}<div class="empresa-dato">{{empresa_direccion}}</div>{{/if}}
+    {{#if empresa_email}}<div class="empresa-dato">email: {{empresa_email}}</div>{{/if}}
+    {{#if empresa_telefono}}<div class="empresa-dato">T.L.F.: {{empresa_telefono}}</div>{{/if}}
+  </div>
+  <div class="header-right">
+    {{#if mostrar_numero}}<div class="num-doc">{{etiqueta_numero}} <strong>{{numero}}</strong></div>{{/if}}
+    <div class="titulo-doc">{{titulo_doc}}</div>
+  </div>
+</div>
+
+<div class="cliente-box">
+  <div class="cliente-titulo">Cliente</div>
+  <div class="cliente-grid">
+    <div class="cliente-col">
+      <div class="cliente-row"><span class="lbl">Nombre</span><span class="val">{{cliente_nombre}}</span></div>
+      {{#if cliente_dni_cif}}<div class="cliente-row"><span class="lbl">DNI / CIF</span><span class="val">{{cliente_dni_cif}}</span></div>{{/if}}
+      <div class="cliente-row"><span class="lbl">Dirección</span><span class="val">{{cliente_direccion}}</span></div>
+    </div>
+    <div class="cliente-col" style="text-align:right">
+      <div class="cliente-row" style="justify-content:flex-end"><span class="lbl" style="min-width:0">Fecha :</span><span class="val">{{fecha}}</span></div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<table class="lineas">
+  <thead>
+    <tr>
+      <th class="desc">Descripción</th>
+      <th class="num">Cant.</th>
+      <th class="num">Ud.</th>
+      <th class="num">Precio u.</th>
+      <th class="num">Importe</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each lineas}}
+    <tr>
+      <td class="desc">{{descripcion}}</td>
+      <td class="num">{{cantidad}}</td>
+      <td class="num">{{unidad}}</td>
+      <td class="num">{{precio}}</td>
+      <td class="num strong">{{importe}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+
+<div class="totales">
+  <table class="totales-tabla">
+    <tr class="total-row">
+      <td colspan="4" class="total-label">Subtotal</td>
+      <td class="num">{{subtotal}}</td>
+    </tr>
+    {{#if mostrar_iva}}
+    <tr class="total-row">
+      <td colspan="4" class="total-label">IVA ({{iva_pct}}%)</td>
+      <td class="num">{{iva_importe}}</td>
+    </tr>
+    {{/if}}
+    <tr class="total-final">
+      <td colspan="4" class="total-label">TOTAL</td>
+      <td class="num">{{total}}</td>
+    </tr>
+  </table>
+</div>
+
+{{#if mostrar_nota_iva}}<div class="nota-iva">En este presupuesto no se contempla el {{iva_pct}}% de I.V.A, el cual se cargará en la factura correspondiente.</div>{{/if}}
+
+{{#if notas}}<div class="notas">{{notas}}</div>{{/if}}
+
+<div class="footer">{{footer}}</div>
+
+</body>
+</html>

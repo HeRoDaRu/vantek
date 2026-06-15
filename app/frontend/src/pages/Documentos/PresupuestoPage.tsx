@@ -29,13 +29,15 @@ export default function PresupuestoPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { actual, loading, error, cargarPresupuesto, guardarLineas,
-          guardarBorrador, cambiarEstado, generarPdf, eliminar } = usePresupuestosStore();
+          guardarBorrador, cambiarEstado, generarPdf, enviar, eliminar } = usePresupuestosStore();
 
   const [lineas, setLineas] = useState<LineaEditor[]>([]);
 
   const [guardando, setGuardando] = useState(false);
   const [showHistorial, setShowHistorial] = useState(false);
   const [showEnviar, setShowEnviar] = useState(false);
+  const [emailDestino, setEmailDestino] = useState('');
+  const [enviando, setEnviando] = useState(false);
   const [showConvertir, setShowConvertir] = useState(false);
   const [convirtiendoFactura, setConvirtiendoFactura] = useState(false);
   const [errorCierre, setErrorCierre] = useState<string | null>(null);
@@ -50,6 +52,7 @@ export default function PresupuestoPage() {
   useEffect(() => {
     if (!actual) return;
     setLineas(actual.lineas.map(presupuestoLineaToEditor));
+    setEmailDestino(actual.cliente_email ?? '');
   }, [actual?.id]);
 
   useEffect(() => {
@@ -94,13 +97,35 @@ export default function PresupuestoPage() {
   const handlePdf = useCallback(async () => {
     if (!id) return;
     await generarPdf(id);
-    window.open(`/api/presupuestos/${id}/pdf/latest`, '_blank');
-  }, [id, generarPdf]);
+    // Descarga directa del PDF (sin abrir otra pestaña)
+    const res = await api.get(`/presupuestos/${id}/pdf/latest`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(res.data as Blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const nombreCliente = (actual?.cliente_nombre ?? id ?? '').replace(/\s+/g, '_');
+    a.download = `Presupuesto_${nombreCliente}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }, [id, generarPdf, actual?.cliente_nombre]);
 
   const handleReabrir = useCallback(async () => {
     if (!id) return;
     await cambiarEstado(id, 'borrador');
   }, [id, cambiarEstado]);
+
+  const handleEnviar = useCallback(async () => {
+    if (!id || !emailDestino) return;
+    setEnviando(true);
+    try {
+      await enviar(id, emailDestino);
+      await cargarPresupuesto(id);
+      setShowEnviar(false);
+    } finally {
+      setEnviando(false);
+    }
+  }, [id, emailDestino, enviar, cargarPresupuesto]);
 
   async function handleEliminar() {
     if (!actual) return;
@@ -212,25 +237,51 @@ export default function PresupuestoPage() {
         </Modal>
       )}
 
-      {showEnviar && (
-        <Modal title="Marcar como enviado" size="sm" onClose={() => setShowEnviar(false)}
-          footer={
-            <>
-              <button className="btn btn-ghost" onClick={() => setShowEnviar(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={async () => {
-                if (id) { await cambiarEstado(id, 'enviado'); setShowEnviar(false); }
-              }}>
-                Confirmar
-              </button>
-            </>
-          }
-        >
-          <p style={{ color: 'var(--text-2)', fontSize: 13 }}>
-            ¿Confirmas que el presupuesto ha sido entregado al cliente?
-            El estado cambiará a «Enviado».
-          </p>
-        </Modal>
-      )}
+      {showEnviar && (() => {
+        const yaEnviado = actual.estado === 'enviado';
+        return (
+          <Modal
+            title={yaEnviado ? 'Reenviar presupuesto' : 'Enviar presupuesto por email'}
+            size="sm"
+            onClose={() => setShowEnviar(false)}
+            footer={
+              <>
+                <button className="btn btn-ghost" onClick={() => setShowEnviar(false)} disabled={enviando}>
+                  Cancelar
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={!emailDestino || enviando}
+                  onClick={handleEnviar}
+                >
+                  {enviando ? 'Enviando…' : yaEnviado ? 'Reenviar' : 'Enviar'}
+                </button>
+              </>
+            }
+          >
+            {yaEnviado && (
+              <p style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 12 }}>
+                Ya has enviado este email al cliente, ¿deseas reenviárselo?
+              </p>
+            )}
+            <div className="form-group">
+              <label className="form-label">Email de destino</label>
+              <input
+                className="input"
+                type="email"
+                value={emailDestino}
+                onChange={e => setEmailDestino(e.target.value)}
+                placeholder="cliente@ejemplo.com"
+              />
+              {!actual.cliente_email && (
+                <span className="form-error">
+                  El cliente no tiene email en su ficha. Escríbelo aquí para enviarlo.
+                </span>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
 
       {showConvertir && (
         <Modal title="Crear factura desde este presupuesto" size="sm" onClose={() => setShowConvertir(false)}

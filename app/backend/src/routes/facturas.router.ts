@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import path from 'path';
 import { asyncHandler } from '@middleware/errorHandler';
 import * as svc from '@services/facturas.service';
 import { generarPdf } from '@services/pdf.service';
 import { enviarFactura } from '@services/email.service';
+import { PDFS_DIR } from '@utils/paths';
 
 const router = Router();
 
@@ -87,7 +89,7 @@ router.get('/:id/pdf/latest', asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Sin PDF disponible' });
   }
   const ultima = factura.versiones[0] as { pdf_path: string };
-  res.sendFile(ultima.pdf_path, { root: __dirname });
+  res.sendFile(path.join(PDFS_DIR, path.basename(ultima.pdf_path)));
 }));
 
 // Enviar por email

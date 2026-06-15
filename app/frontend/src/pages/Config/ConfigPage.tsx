@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import api from '@utils/api';
 import Spinner from '@ui/Spinner';
 
@@ -11,7 +11,7 @@ interface AppConfig {
     direccion: string;
     telefono: string;
     email: string;
-    logo_path?: string;
+    logo?: string;
     mano_obra_precio_hora: number;
     mano_obra_unidad: string;
   };
@@ -49,6 +49,22 @@ interface AppConfig {
 
 // ─── hook para cargar y guardar config ───────────────────────────────────────
 
+// Normaliza configuraciones antiguas: la clave de numeración pasó de
+// `numeracion_facturas` (plural) a `numeracion_factura` (singular). Algunas
+// instalaciones tienen el fichero antiguo; lo migramos al vuelo para que la
+// sección Documentos no falle y se guarde ya con la clave correcta.
+function normalizarConfig(raw: any): AppConfig {
+  const doc = raw?.documentos ?? {};
+  if (!doc.numeracion_factura && doc.numeracion_facturas) {
+    doc.numeracion_factura = doc.numeracion_facturas;
+    delete doc.numeracion_facturas;
+  }
+  if (!doc.numeracion_factura) {
+    doc.numeracion_factura = { contador: 0, anio: new Date().getFullYear() };
+  }
+  return raw as AppConfig;
+}
+
 function useAppConfig() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -57,7 +73,7 @@ function useAppConfig() {
 
   useEffect(() => {
     api.get<AppConfig>('/config/app').then(r => {
-      setConfig(r.data);
+      setConfig(normalizarConfig(r.data));
       setCargando(false);
     });
   }, []);
@@ -126,6 +142,60 @@ function Grid2({ children }: { children: React.ReactNode }) {
   return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>{children}</div>;
 }
 
+// ─── carga de logo (se guarda como data URI base64) ───────────────────────────
+
+function LogoUpload({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
+  const [error, setError] = useState<string | null>(null);
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(null);
+    if (!file.type.startsWith('image/')) {
+      setError('El archivo debe ser una imagen (PNG, JPG, SVG…)');
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setError('La imagen es demasiado grande (máximo 1 MB)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onChange(String(reader.result));
+    reader.onerror = () => setError('No se pudo leer la imagen');
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{
+          width: 160, height: 80, flexShrink: 0,
+          border: '1px dashed var(--border)', borderRadius: 'var(--radius)',
+          background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+          {value
+            ? <img src={value} alt="logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+            : <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Sin logo</span>}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label className="btn btn-primary" style={{ cursor: 'pointer', margin: 0 }}>
+            {value ? 'Cambiar logo' : 'Subir logo'}
+            <input type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
+          </label>
+          {value && (
+            <button type="button" className="btn btn-ghost" onClick={() => onChange('')}>
+              Quitar logo
+            </button>
+          )}
+        </div>
+      </div>
+      {error && <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 6 }}>{error}</div>}
+    </div>
+  );
+}
+
 // ─── sección wrapper ──────────────────────────────────────────────────────────
 
 function Seccion({ titulo, desc, children }: { titulo: string; desc?: string; children: React.ReactNode }) {
@@ -139,6 +209,195 @@ function Seccion({ titulo, desc, children }: { titulo: string; desc?: string; ch
         {children}
       </div>
     </div>
+  );
+}
+
+// ─── sección de templates PDF ─────────────────────────────────────────────────
+
+// Variables disponibles en la plantilla. Deben coincidir con el contexto que
+// construye el backend en pdf.service.ts (construirContexto).
+const VARIABLES_TEMPLATE: { token: string; desc: string }[] = [
+  { token: '{{{STYLES}}}', desc: 'CSS de la plantilla (insertar dentro de <style>)' },
+  { token: '{{titulo_doc}}', desc: 'FACTURA o PRESUPUESTO' },
+  { token: '{{etiqueta_numero}}', desc: '«Nº Factura:» o «Nº Presupuesto:»' },
+  { token: '{{numero}}', desc: 'Número del documento (o BORRADOR)' },
+  { token: '{{{logo}}}', desc: 'Logo de la empresa (usar como src de <img>)' },
+  { token: '{{empresa_nombre}}', desc: 'Nombre o razón social' },
+  { token: '{{empresa_cif}}', desc: 'CIF / NIF' },
+  { token: '{{empresa_direccion}}', desc: 'Dirección fiscal' },
+  { token: '{{empresa_email}}', desc: 'Email de empresa' },
+  { token: '{{empresa_telefono}}', desc: 'Teléfono' },
+  { token: '{{cliente_nombre}}', desc: 'Nombre del cliente' },
+  { token: '{{cliente_dni_cif}}', desc: 'DNI / CIF del cliente' },
+  { token: '{{cliente_direccion}}', desc: 'Dirección de la obra' },
+  { token: '{{fecha}}', desc: 'Fecha (ej. «22 de Enero 2025»)' },
+  { token: '{{subtotal}}', desc: 'Subtotal con € (ej. «6.907,00 €»)' },
+  { token: '{{iva_pct}}', desc: 'Porcentaje de IVA' },
+  { token: '{{iva_importe}}', desc: 'Importe del IVA con €' },
+  { token: '{{total}}', desc: 'Total con €' },
+  { token: '{{notas}}', desc: 'Notas del documento' },
+  { token: '{{footer}}', desc: 'Pie de página configurado' },
+];
+
+const BLOQUES_TEMPLATE: { token: string; desc: string }[] = [
+  { token: '{{#each lineas}} … {{/each}}', desc: 'Repite por cada línea. Dentro: {{descripcion}}, {{cantidad}}, {{unidad}}, {{precio}}, {{importe}}' },
+  { token: '{{#if mostrar_iva}} … {{/if}}', desc: 'Solo en facturas (fila de IVA)' },
+  { token: '{{#if mostrar_nota_iva}} … {{/if}}', desc: 'Solo en presupuestos (aviso de IVA aparte)' },
+  { token: '{{#if mostrar_sello}} … {{/if}}', desc: 'Solo facturas pagadas (sello PAGADA)' },
+  { token: '{{#if has_logo}} … {{else}} … {{/if}}', desc: 'Según haya logo o no' },
+  { token: '{{#if cliente_dni_cif}} … {{/if}}', desc: 'Solo si el cliente tiene DNI/CIF' },
+];
+
+function ReferenciaVariables() {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+      <button
+        type="button"
+        onClick={() => setAbierto(a => !a)}
+        style={{
+          width: '100%', textAlign: 'left', background: 'var(--bg-3)', border: 'none',
+          padding: '10px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+          color: 'var(--text-2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}
+      >
+        <span>Variables disponibles en la plantilla</span>
+        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{abierto ? '▲ ocultar' : '▼ mostrar'}</span>
+      </button>
+      {abierto && (
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 6 }}>Valores</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', fontSize: 12 }}>
+              {VARIABLES_TEMPLATE.map(v => (
+                <Fragment key={v.token}>
+                  <code style={{ fontFamily: 'monospace', color: 'var(--accent)', whiteSpace: 'nowrap' }}>{v.token}</code>
+                  <span style={{ color: 'var(--text-2)' }}>{v.desc}</span>
+                </Fragment>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 6 }}>Bloques (condiciones y listas)</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', fontSize: 12 }}>
+              {BLOQUES_TEMPLATE.map(v => (
+                <Fragment key={v.token}>
+                  <code style={{ fontFamily: 'monospace', color: 'var(--accent)', whiteSpace: 'nowrap' }}>{v.token}</code>
+                  <span style={{ color: 'var(--text-2)' }}>{v.desc}</span>
+                </Fragment>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+            Usa <code style={{ fontFamily: 'monospace' }}>{'{{ variable }}'}</code> para texto seguro y{' '}
+            <code style={{ fontFamily: 'monospace' }}>{'{{{ variable }}}'}</code> para HTML sin escapar (logo y estilos).
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TemplatesSection({
+  config, set,
+}: {
+  config: AppConfig;
+  set: (path: string[], value: unknown) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [nombreFichero, setNombreFichero] = useState<string | null>(null);
+
+  const html = config.documentos.template_html ?? '';
+  const usandoPersonalizada = html.trim().length > 0;
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(null);
+    const esHtml = /\.html?$/i.test(file.name) || file.type === 'text/html';
+    if (!esHtml) {
+      setError('El archivo debe ser un .html');
+      return;
+    }
+    if (file.size > 512 * 1024) {
+      setError('El archivo es demasiado grande (máximo 512 KB)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      set(['documentos', 'template_html'], String(reader.result));
+      setNombreFichero(file.name);
+    };
+    reader.onerror = () => setError('No se pudo leer el archivo');
+    reader.readAsText(file);
+  }
+
+  function restaurarDefault() {
+    set(['documentos', 'template_html'], '');
+    setNombreFichero(null);
+    setError(null);
+  }
+
+  return (
+    <Seccion titulo="Templates PDF" desc="Personaliza el diseño de facturas y presupuestos generados">
+      <div style={{
+        padding: '10px 14px', borderRadius: 'var(--radius)',
+        background: usandoPersonalizada ? 'var(--accent-dim)' : 'var(--bg-3)',
+        border: '1px solid var(--border)', fontSize: 12,
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+          background: usandoPersonalizada ? 'var(--accent)' : 'var(--text-3)',
+        }} />
+        {usandoPersonalizada
+          ? <span>Usando una plantilla <strong>personalizada</strong>{nombreFichero ? ` (${nombreFichero})` : ''}.</span>
+          : <span>Usando la plantilla <strong>incluida</strong> por defecto.</span>}
+      </div>
+
+      <Campo
+        label="Cargar plantilla HTML"
+        hint="Sube el fichero .html que te hayan proporcionado. Sustituye a la plantilla incluida."
+      >
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <label className="btn btn-primary" style={{ cursor: 'pointer', margin: 0 }}>
+            Subir fichero HTML
+            <input type="file" accept=".html,.htm,text/html" onChange={onFile} style={{ display: 'none' }} />
+          </label>
+          {usandoPersonalizada && (
+            <button type="button" className="btn btn-ghost" onClick={restaurarDefault}>
+              Restaurar plantilla por defecto
+            </button>
+          )}
+        </div>
+        {error && <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 6 }}>{error}</div>}
+      </Campo>
+
+      <Campo label="Contenido de la plantilla" hint="Puedes pegar o editar el HTML directamente. Déjalo vacío para usar la plantilla incluida.">
+        <textarea
+          className="input"
+          rows={18}
+          value={html}
+          onChange={e => { set(['documentos', 'template_html'], e.target.value); setNombreFichero(null); }}
+          style={{ fontFamily: 'monospace', fontSize: 12, resize: 'vertical' }}
+          placeholder="Vacío → se usa la plantilla incluida por defecto"
+        />
+      </Campo>
+
+      <ReferenciaVariables />
+
+      <Campo
+        label="Ruta a plantilla externa (avanzado, opcional)"
+        hint="Alternativa a lo anterior: ruta a un fichero .html en disco. Solo se usa si el contenido de arriba está vacío. Relativa a la carpeta raíz del proyecto."
+      >
+        <Input
+          value={config.documentos.template_path ?? ''}
+          placeholder="ej. config/mi_template.html"
+          onChange={v => set(['documentos', 'template_path'], v || undefined)}
+        />
+      </Campo>
+    </Seccion>
   );
 }
 
@@ -244,10 +503,10 @@ export default function ConfigPage() {
         />
       )}
 
-      <div style={{ display: 'flex', height: '100%' }}>
+      <div className="config-layout" style={{ display: 'flex', height: '100%' }}>
 
-        {/* ── nav lateral ──────────────────────────────────────────────── */}
-        <nav style={{
+        {/* ── nav lateral ─────────────────────────────── */}
+        <nav className="config-nav" style={{
           width: 180, flexShrink: 0,
           borderRight: '1px solid var(--border)',
           padding: '24px 0',
@@ -275,12 +534,15 @@ export default function ConfigPage() {
         </nav>
 
         {/* ── contenido ────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <div className="config-content" style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
           <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 24 }}>
 
             {/* EMPRESA */}
             {tab === 'empresa' && (
               <Seccion titulo="Datos de empresa" desc="Aparecen en la cabecera de facturas y presupuestos">
+                <Campo label="Logo" hint="Aparece en la cabecera de los PDF. PNG, JPG o SVG (máximo 1 MB).">
+                  <LogoUpload value={config.empresa.logo} onChange={v => set(['empresa', 'logo'], v)} />
+                </Campo>
                 <Campo label="Nombre o razón social *">
                   <Input value={config.empresa.nombre} onChange={v => set(['empresa', 'nombre'], v)} />
                 </Campo>
@@ -345,28 +607,7 @@ export default function ConfigPage() {
 
             {/* TEMPLATES */}
             {tab === 'templates' && (
-              <Seccion titulo="Templates PDF" desc="Personaliza el HTML y CSS de los documentos generados">
-                <Campo
-                  label="Ruta a template externo (opcional)"
-                  hint="Si se especifica, se usará este fichero HTML en lugar del template interno. Ruta relativa a la carpeta raíz del proyecto."
-                >
-                  <Input
-                    value={config.documentos.template_path ?? ''}
-                    placeholder="ej. config/mi_template.html"
-                    onChange={v => set(['documentos', 'template_path'], v || undefined)}
-                  />
-                </Campo>
-                <Campo label="HTML/CSS del template interno" hint="Editor básico. Usa {{empresa.*}}, {{cliente.*}}, {{lineas}}, {{totales}} como variables.">
-                  <textarea
-                    className="input"
-                    rows={20}
-                    value={config.documentos.template_html ?? ''}
-                    onChange={e => set(['documentos', 'template_html'], e.target.value)}
-                    style={{ fontFamily: 'monospace', fontSize: 12, resize: 'vertical' }}
-                    placeholder="Deja vacío para usar el template por defecto"
-                  />
-                </Campo>
-              </Seccion>
+              <TemplatesSection config={config} set={set} />
             )}
 
             {/* DASHBOARD */}
