@@ -11,14 +11,14 @@ updates:
     schedule:
       interval: "weekly"
 
-   - package-ecosystem: "npm" # See documentation for possible values
-     directory: "/app/backend/" # Location of package manifests
-     target-branch: "dev"
-     schedule:
-        interval: "weekly"
+  - package-ecosystem: "npm" # See documentation for possible values
+    directory: "/app/backend/" # Location of package manifests
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
 
-   - package-ecosystem: "npm" # See documentation for possible values
-      directory: "/app/frontend/" # Location of package manifests
-      target-branch: "dev"
-      schedule:
-        interval: "weekly"
+  - package-ecosystem: "npm" # See documentation for possible values
+    directory: "/app/frontend/" # Location of package manifests
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
