@@ -45,8 +45,10 @@ de modo que nada externo puede romper la aplicación.
 
 ### Primera instalación (la realiza el técnico)
 
-1. Descargar `install.ps1` (de este repositorio o del último release).
-2. Abrir **PowerShell como Administrador** y ejecutar:
+1. Abrir la página del [último release](https://github.com/HeRoDaRu/vantek/releases/latest)
+   y descargar `Vantek-release.zip`.
+2. Extraer el ZIP en una carpeta temporal. `install.ps1` viene incluido dentro.
+3. Abrir **PowerShell como Administrador** en esa carpeta y ejecutar:
 
    ```powershell
    Set-ExecutionPolicy -Scope Process Bypass -Force
@@ -58,7 +60,7 @@ de modo que nada externo puede romper la aplicación.
    portable en `node\`, NSSM en `tools\nssm.exe` y registra el servicio de
    Windows **VANTEK**.
 
-3. Abrir la aplicación en `http://localhost:3000`. La primera vez, la propia
+4. Abrir la aplicación en `http://localhost`. La primera vez, la propia
    aplicación muestra el asistente de configuración.
 
 ### Arranque manual (sin servicio)
@@ -70,7 +72,8 @@ servicio pero en primer plano.
 
 Al publicar un tag `vX.Y.Z`, el workflow `.github/workflows/release.yml`
 (GitHub Actions sobre `windows-latest`) compila frontend, backend y launcher,
-incluye el Chromium de Puppeteer y publica el asset `Vantek-release.zip`.
+incluye el Chromium de Puppeteer y el instalador `install.ps1`, y publica el
+asset `Vantek-release.zip`.
 
 ### Motor de PDF (Chromium)
 
