@@ -4,7 +4,9 @@ name: Release Windows
 # Se dispara al publicar un tag vX.Y.Z. Produce un único asset llamado
 # EXACTAMENTE "Vantek-release.zip" cuyo contenido raíz es el directorio de
 # instalación (app/, launcher/, node_modules/, config/, puppeteer/, version.json,
-# start.bat) MENOS node/ y tools/, que los aporta install.ps1 una sola vez.
+# start.bat, install.ps1) MENOS node/ y tools/, que los aporta install.ps1 una
+# sola vez. install.ps1 viaja dentro del zip para tener una única fuente de
+# verdad: el instalador queda al día con cada actualización de la app.
 #
 # El launcher (launcher/launcher.js) descarga este mismo asset en cada
 # actualización y lo extrae sobre el directorio de instalación con Expand-Archive.
@@ -136,9 +138,13 @@ jobs:
           Copy-Item 'config\app.config.template.json'     "$rel\config\app.config.template.json"
           Copy-Item 'config\profile.config.template.json' "$rel\config\profile.config.template.json"
 
-          # version.json, arranque manual y Chromium incluido
+          # version.json, arranque manual, instalador y Chromium incluido.
+          # install.ps1 viaja dentro del zip para tener una única fuente de
+          # verdad: al actualizar la app, el instalador queda también al día.
           Copy-Item 'version.json' "$rel\version.json"
           Copy-Item 'start.bat'    "$rel\start.bat"
+          Copy-Item 'install.ps1'  "$rel\install.ps1"
+          Copy-Item 'install.ps1'  "$rel\README.md"
           Copy-Tree '.puppeteer-cache' "$rel\puppeteer"
 
           Write-Host 'Contenido de release/:'

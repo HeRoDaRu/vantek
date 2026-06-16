@@ -177,7 +177,7 @@ try {
     Write-Host '   Instalacion completada.'                            -ForegroundColor Green
     Write-Host '=================================================='    -ForegroundColor Green
     Write-Info 'El servicio VANTEK queda arrancado y se iniciara automaticamente con Windows.'
-    Write-Info 'Abre la aplicacion en: http://localhost:3000'
+    Write-Info 'Abre la aplicacion en: http://localhost'
     Write-Info 'La primera vez, la propia aplicacion mostrara el asistente de configuracion.'
 }
 finally {
