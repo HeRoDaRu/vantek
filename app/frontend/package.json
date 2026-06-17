@@ -22,7 +22,7 @@
     "react-router-dom": "^6.30.4",
     "recharts": "^2.15.4",
     "tesseract.js": "^5.1.1",
-    "zod": "^3.25.76",
+    "zod": "^4.4.3",
     "zustand": "^4.5.7"
   },
   "devDependencies": {
