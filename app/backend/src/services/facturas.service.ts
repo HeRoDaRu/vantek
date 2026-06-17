@@ -1,3 +1,46 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * facturas.service.ts — Lógica de negocio de facturas (ciclo de vida y líneas)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Core of facturas: list/get, create (optionally importing a presupuesto),
+ *   manage lines, transfer albarán lines with margen, close (annual
+ *   numbering), change state, version PDFs and delete. Also detects dirty
+ *   borradores for the launcher.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · uuid (v4) → IDs of facturas, lines and versions
+ *     · @db/connection (getDb) → SQLite handle (transactions)
+ *     · @utils/config (getAppConfig) → default IVA, max versions
+ *     · @services/presupuestos.service (exportarLineasParaFactura) → import lines
+ *     · ./seguimiento.service (syncSeguimientoDesdeDocumento) → syncs the seguimiento
+ *   Used by:
+ *     · routes/facturas.router.ts → exposes all factura endpoints
+ *
+ * EXPORTS
+ *   · listarFacturas(filtros) / obtenerFactura(id) → query
+ *   · crearFactura(data) → borrador factura (imports presupuesto if applicable)
+ *   · guardarLineas(facturaId, lineas) → replaces the lines
+ *   · agregarLineasDesdeAlbaran(trabajoId, albaranLineaIds) → transfers lines with margen
+ *   · guardarBorrador(id, data) → autosave
+ *   · cerrarFactura(id) → assigns annual number; cambiarEstado(id, estado)
+ *   · guardarVersion(id, pdfPath) → permanent version (purges old ones)
+ *   · eliminarFactura(id); hayBorradorSucio()
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  factura and line ids/data; state of the DB; global config
+ *   Output: factura rows with computed totals; INSERT/UPDATE/DELETE
+ *
+ * NOTES
+ *   · precio_unitario is the final price to the cliente; coste_unitario and margen are internal.
+ *   · cerrarFactura only validates it is in borrador; the frontend applies the business rules.
+ *   · cliente_direccion comes from a.label (agrupador), not clientes.direccion (does not exist).
+ *   · The async resolution of presupuesto lines happens BEFORE opening the transaction.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@db/connection';
 import { getAppConfig } from '@utils/config';
@@ -224,7 +267,6 @@ export async function crearFactura(data: {
 }
 
 // ─── Guardar líneas ───────────────────────────────────────────────────────────
-
 export async function guardarLineas(
   factura_id: string,
   lineas: Omit<LineaFactura, 'id' | 'factura_id' | 'orden'>[]
@@ -251,6 +293,108 @@ export async function guardarLineas(
   db.prepare(
     `UPDATE facturas SET updated_at = datetime('now') WHERE id = ?`
   ).run(factura_id);
+}
+
+// ─── Añadir líneas de albarán a la factura borrador del trabajo ────────────────
+export async function agregarLineasDesdeAlbaran(
+  trabajoId: string,
+  albaranLineaIds: string[],
+): Promise<{ factura_id: string; agregadas: number; omitidas: number }> {
+  const db = getDb();
+
+  const trabajo = db
+    .prepare('SELECT id, margen_porcentaje FROM trabajos WHERE id = ?')
+    .get(trabajoId) as { id: string; margen_porcentaje: number | null } | undefined;
+  if (!trabajo) throw new Error('Trabajo no encontrado');
+
+  // Buscar la factura borrador del trabajo; si no hay, crear una.
+  const borrador = db
+    .prepare(
+      `SELECT id FROM facturas
+       WHERE trabajo_id = ? AND estado = 'borrador'
+       ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(trabajoId) as { id: string } | undefined;
+
+  let facturaId: string;
+  if (borrador) {
+    facturaId = borrador.id;
+  } else {
+    const nueva = await crearFactura({ trabajo_id: trabajoId });
+    facturaId = nueva!.id;
+  }
+
+  // Solo líneas realmente asignadas a este trabajo.
+  const asignadas = new Set(
+    (db
+      .prepare(
+        `SELECT albaran_linea_id AS id FROM albaran_linea_trabajo WHERE trabajo_id = ?`
+      )
+      .all(trabajoId) as { id: string }[]).map(r => r.id)
+  );
+
+  // Líneas de albarán ya presentes en la factura (evitar duplicados).
+  const yaPresentes = new Set(
+    (db
+      .prepare(
+        `SELECT albaran_linea_id AS id FROM factura_lineas
+         WHERE factura_id = ? AND albaran_linea_id IS NOT NULL`
+      )
+      .all(facturaId) as { id: string }[]).map(r => r.id)
+  );
+
+  const idsValidos = albaranLineaIds.filter(
+    id => asignadas.has(id) && !yaPresentes.has(id)
+  );
+
+  if (idsValidos.length === 0) {
+    return { factura_id: facturaId, agregadas: 0, omitidas: albaranLineaIds.length };
+  }
+
+  const lineas = db
+    .prepare(
+      `SELECT id, descripcion, cantidad, unidad, precio_unitario
+       FROM albaran_lineas WHERE id IN (${idsValidos.map(() => '?').join(',')})`
+    )
+    .all(...idsValidos) as {
+      id: string;
+      descripcion: string;
+      cantidad: number;
+      unidad: string | null;
+      precio_unitario: number;
+    }[];
+
+  const margen = trabajo.margen_porcentaje ?? 0;
+  const ordenRow = db
+    .prepare('SELECT COALESCE(MAX(orden), -1) AS max FROM factura_lineas WHERE factura_id = ?')
+    .get(facturaId) as { max: number };
+  let orden = ordenRow.max + 1;
+
+  const stmt = db.prepare(
+    `INSERT INTO factura_lineas
+     (id, factura_id, descripcion, cantidad, unidad, precio_unitario,
+      coste_unitario, margen_porcentaje, tipo, es_libre, albaran_linea_id, orden)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'material', 0, ?, ?)`
+  );
+
+  const insertar = db.transaction(() => {
+    for (const l of lineas) {
+      const coste = l.precio_unitario;
+      const precioFinal = Number((coste * (1 + margen / 100)).toFixed(2));
+      stmt.run(
+        uuidv4(), facturaId, l.descripcion, l.cantidad, l.unidad ?? null,
+        precioFinal, coste, margen, l.id, orden++
+      );
+    }
+    db.prepare(`UPDATE facturas SET updated_at = datetime('now') WHERE id = ?`).run(facturaId);
+  });
+  insertar();
+
+  return {
+    factura_id: facturaId,
+    agregadas: lineas.length,
+    omitidas: albaranLineaIds.length - lineas.length,
+  };
 }
 
 // ─── Autoguardado ─────────────────────────────────────────────────────────────
@@ -311,8 +455,11 @@ export async function cambiarEstado(id: string, estado: EstadoFactura) {
       `UPDATE facturas SET estado = ?, updated_at = datetime('now') WHERE id = ?`
     ).run(estado, id);
 
-    if (id) {
-      syncSeguimientoDesdeDocumento(id, 'factura', estado);
+    const fila = db
+      .prepare('SELECT trabajo_id FROM facturas WHERE id = ?')
+      .get(id) as { trabajo_id: string } | undefined;
+    if (fila?.trabajo_id) {
+      syncSeguimientoDesdeDocumento(fila.trabajo_id, 'factura', estado);
     }
   }
 

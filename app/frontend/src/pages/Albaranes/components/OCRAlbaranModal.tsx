@@ -1,3 +1,40 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * OCRAlbaranModal.tsx — Client-side OCR scan of a delivery note
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Modal that takes an image (click or drag-and-drop), runs Tesseract in the
+ *   browser, heuristically parses provider/date/number/lines, and shows the
+ *   extracted fields with confidence indicators for manual review/editing.
+ *   On confirm it returns a ResultadoOCR to the parent. Also exports the
+ *   LineaOCR and ResultadoOCR types.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @hooks/useTesseract → singleton OCR worker (estado + reconocer)
+ *     · @ui/Modal → dialog shell
+ *   Backend:
+ *     · none — OCR is 100% client-side; assets served locally from public/
+ *   Used by:
+ *     · NuevoAlbaranModal (creation only; nested "Escanear OCR")
+ *
+ * PROPS
+ *   · onConfirmar: (resultado: ResultadoOCR) => void → returns parsed/edited data
+ *   · onCerrar: () => void → dismiss the modal
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  an image file + the user's manual corrections
+ *   Output: onConfirmar with the final ResultadoOCR (provider, date, number, lines)
+ *
+ * NOTES
+ *   · Confidence thresholds: 70 for critical fields (prices, references,
+ *     numbers), 40 for descriptive text; below threshold shows a ⚠ marker.
+ *   · The heuristic parser is basic by design — the user always reviews before
+ *     confirming.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState, useRef } from 'react';
 import { useTesseract } from '@hooks/useTesseract';
 import Modal from '@ui/Modal';

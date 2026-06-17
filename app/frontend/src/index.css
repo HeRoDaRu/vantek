@@ -1,3 +1,33 @@
+/*
+ * ──────────────────────────────────────────────────────────────────────────────
+ * index.css — Global design system & component styles
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Defines the app-wide visual language: imports the Inter/JetBrains Mono fonts,
+ *   declares design tokens as CSS custom properties on :root (colors, spacing,
+ *   radii, shadows, fonts), a CSS reset, and the shared component classes used
+ *   throughout the UI. Imported once from main.tsx.
+ *
+ * NOTES (key class groups)
+ *   · :root tokens — --bg*, --text*, --accent, semantic colors (green/red/...),
+ *     --radius, --sidebar-w, --transition, --font / --font-mono, --shadow*.
+ *   · Reset + base — *, html/body/#root full height, body typography.
+ *   · Scrollbar — custom thin scrollbar styling.
+ *   · Buttons — .btn and variants (.btn-primary/.btn-ghost/.btn-danger/.btn-sm/
+ *     .btn-icon*), active feedback, embedded .spinner sizing.
+ *   · Inputs / Form — .input/.select/.textarea, focus rings, .form-group/-label/
+ *     -error/-grid*.
+ *   · Cards — .card/.card-body/.card-header/.card-title/.card-section.
+ *   · Badges — .badge + .badge-dot and per-estado colors (all 11 seguimiento
+ *     states plus document/albarán/trabajo); pairs with Badge.tsx.
+ *   · Tables — .table-wrap and table styles.
+ *   · Page layout — .page/.page-header/.page-title/.page-body(-flush).
+ *   · Empty states, modals, sidebar, toaster, doc-editor and responsive @media
+ *     blocks follow below.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
@@ -101,6 +131,22 @@ body {
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Feedback táctil al pulsar (respuesta inmediata) */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 60ms;
+}
+
+/* Spinner embebido en un botón: hereda el color del texto y se ajusta al tamaño */
+.btn .spinner {
+  width: 13px;
+  height: 13px;
+  border-width: 2px;
+  border-color: currentColor;
+  border-right-color: transparent;
+  border-top-color: currentColor;
 }
 
 .btn-primary {
@@ -561,7 +607,11 @@ tbody tr:hover td {
   justify-content: center;
   z-index: 200;
   padding: 20px;
-  animation: fadeIn 0.15s ease;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-overlay-closing {
+  animation: fadeOut 0.125s ease forwards;
 }
 
 .modal {
@@ -572,7 +622,11 @@ tbody tr:hover td {
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
-  animation: slideUp 0.15s ease;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-closing {
+  animation: slideDown 0.125s ease forwards;
 }
 
 .modal-sm {
@@ -634,6 +688,28 @@ tbody tr:hover td {
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateY(6px);
+    opacity: 0;
   }
 }
 

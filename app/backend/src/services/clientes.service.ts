@@ -1,3 +1,42 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * clientes.service.ts — CRUD de clientes y ficha anidada cliente→obra
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Business logic for clientes (root of the hierarchy). Lists, searches and
+ *   composes the full record with its nested agrupadores and trabajos, and
+ *   includes the state of the linked seguimiento for the obra badge.
+ *   Deletion is always logical (activo = 0).
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @db/connection (getDb) → SQLite handle
+ *     · uuid (v4) → IDs of new clientes
+ *     · ../types → Cliente, ClienteConAgrupadores, Agrupador, AgrupadorConTrabajos, TrabajoBrief
+ *   Used by:
+ *     · routes/clientes.router.ts → exposes listing, record, search and CRUD
+ *
+ * EXPORTS
+ *   · clientesService.findAll(search?) → active clientes + their agrupadores
+ *   · clientesService.findById(id) → record with nested agrupadores and trabajos
+ *   · clientesService.search(q) → global search by cliente/empresa/dni/dirección
+ *   · clientesService.create(data) → created cliente (full record)
+ *   · clientesService.update(id, data) → updated cliente or null
+ *   · clientesService.delete(id) → logical deletion (activo = 0)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  search terms, cliente ids and data; state of the DB
+ *   Output: clientes (with nested entities); INSERT/UPDATE in SQLite
+ *
+ * NOTES
+ *   · findById does a LEFT JOIN to seguimiento to return estado_seguimiento per
+ *     trabajo, so the cliente badge matches the one in Seguimiento.
+ *   · The obra address lives in agrupadores.label; clientes has no direccion field.
+ *   · Logical deletion is mandatory (principle 5): historical documents are preserved.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { getDb } from '@db/connection';
 import { v4 as uuidv4 } from 'uuid';
 import { Cliente, ClienteConAgrupadores, Agrupador, AgrupadorConTrabajos, TrabajoBrief } from '../types';

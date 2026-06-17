@@ -1,3 +1,36 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * setup.router.ts — First-run setup wizard REST router
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Express router mounted at /api/setup. Reports whether initial setup is needed
+ *   and persists the chosen business profile + company data into the two config
+ *   files, delegating to setup.service.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @middleware/errorHandler (asyncHandler) → wrap async routes
+ *     · @services/setup.service (checkSetupRequired, saveSetup) → logic
+ *     · ../types (SetupPayload, PerfilNegocio) → request typing/validation
+ *   Used by:
+ *     · index.ts → app.use('/api/setup', router)
+ *
+ * ENDPOINTS
+ *   · GET  /status → { necesita_setup } (true if empresa.nombre/perfil empty)
+ *   · POST /       → validate perfil/empresa (+ custom entities for 'otro') and
+ *                    write profile.config.json + app.config.json
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  HTTP req body (SetupPayload: perfil, entidades_custom?, empresa)
+ *   Output: JSON { necesita_setup } / { ok } / { error }
+ *
+ * NOTES
+ *   · perfil must be reformas | taller | otro; 'otro' requires all entidades_custom.
+ *   · default export = the configured Router.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { Router } from 'express';
 import { asyncHandler } from '@middleware/errorHandler';
 import { checkSetupRequired, saveSetup } from '@services/setup.service';

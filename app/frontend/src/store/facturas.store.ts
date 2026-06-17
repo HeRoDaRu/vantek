@@ -1,3 +1,47 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * facturas.store.ts — Zustand store for invoices (facturas)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Manages the invoice list and the currently open invoice with its lines,
+ *   versions and totals. Covers the full lifecycle: create (optionally from a
+ *   presupuesto), edit lines, autosave drafts, close (assign number), change
+ *   state, generate PDF, send by email and delete.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · zustand (create) → store factory
+ *     · @utils/api → axios instance (baseURL '/api')
+ *   Used by:
+ *     · FacturasListPage → list with filters
+ *     · FacturaPage / DocumentoEditor / BarraAcciones → edit & actions
+ *
+ * STATE & ACTIONS
+ *   · state: lista[], actual (Factura|null), loading, error
+ *   · cargarLista(filtros?) → GET /facturas?<query>
+ *   · cargarFactura(id) → GET /facturas/:id
+ *   · crearFactura(data) → POST /facturas (imports lines if presupuesto_origen_id)
+ *   · guardarLineas(id, lineas) → PUT /facturas/:id/lineas
+ *   · guardarBorrador(id, data) → POST /facturas/:id/borrador (autosave)
+ *   · cerrarFactura(id) → POST /facturas/:id/cerrar (returns {ok,error})
+ *   · cambiarEstado(id, estado) → POST /facturas/:id/estado
+ *   · generarPdf(id) → POST /facturas/:id/pdf
+ *   · enviar(id, email_destino?) → POST /facturas/:id/enviar
+ *   · eliminar(id) → DELETE /facturas/:id
+ *   · limpiarActual() → clears `actual` (local only)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  filter objects, line DTOs (without id/factura_id/orden), ids
+ *   Output: typed Factura / FacturaListItem; cerrarFactura returns a result flag
+ *
+ * NOTES
+ *   · Business rules for closing live in the frontend; the backend only rejects
+ *     if the invoice is missing or not in 'borrador'.
+ *   · precio_unitario already includes margin; coste/margen are internal only.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { create } from 'zustand';
 import api from '@utils/api';
 

@@ -1,3 +1,44 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * presupuestos.service.ts — Lógica de negocio de presupuestos
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Core of presupuestos: list/get, create, update header, save lines,
+ *   autosave borrador, change state (with sync to seguimiento), version
+ *   PDFs, delete and export its lines to create a factura. Uses the same
+ *   editor as facturas but WITHOUT IVA in the total.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · uuid (v4) → IDs of presupuestos, lines and versions
+ *     · @db/connection (getDb) → SQLite handle (transactions)
+ *     · @utils/config (getAppConfig) → default IVA, max versions
+ *     · ./seguimiento.service (syncSeguimientoDesdeDocumento) → syncs the seguimiento
+ *   Used by:
+ *     · routes/presupuestos.router.ts → exposes the presupuesto endpoints
+ *     · facturas.service.ts → imports exportarLineasParaFactura when creating a factura
+ *
+ * EXPORTS
+ *   · listarPresupuestos(filtros) / obtenerPresupuesto(id) → query
+ *   · crearPresupuesto(data) → borrador presupuesto (atomic transaction)
+ *   · actualizarPresupuesto(id, {notas?,fecha?}) → edits header
+ *   · guardarLineas(id, lineas) → replaces lines; guardarBorrador(id, data)
+ *   · cambiarEstado(id, estado) → updates state and syncs the seguimiento
+ *   · guardarVersion(id, pdfPath) → permanent version (purges old ones)
+ *   · eliminarPresupuesto(id); exportarLineasParaFactura(id)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  presupuesto and line ids/data; state of the DB; global config
+ *   Output: presupuesto rows with totals; INSERT/UPDATE/DELETE
+ *
+ * NOTES
+ *   · Presupuestos do NOT carry IVA in the total (calcularTotales: total = subtotal).
+ *   · cliente_direccion comes from a.label (agrupador), not clientes.direccion.
+ *   · When moving to 'aceptado'/'enviado', syncSeguimientoDesdeDocumento moves the seguimiento.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@db/connection';
 import { getAppConfig } from '@utils/config';
@@ -274,8 +315,11 @@ export async function cambiarEstado(
      WHERE id = ?`
   ).run(estado, id);
 
-  if (id) {
-    syncSeguimientoDesdeDocumento(id, 'presupuesto', estado);
+  const fila = db
+    .prepare('SELECT trabajo_id FROM presupuestos WHERE id = ?')
+    .get(id) as { trabajo_id: string } | undefined;
+  if (fila?.trabajo_id) {
+    syncSeguimientoDesdeDocumento(fila.trabajo_id, 'presupuesto', estado);
   }
   return obtenerPresupuesto(id);
 }

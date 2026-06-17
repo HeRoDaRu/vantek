@@ -1,3 +1,47 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * albaranes.service.ts — Albaranes de proveedor y asignación de líneas a obras
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Business logic for supplier albaranes (internal use, never visible to the
+ *   cliente). Manages header + lines and the assignment of lines to one or more
+ *   trabajos through the albaran_linea_trabajo table. The state
+ *   (sin_asignar/parcial/asignado) is computed, not stored.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @db/connection (getDb) → SQLite handle
+ *     · uuid (v4) → IDs of albaranes, lines and assignments
+ *     · ../types (Albaran, AlbaranListItem, AlbaranLinea) → row types
+ *   Used by:
+ *     · routes/albaranes.router.ts → exposes the CRUD and assignment actions
+ *     · facturas.service.ts (indirect) → consumes lines assigned to a trabajo
+ *
+ * EXPORTS
+ *   · albanesService.findAll(filtros?) → listing with computed state and filters
+ *   · albanesService.findById(id) → albarán with lines and assigned trabajos
+ *   · albanesService.findByTrabajo(trabajoId) → albaranes/lines of a trabajo
+ *   · albanesService.create(data) → albarán with its lines (transaction)
+ *   · albanesService.update(id, data) → edits header and reconciles lines
+ *   · albanesService.asignarLineas(albaranId, trabajoId, lineaIds?) → assigns to obra
+ *   · albanesService.moverLinea(lineaId, desde, hasta) → moves a line between obras
+ *   · albanesService.desasignarLineas(lineaIds, trabajoId) → unassigns from obra
+ *   · albanesService.delete(id) → 'no_existe' | 'en_uso' | 'ok'
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  albarán/line data, trabajo ids, listing filters
+ *   Output: Albaran rows; INSERT/UPDATE/DELETE in SQLite (transactional)
+ *
+ * NOTES
+ *   · The albarán state is derived: 0 assigned = sin_asignar, all = asignado.
+ *   · update deletes absent lines; delete is blocked ('en_uso') if a line
+ *     was already used in a factura (factura_lineas.albaran_linea_id).
+ *   · Albarán prices are COST; the margen is applied when transferring them to a factura.
+ *   · The export is named `albanesService` (without the 'r').
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { getDb } from '@db/connection';
 import { v4 as uuidv4 } from 'uuid';
 import { Albaran, AlbaranListItem, AlbaranLinea } from '../types';

@@ -1,3 +1,40 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * useTesseract.ts — Singleton Tesseract.js OCR worker + React hook
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Provides a single shared Tesseract.js worker (Spanish model) for the whole
+ *   app, plus a React hook to run OCR on an image with progress/error state.
+ *   The worker is preloaded at splash time to remove first-scan latency, with
+ *   an on-demand fallback if it was not preloaded.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · react (useEffect/useRef/useState) → hook state & cleanup
+ *     · tesseract.js (createWorker, Worker) → OCR engine
+ *   Used by:
+ *     · SplashScreen → calls preinicializarTesseract() at startup
+ *     · OCRAlbaranModal (inside NuevoAlbaranModal) → useTesseract() to scan
+ *
+ * EXPORTS
+ *   · preinicializarTesseract() → creates the singleton worker once (idempotent)
+ *   · getTesseractWorker() → returns the current worker or null
+ *   · useTesseract() → { estado, reconocer(imagen), resetear } hook
+ *   · OcrResultado / OcrEstado → result and state types
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  image File/Blob to recognise
+ *   Output: OcrResultado { texto, confianza } or null (aborted/error)
+ *
+ * NOTES
+ *   · Worker assets are served locally (/tesseract-worker/*, /tessdata) so OCR
+ *     works offline; these assets are provisioned at build/install, not versioned.
+ *   · Logger is silenced in the preload path; abortRef cancels in-flight work on
+ *     unmount or reset.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { createWorker, Worker } from 'tesseract.js';
 

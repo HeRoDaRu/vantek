@@ -1,3 +1,37 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * AlbaranesPage.tsx — Supplier delivery notes (albaranes) list with filters
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Lists albaranes with filters (estado, proveedor, date range), shows the
+ *   computed assignment state via Badge, and lets the user create a new
+ *   albarán (NuevoAlbaranModal) or open any row's ficha.
+ *
+ * ROUTE
+ *   /albaranes
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @utils/api → fetch the albaranes list
+ *     · @ui/Badge, @ui/Spinner → state chip / loading
+ *     · @store/config.store → t() for the profile's trabajo label
+ *     · ./components/NuevoAlbaranModal → create a new albarán
+ *   Backend:
+ *     · GET /api/albaranes → list (estado, proveedor, fecha_desde, fecha_hasta)
+ *   Used by:
+ *     · Route /albaranes in App.tsx (sidebar, when the module is enabled)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  filter fields; user create/row actions
+ *   Output: rendered table; navigation to /albaranes/:id
+ *
+ * NOTES
+ *   · Albarán state (sin_asignar / parcial / asignado) is computed, not stored.
+ *   · Proveedor filter reloads on blur/Enter; the others reload on change.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@utils/api';

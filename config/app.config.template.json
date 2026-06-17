@@ -7,7 +7,8 @@
     "telefono": "",
     "email": "",
     "logo": "",
-    "mano_obra_precio_hora": 45
+    "mano_obra_precio_hora": 45,
+    "mano_obra_unidad": "hora"
   },
   "documentos": {
     "iva_porcentaje": 21,
@@ -35,13 +36,25 @@
       "user": "",
       "pass": "",
       "from": ""
+    },
+    "plantillas": {
+      "factura": {
+        "asunto": "Factura {{numero}} — {{empresa}}",
+        "cuerpo": "Estimado/a {{cliente}},\n\nAdjuntamos la factura {{numero}}.\n\nUn saludo,\n{{empresa}}"
+      },
+      "presupuesto": {
+        "asunto": "Presupuesto — {{obra}}",
+        "cuerpo": "Estimado/a {{cliente}},\n\nAdjuntamos el presupuesto solicitado para {{obra}}.\n\nUn saludo,\n{{empresa}}"
+      }
     }
   },
   "sistema": {
-    "ventana_inicio": "15:00",
-    "ventana_fin": "16:00",
-    "minutos_inactividad": 15,
     "email_errores": "",
-    "chromium_modo": "bundled"
+    "chromium_modo": "bundled",
+    "actualizacion": {
+      "hora_inicio": "15:00",
+      "hora_fin": "16:00",
+      "inactividad_minutos": 15
+    }
   }
 }

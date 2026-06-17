@@ -1,3 +1,33 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * dashboard.router.ts — Dashboard data REST router
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Express router mounted at /api/dashboard. Returns the dashboard payload
+ *   (pending actions + economic summary) grouped by mes/trimestre/anio,
+ *   delegating to getDashboard.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @middleware/errorHandler (asyncHandler) → wrap async route
+ *     · @services/dashboard.service (getDashboard) → builds the payload
+ *   Used by:
+ *     · index.ts → app.use('/api/dashboard', router)
+ *
+ * ENDPOINTS
+ *   · GET / → dashboard data (?agrupacion=mes|trimestre|anio, default mes;
+ *             400 if agrupacion is invalid)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  HTTP req query (agrupacion)
+ *   Output: JSON dashboard object / { error }
+ *
+ * NOTES
+ *   · default export = the configured Router.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '@middleware/errorHandler';
 import { getDashboard } from '@services/dashboard.service';

@@ -1,3 +1,34 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * SetupPage.tsx — First-run setup wizard (profile + company data)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Three-step onboarding wizard shown when the app is not yet configured:
+ *   (1) pick a business profile (reformas / taller / otro, with custom entity
+ *   labels), (2) enter company data, (3) finish. Persists the chosen profile
+ *   and company info so the rest of the app can boot with the right terminology.
+ *
+ * ROUTE
+ *   /* (catch-all rendered by App.tsx while the app is unconfigured)
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @utils/api → POST setup data to the backend
+ *   Backend:
+ *     · /api/setup endpoints → persist profile + company configuration
+ *   Used by:
+ *     · App.tsx catch-all route when setup is not complete
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  profile selection, custom entity labels, company fields
+ *   Output: persisted initial configuration; app transitions out of setup mode
+ *
+ * NOTES
+ *   · Not mounted under Layout; it replaces the whole app until setup completes.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState } from 'react';
 import api from '@utils/api';
 

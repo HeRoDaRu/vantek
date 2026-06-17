@@ -1,3 +1,29 @@
+<!--
+  ──────────────────────────────────────────────────────────────────────────────
+  index.html — Vite HTML entry document
+  ──────────────────────────────────────────────────────────────────────────────
+
+  WHAT IT DOES
+    The single HTML page served by Vite/nginx. Declares the #root mount node and
+    loads /src/main.tsx as an ES module, which boots the React SPA. Sets the page
+    title, favicon, charset and viewport.
+
+  RELATIONSHIPS
+    Imports:
+      · /src/main.tsx → React entry point that renders into #root
+      · /favicon.svg → tab icon
+    Used by:
+      · Vite during dev/build; copied to dist and served as the SPA shell
+
+  INPUTS / OUTPUTS
+    Input:  none
+    Output: empty <div id="root"> that React populates at runtime
+
+  NOTES
+    · lang="es" — the UI is Spanish.
+    · All routing is client-side (React Router); nginx must fall back to this file.
+  ──────────────────────────────────────────────────────────────────────────────
+-->
 <!DOCTYPE html>
 <html lang="es">
   <head>

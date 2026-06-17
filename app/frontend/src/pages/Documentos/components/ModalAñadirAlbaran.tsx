@@ -1,3 +1,41 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * ModalAñadirAlbaran.tsx — Pick albarán lines to import into an invoice
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Loads the albaranes assigned to a trabajo and shows their lines grouped by
+ *   albarán with per-line / per-albarán selection. The user sets a margin and,
+ *   on confirm, the selected coste lines are converted to material editor
+ *   lines (precio = coste × (1 + margen/100)) and handed back to the parent.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @utils/api → fetch albaranes for the trabajo
+ *     · @ui/Modal, @ui/Spinner → layout / loading
+ *     · LineaEditor (DocumentoEditor) → output line shape
+ *   Backend:
+ *     · GET /api/albaranes/trabajo/:trabajoId → albaranes + lines for the work
+ *   Used by:
+ *     · FacturaPage (opened from DocumentoEditor's "+ Desde albarán")
+ *
+ * PROPS
+ *   · trabajoId: string → work whose albaranes are listed
+ *   · margenTrabajo: number → initial margin applied to imported lines
+ *   · lineasYaUsadas: string[] → albaran_linea_id already in the editor (disabled)
+ *   · onConfirm: (lineas: Omit<LineaEditor,'_key'>[]) => void → returns new lines
+ *   · onClose: () => void → dismiss the modal
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  trabajoId, margin, line selection
+ *   Output: onConfirm with the material lines to append; rendered picker UI
+ *
+ * NOTES
+ *   · Albarán prices are internal coste; the client price = coste + margin.
+ *   · Lines already present in the editor are shown disabled ("ya añadida").
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState } from 'react';
 import api from '@utils/api';
 import Modal from '@ui/Modal';
@@ -62,7 +100,8 @@ export default function ModalAñadirAlbaran({
     async function cargar() {
       try {
         const { data } = await api.get(`/albaranes/trabajo/${trabajoId}`);
-        setAlbaranes(data);
+        // El backend envuelve la respuesta en { data: [...] }
+        setAlbaranes(data.data ?? data ?? []);
       } catch {
         setError('No se pudieron cargar los albaranes del trabajo.');
       } finally {

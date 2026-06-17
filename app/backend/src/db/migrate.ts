@@ -1,6 +1,35 @@
-import { getDb } from '@db/connection';
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * migrate.ts — Migraciones versionadas del esquema SQLite
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Defines the list of SQL migrations (table creation and schema changes)
+ *   and applies them in order, each one exactly once, recording the executed
+ *   version in the _migraciones control table. It is idempotent.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @db/connection (getDb) → SQLite handle on which it runs the DDL
+ *   Used by:
+ *     · index.ts (backend startup) → runs runMigrations() on start
+ *
+ * EXPORTS
+ *   · runMigrations() → applies the pending migrations (returns nothing)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  current version read from _migraciones
+ *   Output: updated schema + new rows in _migraciones (side effects)
+ *
+ * NOTES
+ *   · To add a schema change: new {version, sql} entry with a version greater
+ *     than all existing ones; never edit migrations already applied.
+ *   · SQLite does not allow an in-place ALTER of a CHECK: widening a CHECK
+ *     requires rebuilding the table in a new migration.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
 
-const migrations: { version: number; sql: string }[] = [
+import { getDb } from '@db/connection';
   {
     version: 1,
     sql: `
@@ -291,6 +320,31 @@ const migrations: { version: number; sql: string }[] = [
       ALTER TABLE seguimiento_new RENAME TO seguimiento;
 
       PRAGMA foreign_keys=ON;
+    `
+  },
+  {
+    version: 6,
+    sql: `
+      -- Registro de errores del servidor para enviarlos al técnico bajo demanda.
+      CREATE TABLE IF NOT EXISTS errores (
+        id TEXT PRIMARY KEY,
+        mensaje TEXT NOT NULL,
+        stack TEXT,
+        ruta TEXT,
+        metodo TEXT,
+        status INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_errores_created_at ON errores(created_at);
+    `
+  },
+  {
+    version: 7,
+    sql: `
+      -- Año del contador de numeración de facturas (reinicio anual de la serie).
+      -- Lo usa siguienteNumeroFactura/cerrarFactura para numerar por año.
+      ALTER TABLE facturas ADD COLUMN anio_numero INTEGER;
     `
   }
 ];

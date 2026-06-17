@@ -1,3 +1,37 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * pdf.service.ts — Generación de PDF de facturas y presupuestos con Puppeteer
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Renders the single HTML/CSS template (factura or presupuesto) with a
+ *   small in-house template engine (no dependencies) and converts it to PDF
+ *   with Puppeteer. Resolves logo, template (inline/external/bundled) and
+ *   launches the bundled Chromium or the system Edge with fallback.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · puppeteer → renders the HTML to PDF
+ *     · path, fs → templates, logo and PDF writing
+ *     · @utils/config (getAppConfig, getProfileConfig, AppConfig) → empresa, footer, template
+ *     · @utils/paths (APP_ROOT, PDFS_DIR) → external template paths and output
+ *   Used by:
+ *     · routes/facturas.router.ts and routes/presupuestos.router.ts → POST /:id/pdf
+ *
+ * EXPORTS
+ *   · generarPdf(doc, tipo) → (relative) path of the generated PDF
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  DocumentoParaPdf (header + lines + totals) and tipo 'factura'|'presupuesto'
+ *   Output: PDF file in PDFS_DIR; returns its relative path
+ *
+ * NOTES
+ *   · The template carries a FACTURA/PRESUPUESTO watermark and PAGADA stamp depending on state.
+ *   · IVA is only shown on facturas; the internal margen NEVER appears in the PDF.
+ *   · Templates live in src/templates and are copied to dist/templates in the build.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
@@ -148,6 +182,7 @@ function cargarPlantilla(): string {
 //   {{#if clave}}…{{else}}…{{/if}}
 //   {{#each lista}}…{{/each}}   (las claves del elemento quedan accesibles dentro)
 // Los bloques pueden anidarse.
+// Catálogo central de tokens (para la ayuda de la UI): app/frontend/src/config/tokens.ts
 
 type Contexto = Record<string, unknown>;
 
@@ -254,13 +289,17 @@ function construirContexto(doc: DocumentoParaPdf, tipo: TipoDocumento): Contexto
   const mostrarIva = tipo === 'factura';
   const ivaPct = doc.totales.iva_porcentaje ?? doc.iva_porcentaje ?? 0;
   const logo = logoSrc(empresa.logo);
+  const esFactura = tipo === 'factura';
 
   return {
     STYLES: leerCss(),
     titulo_doc: tituloDoc,
-    etiqueta_numero: tipo === 'factura' ? 'Nº Factura:' : 'Nº Presupuesto:',
-    numero: doc.numero ?? '',
-    mostrar_numero: Boolean(doc.numero),
+    etiqueta_numero: esFactura ? 'Nº Factura:' : 'Nº Presupuesto:',
+    // Factura: muestra siempre el número (o BORRADOR si aún no está cerrada),
+    // ya que la numeración anual es la referencia del documento.
+    // Presupuesto: solo si tiene número, en blanco en caso contrario.
+    numero: doc.numero ?? (esFactura ? 'BORRADOR' : ''),
+    mostrar_numero: esFactura ? true : Boolean(doc.numero),
     mostrar_sello: tipo === 'factura' && doc.estado === 'pagada',
 
     has_logo: Boolean(logo),

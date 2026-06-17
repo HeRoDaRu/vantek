@@ -1,3 +1,51 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * PresupuestoPage.tsx — Quote (presupuesto) editor page
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Loads a single quote by id and renders its editor using the same shared,
+ *   controlled DocumentoEditor (line state owned here in the parent). Handles
+ *   autosave (every 3 min while in borrador), explicit save, PDF download,
+ *   email send/resend, reopen, delete, and conversion of an accepted quote
+ *   into a new invoice.
+ *
+ * ROUTE
+ *   /presupuestos/:id
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/presupuestos.store → load/save/state/pdf/send/delete actions
+ *     · DocumentoEditor → controlled line editor (no albarán; manual items)
+ *     · BarraAcciones → action toolbar (incl. onConvertirFactura when aceptado)
+ *     · PanelHistorial → version history modal
+ *     · @utils/api → direct PDF blob fetch and POST /facturas on conversion
+ *   Backend (via store unless noted):
+ *     · GET    /api/presupuestos/:id → load detail
+ *     · PUT    /api/presupuestos/:id/lineas → save lines
+ *     · POST   /api/presupuestos/:id/borrador → autosave draft
+ *     · POST   /api/presupuestos/:id/estado → enviado / aceptado / borrador
+ *     · POST   /api/presupuestos/:id/pdf → generate PDF version
+ *     · GET    /api/presupuestos/:id/pdf/latest → download (direct api call)
+ *     · POST   /api/presupuestos/:id/enviar → email the quote
+ *     · DELETE /api/presupuestos/:id → delete
+ *     · POST   /api/facturas → create invoice from accepted quote (conversion)
+ *   Used by:
+ *     · Route /presupuestos/:id in App.tsx (from lists/cliente ficha)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  url param :id; user edits lines and triggers toolbar actions
+ *   Output: rendered editor UI, persisted lines/state, generated PDFs,
+ *           navigation to the new invoice on conversion
+ *
+ * NOTES
+ *   · Quotes carry NO IVA in the total (DocumentoEditor only adds IVA for
+ *     facturas); lines are manual estimates, never sourced from albaranes.
+ *   · 'Cerrar' just requires ≥1 line and moves the quote to 'enviado'.
+ *   · Converting to factura marks the quote 'aceptado' first if needed.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePresupuestosStore, LineaPresupuesto } from '@store/presupuestos.store';
@@ -254,7 +302,7 @@ export default function PresupuestoPage() {
                   disabled={!emailDestino || enviando}
                   onClick={handleEnviar}
                 >
-                  {enviando ? 'Enviando…' : yaEnviado ? 'Reenviar' : 'Enviar'}
+                  {enviando ? <><span className="spinner" /> Enviando…</> : yaEnviado ? 'Reenviar' : 'Enviar'}
                 </button>
               </>
             }

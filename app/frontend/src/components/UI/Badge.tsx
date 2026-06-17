@@ -1,3 +1,34 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * Badge.tsx — Colored status pill for document / seguimiento / albarán states
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Renders a small pill with a colored dot and a human-readable label for a
+ *   state string. Maps all known states (document, the 11 seguimiento states,
+ *   albarán assignment states and trabajo states) to Spanish labels; the visual
+ *   color comes from the matching .badge-<estado> CSS class.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · (none)
+ *   Used by:
+ *     · Lists/fichas across the app (clientes, documentos, seguimiento, albaranes)
+ *
+ * PROPS
+ *   · estado: string → state key; selects the .badge-<estado> color + default text
+ *   · label?: string → optional override text (otherwise derived from estado)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  estado, optional label
+ *   Output: <span class="badge badge-<estado>"> with dot + text
+ *
+ * NOTES
+ *   · estadoLabels covers all 11 seguimiento states plus document/albarán/trabajo.
+ *   · Unknown estado falls back to showing the raw key as text.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 interface BadgeProps {
   estado: string;
   label?: string;

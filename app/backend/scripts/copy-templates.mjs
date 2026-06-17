@@ -1,11 +1,34 @@
-// Copia las plantillas HTML/CSS de generación de PDF a la carpeta de salida.
-//
-// `tsc` solo compila los .ts; las plantillas (.html/.css) viven en src/templates
-// y deben copiarse a dist/templates para el despliegue de producción. En
-// desarrollo (tsx) no se usa este script: pdf.service.ts resuelve las plantillas
-// relativas a su propio fichero, que en dev apunta directamente a src/templates.
-//
-// Multiplataforma (Windows portable + Docker), solo usa APIs nativas de Node.
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * copy-templates.mjs — Copy PDF templates into dist at build
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Build helper that copies the HTML/CSS PDF templates from src/templates to
+ *   dist/templates, since `tsc` only emits .ts files. Skips silently if the
+ *   source folder is missing.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · node:fs/promises (cp, mkdir), node:fs (existsSync), node:path,
+ *       node:url (fileURLToPath) → native-only file operations
+ *   Used by:
+ *     · the backend build script (after tsc) → provisions dist/templates so
+ *       pdf.service.ts finds the templates in production
+ *
+ * EXPORTS
+ *   · (none) → runs as a side-effecting build script
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  app/backend/src/templates/*
+ *   Output: app/backend/dist/templates/* (created/overwritten)
+ *
+ * NOTES
+ *   · Multiplatform (Windows portable + Docker), native Node APIs only.
+ *   · In dev (tsx) this isn't used; pdf.service.ts resolves src/templates directly.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 
 import { cp, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';

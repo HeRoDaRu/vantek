@@ -1,3 +1,45 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * seguimiento.store.ts — Zustand store for lead/work tracking (seguimiento)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Manages the shared seguimiento entity used by both the reformas profile
+ *   (lead tracking) and the taller profile (work orders). Holds the list, the
+ *   selected record, an estado filter, and CRUD + state-machine actions. The
+ *   backend auto-converts a seguimiento into cliente/agrupador/trabajo and keeps
+ *   documents and trabajo state in sync.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · zustand (create) → store factory
+ *     · @utils/api → axios instance (baseURL '/api')
+ *   Used by:
+ *     · SeguimientoPage → list + estado filter
+ *     · SeguimientoFichaPage → detail, edit and the estado machine
+ *
+ * STATE & ACTIONS
+ *   · state: lista[], actual (Seguimiento|null), cargando, error, filtroEstado
+ *   · cargarLista(estado?) → GET /seguimiento (optional ?estado=)
+ *   · cargarSeguimiento(id) → GET /seguimiento/:id (JOINs trabajo/agrupador/cliente)
+ *   · crear(dto) → POST /seguimiento (nombre required)
+ *   · actualizar(id, dto) → PUT /seguimiento/:id
+ *   · cambiarEstado(id, estado) → POST /seguimiento/:id/estado (returns {ok,error,trabajo_id})
+ *   · eliminar(id) → DELETE /seguimiento/:id (removes only the seguimiento row)
+ *   · setFiltroEstado(estado) / limpiarActual() → local only
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  CrearSeguimientoDto / partial update DTOs, estado transitions, ids
+ *   Output: typed Seguimiento; cambiarEstado returns a result with optional trabajo_id
+ *
+ * NOTES
+ *   · cambiarEstado swallows backend errors into {ok:false,error} (e.g. 400 when
+ *     a transition is not allowed or required data is missing).
+ *   · Taller-only fields (matricula, fechas, firmas…) are used only when the
+ *     profile flag modulos.matriculas is true.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { create } from 'zustand';
 import api from '@utils/api';
 

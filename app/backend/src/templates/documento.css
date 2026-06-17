@@ -1,3 +1,23 @@
+/*
+  ──────────────────────────────────────────────────────────────────────────────
+  documento.css — Styles for the Puppeteer PDF template
+  ──────────────────────────────────────────────────────────────────────────────
+
+  WHAT IT DOES
+    Print-oriented stylesheet for documento.html: page layout, header, client
+    box, line table, totals, diagonal watermark and the PAGADA stamp.
+
+  RELATIONSHIPS
+    · Injected into documento.html via the {{{STYLES}}} placeholder by
+      pdf.service.ts before Puppeteer renders the PDF.
+    · Copied to dist/templates by scripts/copy-templates.mjs for production.
+
+  NOTES
+    · Sizes are tuned for A4 print; .watermark is a fixed diagonal label and
+      .sello-pagada is the green PAGADA stamp shown only on paid invoices.
+  ──────────────────────────────────────────────────────────────────────────────
+*/
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root { --rojo: #d40000; }

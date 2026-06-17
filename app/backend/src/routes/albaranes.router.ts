@@ -1,3 +1,41 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * albaranes.router.ts — Delivery notes (albaranes) REST router
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Express router mounted at /api/albaranes. Exposes CRUD over supplier delivery
+ *   notes plus line assignment/movement between trabajos, delegating all logic to
+ *   albanesService.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @middleware/errorHandler (asyncHandler) → wrap async routes
+ *     · @services/albaranes.service (albanesService) → business logic
+ *   Used by:
+ *     · index.ts → app.use('/api/albaranes', router)
+ *
+ * ENDPOINTS
+ *   · GET    /                       → list with optional estado/proveedor/fecha filters
+ *   · GET    /trabajo/:trabajoId      → albaranes assigned to a trabajo
+ *   · GET    /:id                     → full detail (404 if missing)
+ *   · POST   /                        → create header + lines (400 if no fecha/lines)
+ *   · PUT    /:id                     → edit header + lines (409 if a line is in use)
+ *   · POST   /:id/asignar             → assign lines to a trabajo (body trabajo_id, linea_ids?)
+ *   · POST   /lineas/:lineaId/mover   → move a line between trabajos
+ *   · POST   /lineas/desasignar       → unassign lines from a trabajo
+ *   · DELETE /:id                     → delete (404 if missing, 409 if used in a factura)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  HTTP req params/query/body
+ *   Output: JSON { data } / { message } / { error }
+ *
+ * NOTES
+ *   · Albarán estado is computed by the service, never stored.
+ *   · default export = the configured Router.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { Router } from 'express';
 import { asyncHandler } from '@middleware/errorHandler';
 import { albanesService } from '@services/albaranes.service';

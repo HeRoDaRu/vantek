@@ -1,3 +1,39 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * toast.store.ts — Zustand store for transient toast notifications
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Holds a queue of toast notifications (error/success/info) and exposes
+ *   actions to show and dismiss them. Each toast auto-dismisses after a fixed
+ *   duration. Also exposes a non-React helper for code outside components.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · zustand (create) → store factory
+ *   Used by:
+ *     · Toaster (UI) → renders the active toasts
+ *     · @utils/api interceptor → notificarError() on failed requests
+ *
+ * STATE & ACTIONS
+ *   · state: toasts[] ({ id, tipo, mensaje })
+ *   · mostrar(mensaje, tipo='error') → pushes a toast, auto-dismiss after 6s
+ *   · descartar(id) → removes a toast by id
+ *
+ * EXPORTS
+ *   · useToastStore → the Zustand hook
+ *   · notificarError(mensaje) → imperative helper to show an error toast from
+ *       non-React code (uses useToastStore.getState())
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  message strings and toast type
+ *   Output: toast list rendered by the Toaster component
+ *
+ * NOTES
+ *   · No backend calls — purely client-side UI state.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { create } from 'zustand';
 
 export type ToastTipo = 'error' | 'success' | 'info';

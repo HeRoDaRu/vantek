@@ -1,3 +1,39 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * setup.service.ts — Asistente de primera configuración (perfil y empresa)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Manages the initial setup of the installation: detects whether
+ *   configuration is missing, builds the business profile
+ *   (reformas/taller/personalizado) and app.config.json from the wizard
+ *   payload, and persists them by reloading the configuration in memory.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · fs, path → reading/writing the configuration files
+ *     · ../types (PerfilNegocio, SetupPayload, DefaultConfig) → wizard types
+ *     · @utils/config (AppConfig, reloadAppConfig, reloadProfileConfig) → hot reload
+ *     · @utils/paths (CONFIG_DIR) → configuration directory
+ *   Used by:
+ *     · routes/setup.router.ts → setup status and saving the wizard
+ *
+ * EXPORTS
+ *   · checkSetupRequired() → true if empresa or perfil are not configured
+ *   · buildDefaultConfig(payload) → business profile (entidades/módulos/footer)
+ *   · buildAppConfig(payload) → app.config.json (preserves previous counters)
+ *   · saveSetup(payload) → writes both files and reloads the config
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  SetupPayload (perfil + empresa data); existing config files
+ *   Output: profile.config.json and app.config.json on disk; in-memory reload
+ *
+ * NOTES
+ *   · The 'otro' profile uses reformas as structural base and overrides entidades.
+ *   · buildAppConfig never overwrites existing numbering or previous configuration.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { PerfilNegocio, SetupPayload, DefaultConfig } from '../types';
@@ -183,11 +219,19 @@ export function buildAppConfig(payload: SetupPayload): AppConfig {
         host: '',
         port: 587,
         secure: false,
-        from: ''
-      },
-      auth: {
         user: '',
         pass: '',
+        from: ''
+      },
+      plantillas: {
+        factura: {
+          asunto: 'Factura {{numero}} — {{empresa}}',
+          cuerpo: 'Estimado/a {{cliente}},\n\nAdjuntamos la factura {{numero}}.\n\nUn saludo,\n{{empresa}}'
+        },
+        presupuesto: {
+          asunto: 'Presupuesto — {{obra}}',
+          cuerpo: 'Estimado/a {{cliente}},\n\nAdjuntamos el presupuesto solicitado para {{obra}}.\n\nUn saludo,\n{{empresa}}'
+        }
       }
     },
     sistema: {

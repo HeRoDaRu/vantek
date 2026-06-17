@@ -1,4 +1,36 @@
 /**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * launcher.ts — Windows-only process launcher with self-updating from GitHub
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Boots the Vantek Express server and supervises auto-updates on Windows.
+ *   On start (and on a scheduler) it checks GitHub Releases for a newer version,
+ *   downloads and extracts the release ZIP, and applies it during the configured
+ *   maintenance window only when the machine is idle and no document draft is dirty.
+ *
+ * RELATIONSHIPS
+ *   Used by / Calls:
+ *     · install-service.bat (NSSM) / start.bat → launch launcher.js as the service or foreground
+ *     · GitHub Releases API → fetch latest version metadata and the release ZIP
+ *     · PowerShell (Expand-Archive, GetLastInputInfo) → unzip updates, detect inactivity
+ *     · Backend GET /api/status/draft → decide whether it is safe to restart
+ *     · Frontend (Config update panel) → manual apply requests via data/update-state.json
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  config/app.config.json (update window, idle minutes), version.json,
+ *           frontend requests written to data/update-state.json
+ *   Output: data/update-state.json (phase/state), logs/launcher.log, logs/update.zip,
+ *           extracted app files, restarted server process, error notification emails
+ *
+ * NOTES
+ *   · Windows-only. Has no role in the Linux/Docker deployment.
+ *   · Zero external dependencies: pure Node + PowerShell + setInterval/fs.watchFile.
+ *   · Communicates with the backend purely through data/update-state.json on disk.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
  * Vantek Launcher — Fase 4
  *
  * Responsabilidades:

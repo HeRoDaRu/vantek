@@ -1,3 +1,41 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * trabajos.service.ts — CRUD de trabajos (obras/reparaciones) y su contexto
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Business logic for the trabajo: the leaf of the hierarchy Cliente→Agrupador→
+ *   Trabajo. Lists and creates/edits trabajos, resolves them with full context
+ *   (cliente + agrupador) for breadcrumbs and document headers, and exposes
+ *   the albaranes assigned to each trabajo.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @db/connection (getDb) → SQLite handle
+ *     · uuid (v4) → IDs of new trabajos
+ *     · ../types (Trabajo, TrabajoConContexto, TrabajoBrief) → row types
+ *     · @utils/config (getAppConfig) → default margen on create
+ *   Used by:
+ *     · routes/clientes.router.ts → trabajos nested under the agrupador
+ *
+ * EXPORTS
+ *   · trabajosService.findByAgrupador(agrupadorId) → trabajos of the agrupador
+ *   · trabajosService.findById(id) → a trabajo or null
+ *   · trabajosService.findWithContext(id) → trabajo + cliente/agrupador
+ *   · trabajosService.create(data) → created trabajo (inherited margen)
+ *   · trabajosService.update(id, data) → updated trabajo or null
+ *   · trabajosService.findAlbaranes(trabajoId) → albaranes assigned to the trabajo
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  trabajo ids/data; state of the DB; config (margen)
+ *   Output: Trabajo/context rows; INSERT/UPDATE in SQLite
+ *
+ * NOTES
+ *   · estado is 'activo' | 'completado' | 'cancelado'; derived from the seguimiento.
+ *   · The per-trabajo margen inherits from documentos.margen_defecto if not specified.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { getDb } from '@db/connection';
 import { v4 as uuidv4 } from 'uuid';
 import { Trabajo, TrabajoConContexto, TrabajoBrief } from '../types';

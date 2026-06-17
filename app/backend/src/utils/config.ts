@@ -1,3 +1,41 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * config.ts — Profile/app config loader, cache, migrate & translator
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Reads profile.config.json and app.config.json from CONFIG_DIR with in-memory
+ *   caching, exposes getters/setters/reloaders, deep-merges missing keys from the
+ *   app config template on boot (migrateConfig), and provides t() to translate
+ *   profile entity keys (never literal strings in code).
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · fs, path → read/write the JSON config files
+ *     · @utils/paths (CONFIG_DIR) → locate config files
+ *   Used by:
+ *     · index.ts → migrateConfig() on startup
+ *     · config.router.ts → get/reload app & profile config
+ *     · services (email, dashboard, etc.) → getAppConfig/getProfileConfig
+ *
+ * EXPORTS
+ *   · ProfileConfig, AppConfig → config type shapes
+ *   · getProfileConfig / getAppConfig → cached readers
+ *   · saveAppConfig → write app config + update cache
+ *   · reloadAppConfig / reloadProfileConfig → invalidate caches
+ *   · migrateConfig → add new template keys without overwriting values
+ *   · t(key) → translate a dotted profile key (falls back to the key)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  JSON config files on disk
+ *   Output: parsed config objects / translated strings
+ *
+ * NOTES
+ *   · migrateConfig never overwrites existing values and never throws (a failure
+ *     must not block server startup).
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { CONFIG_DIR } from '@utils/paths';
@@ -77,11 +115,13 @@ export interface AppConfig {
       host: string;
       port: number;
       secure: boolean;
-      from: string;
-    };
-    auth: {
       user: string;
       pass: string;
+      from: string;
+    };
+    plantillas: {
+      factura: { asunto: string; cuerpo: string };
+      presupuesto: { asunto: string; cuerpo: string };
     };
   };
 }

@@ -1,3 +1,50 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * App.tsx — Root component, setup gating and route table
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Bootstraps the SPA: queries /api/setup/status to decide whether the app needs
+ *   first-time setup, loads the business profile/config, and renders the router.
+ *   While loading shows a spinner; on connection failure shows an error screen.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/config.store → load() business profile + app config
+ *     · @components/Layout/Layout → shell (sidebar + <Outlet/>) for app routes
+ *     · @pages/* → page components mounted per route
+ *     · @ui/Spinner → loading indicator
+ *   Used by:
+ *     · src/main.tsx (rendered once the splash screen reports ready)
+ *
+ * ROUTES
+ *   When setup is required:
+ *     · *                        → SetupPage (catch-all first-run wizard)
+ *   Otherwise, nested under Layout ("/"):
+ *     · /                        → <Navigate> redirect to /dashboard
+ *     · /dashboard               → DashboardPage
+ *     · /clientes                → ClientesPage
+ *     · /clientes/:id            → ClienteFichaPage
+ *     · /albaranes               → AlbaranesPage
+ *     · /albaranes/:id           → AlbaranFichaPage
+ *     · /facturas                → FacturasListPage
+ *     · /facturas/:id            → FacturaPage
+ *     · /presupuestos            → PresupuestosListPage
+ *     · /presupuestos/:id        → PresupuestoPage
+ *     · /seguimiento             → SeguimientoPage
+ *     · /seguimiento/:id         → SeguimientoFichaPage
+ *     · /configuracion           → ConfigPage
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  none (top-level component)
+ *   Output: BrowserRouter tree with the routes above, or loading/error screens
+ *
+ * NOTES
+ *   · configState gates rendering: 'loading' | 'setup' | 'ready' | 'error'.
+ *   · Config is loaded before any app route renders so modules/terminology exist.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useConfigStore } from '@store/config.store';

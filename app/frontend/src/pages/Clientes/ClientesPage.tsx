@@ -1,3 +1,40 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * ClientesPage.tsx — Client list with search and quick creation
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Lists all active clients in a table with a debounced search box (300ms).
+ *   Lets the user create a new client via ClienteModal and, on success,
+ *   navigates straight to the new client's ficha page. Labels are profile-aware
+ *   (t('entidades.cliente')) so the page works for reformas, taller, etc.
+ *
+ * ROUTE
+ *   /clientes
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/clientes.store → fetchAll/create + clientes/loading/error state
+ *     · @store/config.store → t() for profile terminology
+ *     · @ui/Spinner → loading indicator
+ *     · @pages/Clientes/components/Modal/ClienteModal → create-client form
+ *   Backend (via store):
+ *     · GET /api/clientes?search= → load/filter list
+ *     · POST /api/clientes → create client
+ *   Used by:
+ *     · Route /clientes in App.tsx (inside Layout)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  search text, "Nuevo cliente" click, row click
+ *   Output: rendered client table; navigation to /clientes/:id on create or row click
+ *
+ * NOTES
+ *   · Dirección column is derived from agrupadores[].label joined by commas
+ *     (the clientes table has no direccion field).
+ *   · Borrado lógico: only active clients appear here.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClientesStore } from "@store/clientes.store";

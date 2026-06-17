@@ -1,3 +1,35 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * Sidebar.tsx — Collapsible navigation menu with module gating
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Renders the left navigation rail with inline SVG icons. Items are NavLinks to
+ *   the main sections; Albaranes and Seguimiento entries appear only when the
+ *   active business profile enables those modules. Supports a collapsed (icon-only)
+ *   mode and a mobile drawer.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · react-router-dom (NavLink) → active-aware navigation links
+ *     · @store/config.store → profile.modulos flags for conditional items
+ *   Used by:
+ *     · @components/Layout/Layout (rendered beside the <main> outlet)
+ *
+ * PROPS
+ *   · mobileOpen?: boolean → whether the mobile drawer is open (adds .sidebar-open)
+ *   · onClose?: () => void → called on item click / to dismiss the mobile drawer
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  mobileOpen/onClose props, profile modules from the store
+ *   Output: nav rail; toggles its own collapsed state via the chevron button
+ *
+ * NOTES
+ *   · modulos.albaranes and modulos.seguimiento gate the optional menu items.
+ *   · The Seguimiento item is labelled "Trabajos"; width animates 56↔210px.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useConfigStore } from '@store/config.store';

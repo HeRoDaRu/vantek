@@ -1,3 +1,45 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * BarraAcciones.tsx — Document action toolbar (invoice / quote)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Presentational toolbar shown above a document editor. Renders the title,
+ *   a state Badge and the available actions, enabling/disabling each one
+ *   according to the document state. Owns two small confirmation dialogs
+ *   (reopen as borrador, delete draft) before delegating to the parent.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @ui/Badge → state chip
+ *     · EstadoFactura / EstadoPresupuesto types → state typing
+ *   Backend:
+ *     · none directly — all actions are callbacks handled by the parent page
+ *   Used by:
+ *     · FacturaPage, PresupuestoPage
+ *
+ * PROPS
+ *   · tipo: 'factura' | 'presupuesto' → selects labels/behaviour
+ *   · estado: EstadoFactura | EstadoPresupuesto → drives enabled actions
+ *   · numero: string | null → shown in the title (or — Borrador)
+ *   · guardando: boolean → disables/labels the Guardar button
+ *   · onGuardar / onCerrar / onPdf / onEnviar / onHistorial: () => void → core actions
+ *   · onImprimir?: () => void → print (factura only)
+ *   · onAlbaranes?: () => void → go to albaranes (factura only)
+ *   · onReabrir?: () => void → reopen a non-draft as borrador (with confirm)
+ *   · onEliminar?: () => void → delete; Eliminar button ONLY appears in borrador
+ *   · onConvertirFactura?: () => void → quote→invoice (presupuesto + aceptado)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  props (state + callbacks); user clicks
+ *   Output: invokes the matching callback; renders inline confirm modals
+ *
+ * NOTES
+ *   · Guardar / Cerrar are only active in 'borrador'. The Eliminar button is
+ *     conditional on borrador + onEliminar being provided.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState } from 'react';
 import { EstadoFactura } from '@store/facturas.store';
 import { EstadoPresupuesto } from '@store/presupuestos.store';
@@ -40,7 +82,7 @@ export default function BarraAcciones({
         <div className="barra-left">
           <span className="doc-titulo">
             {tipo === 'factura' ? 'Factura' : 'Presupuesto'}
-            {numero ? ` #${numero}` : ' — Borrador'}
+            {numero ? ` #${numero}` : esBorrador ? ' — Borrador' : ''}
           </span>
           <Badge estado={estado} />
         </div>
@@ -78,7 +120,7 @@ export default function BarraAcciones({
 
           <div className="barra-separator" />
 
-          <button className="btn btn-ghost btn-sm" onClick={onPdf}>PDF</button>
+          <button className="btn btn-ghost btn-sm" onClick={onPdf}>Descargar</button>
           <button className="btn btn-ghost btn-sm" onClick={onEnviar}>Enviar</button>
 
           {tipo === 'factura' && onImprimir && (

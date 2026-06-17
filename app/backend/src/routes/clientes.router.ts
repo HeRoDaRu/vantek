@@ -1,3 +1,46 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * clientes.router.ts — Clientes / agrupadores / trabajos REST router
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Express router mounted at /api/clientes. Serves the nested hierarchy
+ *   cliente → agrupador → trabajo, delegating to clientesService,
+ *   agrupadoresService and trabajosService. Clientes/agrupadores use logical
+ *   delete (activo = 0).
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @middleware/errorHandler (asyncHandler) → wrap async routes
+ *     · @services/clientes.service, agrupadores.service, trabajos.service
+ *   Used by:
+ *     · index.ts → app.use('/api/clientes', router)
+ *
+ * ENDPOINTS
+ *   · GET    /                            → list (optional ?search)
+ *   · GET    /search?q=                   → global search (min 2 chars)
+ *   · GET    /:id                         → full ficha with nested agrupadores/trabajos
+ *   · POST   /                            → create cliente (nombre required)
+ *   · PUT    /:id                         → update cliente
+ *   · DELETE /:id                         → logical delete cliente
+ *   · GET    /:clienteId/agrupadores      → agrupadores of a cliente
+ *   · POST   /:clienteId/agrupadores      → create agrupador (label required)
+ *   · PUT    /:clienteId/agrupadores/:id  → update agrupador
+ *   · DELETE /:clienteId/agrupadores/:id  → logical delete agrupador
+ *   · GET    /:clienteId/agrupadores/:agrupadorId/trabajos       → trabajos of agrupador
+ *   · POST   /:clienteId/agrupadores/:agrupadorId/trabajos       → create trabajo
+ *   · PUT    /:clienteId/agrupadores/:agrupadorId/trabajos/:id   → update trabajo
+ *   · GET    /:clienteId/agrupadores/:agrupadorId/trabajos/:id/albaranes → trabajo albaranes
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  HTTP req params/query/body
+ *   Output: JSON { data } / { message } / { error }
+ *
+ * NOTES
+ *   · default export = the configured Router.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { Router } from 'express';
 import { asyncHandler } from '@middleware/errorHandler';
 import { clientesService } from '@services/clientes.service';

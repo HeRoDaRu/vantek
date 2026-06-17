@@ -1,3 +1,39 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * FacturasListPage.tsx — Invoices list with filters and creation
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Lists invoices from the store with state + text filters and an optional
+ *   trabajo (obra) filter taken from the URL. Lets the user create a new
+ *   invoice through SelectorTrabajoModal and navigate to any row's editor.
+ *
+ * ROUTE
+ *   /facturas
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/facturas.store → list load + crearFactura
+ *     · @ui/Badge → invoice state chip
+ *     · @ui/Spinner → loading indicator
+ *     · @ui/SelectorTrabajoModal → cascade cliente→agrupador→trabajo picker
+ *   Backend (via store):
+ *     · GET  /api/facturas → list (optional estado / trabajo_id params)
+ *     · POST /api/facturas → create new invoice for a trabajo
+ *   Used by:
+ *     · Route /facturas in App.tsx (sidebar navigation)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  search params (estado, cliente, trabajo, trabajo_label); user
+ *           filter changes and the «Nueva factura» action
+ *   Output: rendered table; navigation to /facturas/:id on create or row click
+ *
+ * NOTES
+ *   · Text search filters client-side over cliente_nombre / agrupador_label;
+ *     estado and trabajo_id are sent to the backend.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFacturasStore } from '@store/facturas.store';

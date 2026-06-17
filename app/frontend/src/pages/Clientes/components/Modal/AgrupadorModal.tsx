@@ -1,3 +1,37 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * AgrupadorModal.tsx — Create/edit agrupador (dirección/obra) form modal
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Controlled modal form for an agrupador (label required, descripcion
+ *   optional). Title and labels are profile-aware via t('entidades.agrupador')
+ *   ("Dirección" in reformas, "Matrícula" in taller). Validates the label and
+ *   delegates persistence to the parent through onSubmit.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @ui/Modal → modal shell with footer actions
+ *     · @store/config.store → t() for profile terminology
+ *     · @store/clientes.store (Agrupador type) → shape of `inicial`
+ *   Used by:
+ *     · ClienteFichaPage (create/edit agrupador)
+ *
+ * PROPS
+ *   · open: boolean → whether the modal is visible
+ *   · onClose: () => void → close handler
+ *   · onSubmit: (data) => Promise<void> → persist { label, descripcion? }
+ *   · inicial?: Partial<Agrupador> → seed values when editing
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  user-typed label/descripcion; open/inicial props
+ *   Output: calls onSubmit with cleaned data; surfaces validation/save errors
+ *
+ * NOTES
+ *   · Title switches to "Editar" when inicial?.id is present, else "Nueva".
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState, useEffect } from 'react';
 import Modal from '@ui/Modal';
 import { useConfigStore } from '@store/config.store';
