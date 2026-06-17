@@ -15,7 +15,7 @@
  *
  * RELATIONSHIPS
  *   Imports:
- *     · @store/clientes.store → fetchById/update/create*/update*/remove + types
+ *     · @store/clientes.store → fetchById/update/create+update agrupador/trabajo/remove + types
  *     · @store/config.store → t() for profile terminology
  *     · @ui/Spinner, @ui/Modal, @ui/Badge → UI primitives
  *     · ClienteModal/AgrupadorModal/TrabajoModal → edit/create forms

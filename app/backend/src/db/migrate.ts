@@ -30,6 +30,8 @@
  */
 
 import { getDb } from '@db/connection';
+
+const migrations: { version: number; sql: string }[] = [
   {
     version: 1,
     sql: `
