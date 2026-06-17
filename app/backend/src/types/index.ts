@@ -1,3 +1,42 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * index.ts (types) — Central TypeScript type definitions
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Declares every shared TypeScript interface/type for the backend domain:
+ *   API envelopes, usuarios, clientes/agrupadores/trabajos, proveedores,
+ *   albaranes, document lines, presupuestos, facturas, versions, seguimiento,
+ *   setup payloads and the default/app config shapes.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · (none) → pure type declarations
+ *   Used by:
+ *     · services & routers across the backend → typed entities and payloads
+ *       (e.g. setup.router.ts imports SetupPayload, PerfilNegocio)
+ *
+ * EXPORTS
+ *   · BaseEntity, ApiResponse<T>, ApiError → base + API shapes
+ *   · UserRole, Usuario → user infrastructure
+ *   · Cliente(+ConAgrupadores), Agrupador(+ConTrabajos) → client hierarchy
+ *   · TrabajoEstado, Trabajo, TrabajoBrief, TrabajoConContexto → trabajos
+ *   · Proveedor, Albaran(+Linea/Estado/ListItem) → suppliers & delivery notes
+ *   · LineaTipo, LineaDocumento → document line model
+ *   · Presupuesto(Estado/ListItem), Factura(Estado/ListItem) → documents
+ *   · DocumentoVersion, SeguimientoEstado, Seguimiento → versions & tracking
+ *   · PerfilNegocio, SetupPayload, DefaultConfig, AppConfig → setup & config
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  n/a (compile-time only)
+ *   Output: type-level exports
+ *
+ * NOTES
+ *   · coste_unitario / margen_porcentaje on LineaDocumento are internal and must
+ *     never reach a PDF.
+ *   · The AppConfig here is the type-only mirror; @utils/config has its own.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
 // ─── Base ────────────────────────────────────────────────────────────────────
 
 export interface BaseEntity {

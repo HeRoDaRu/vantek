@@ -1,3 +1,24 @@
+<!--
+  ──────────────────────────────────────────────────────────────────────────────
+  documento.html — Puppeteer PDF template (factura / presupuesto)
+  ──────────────────────────────────────────────────────────────────────────────
+
+  WHAT IT DOES
+    Handlebars HTML template rendered by pdf.service.ts and converted to PDF by
+    Puppeteer. Shared by facturas and presupuestos; the watermark, número, IVA
+    rows, PAGADA stamp and notes are toggled via context flags.
+
+  RELATIONSHIPS
+    · {{{STYLES}}} is injected from documento.css at render time.
+    · Used by app/backend/src/services/pdf.service.ts to build the document.
+    · Copied to dist/templates by scripts/copy-templates.mjs for production.
+
+  NOTES
+    · Only client-facing fields appear; internal cost/margin are never rendered.
+    · {{#if mostrar_iva}} shows the IVA row (facturas); {{#if mostrar_nota_iva}}
+      shows the no-IVA note (presupuestos); {{#if mostrar_sello}} the PAGADA stamp.
+  ──────────────────────────────────────────────────────────────────────────────
+-->
 <!DOCTYPE html>
 <html lang="es">
 <head>

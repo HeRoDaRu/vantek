@@ -1,3 +1,36 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * dashboard.service.ts — Pendientes de acción y resumen económico del dashboard
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Computes the two dashboard blocks: the list of pending actions
+ *   (unconverted/old presupuestos, undelivered facturas and unpaid facturas)
+ *   and the financial summary (real collected vs projection) grouped by
+ *   month, quarter or year.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @db/connection (getDb) → aggregate queries over facturas/presupuestos
+ *     · @utils/config (getAppConfig) → thresholds (days) and chart type
+ *   Used by:
+ *     · routes/dashboard.router.ts → GET /api/dashboard?agrupacion=...
+ *
+ * EXPORTS
+ *   · getDashboard(agrupacion='mes') → { pendientes, resumen, grafico_tipo }
+ *   · (types) PendienteAccion, PuntoGrafico, ResumenEconomico, DashboardData
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  time grouping; state of facturas/presupuestos in the DB
+ *   Output: read-only DashboardData object (no side effects)
+ *
+ * NOTES
+ *   · factura_sin_cobrar uses julianday('now') - julianday(updated_at) > diasSinCobrar.
+ *   · 'projection' = facturas in cerrada/entregada/pendiente_pago/pagada; 'pagado'
+ *     only counts the pagadas.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { getDb } from '@db/connection';
 import { getAppConfig } from '@utils/config';
 

@@ -1,3 +1,29 @@
+REM ──────────────────────────────────────────────────────────────────────────────
+REM install-service.bat — Register Vantek as a Windows service via NSSM
+REM ──────────────────────────────────────────────────────────────────────────────
+REM
+REM WHAT IT DOES
+REM   Registers and starts the "VANTEK" Windows service with NSSM, pointing it at
+REM   the portable Node runtime running launcher\launcher.js. Configures the working
+REM   directory, auto-restart on failure, rotating stdout/stderr logs, and automatic
+REM   start with Windows. Must be run as Administrator.
+REM
+REM RELATIONSHIPS
+REM   Used by / Calls:
+REM     · install.ps1 → invoked at the end of first-time installation
+REM     · tools\nssm.exe → installs, configures and starts the service
+REM     · node\node.exe + launcher\launcher.js → the supervised process
+REM
+REM INPUTS / OUTPUTS
+REM   Input:  node\node.exe, launcher\launcher.js, tools\nssm.exe (must already exist)
+REM   Output: registered/started "VANTEK" service, logs\service-stdout.log,
+REM           logs\service-stderr.log
+REM
+REM NOTES
+REM   · Windows-only. Requires Administrator privileges and a prior install.ps1 run
+REM     to have provisioned node\ and tools\nssm.exe.
+REM ──────────────────────────────────────────────────────────────────────────────
+
 @echo off
 :: ============================================================
 :: Vantek — Instalación como servicio de Windows con NSSM

@@ -1,3 +1,43 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * NuevoAlbaranModal.tsx — Create / edit a supplier delivery note (albarán)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Modal form to create a new albarán (POST) or edit an existing one (PUT)
+ *   when albaranInicial is provided. Manages header fields (fecha, proveedor,
+ *   numero) and an editable lines table. Hosts the "Escanear OCR" button that
+ *   opens OCRAlbaranModal and feeds its ResultadoOCR into the form before save.
+ *   Also exports the AlbaranInicial type.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @utils/api → create/update the albarán
+ *     · @ui/Modal → dialog shell
+ *     · ./OCRAlbaranModal → nested client-side OCR (creation flow)
+ *   Backend:
+ *     · POST /api/albaranes → create (optionally assigned to trabajoId)
+ *     · PUT  /api/albaranes/:id → edit header + lines (edit mode)
+ *   Used by:
+ *     · AlbaranesPage (create), AlbaranFichaPage (edit via albaranInicial)
+ *
+ * PROPS
+ *   · trabajoId?: string → if set, the new albarán is auto-assigned to it
+ *   · albaranInicial?: AlbaranInicial → if set, the modal opens in edit (PUT) mode
+ *   · onClose: () => void → dismiss the modal
+ *   · onCreado?: (albaranId: string) => void → callback after creation
+ *   · onActualizado?: () => void → callback after an edit
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  header/line fields, optional OCR result, optional albaranInicial
+ *   Output: persisted albarán; onCreado / onActualizado callbacks; navigation
+ *
+ * NOTES
+ *   · OCR is creation-only and lives inside this modal; the ficha has no scan.
+ *   · Line precio_unitario is supplier coste; dates are normalized to yyyy-mm-dd.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '@ui/Modal';

@@ -1,3 +1,48 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * SeguimientoFichaPage.tsx — Seguimiento detail + state machine (reformas & taller)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Single detail component serving BOTH reformas and taller profiles (taller
+ *   fields gated by modulos.matriculas). Holds the seguimiento state machine
+ *   (TRANSICIONES_BASE + ESTADOS_CANCELABLES) and chains side-effects per
+ *   transition: ask for visit date, auto-create the obra, offer to create the
+ *   presupuesto/factura, require a closed+PDF invoice before entregada, and
+ *   close the trabajo (pagada → completado). Also edits the form and deletes.
+ *
+ * ROUTE
+ *   /seguimiento/:id
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/seguimiento.store → cargar/actualizar/cambiarEstado/eliminar + types
+ *     · @store/presupuestos.store, @store/facturas.store → crearPresupuesto/crearFactura
+ *     · @store/config.store → profile (modulos.matriculas, seguimiento.label) + t()
+ *     · @ui/Badge, @ui/Modal, @ui/Spinner → UI primitives
+ *     · @utils/api → load linked presupuestos/facturas of the trabajo
+ *   Backend:
+ *     · GET /api/seguimiento/:id → detail with JOINs to trabajo/agrupador/cliente
+ *     · PUT /api/seguimiento/:id → save form
+ *     · POST /api/seguimiento/:id/estado → change state (auto-convert, guards)
+ *     · DELETE /api/seguimiento/:id → delete record only
+ *     · GET /api/presupuestos?trabajo_id= , GET /api/facturas?trabajo_id= → linked docs
+ *   Used by:
+ *     · Route /seguimiento/:id in App.tsx (inside Layout)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  :id url param; form edits; state-transition clicks; confirm dialogs
+ *   Output: persisted edits/state changes; navigation to document editors; deletion
+ *
+ * NOTES
+ *   · Cancellation is allowed by STATE (ESTADOS_CANCELABLES), not by trabajo_id;
+ *     once en_curso the obra has started and cancel is no longer offered.
+ *   · Taller uses only the subset nuevo → en_curso → … ; intermediate visit/
+ *     presupuesto states do not apply.
+ *   · pagada is not terminal: the final transition is pagada → completado.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSeguimientoStore, EstadoSeguimiento } from '@store/seguimiento.store';
@@ -111,6 +156,8 @@ export default function SeguimientoFichaPage() {
 
   // Presupuestos del trabajo (carga cuando el seguimiento tiene trabajo_id)
   const [presupuestos, setPresupuestos] = useState<{ id: string; estado: string; fecha: string; importe: number }[]>([]);
+  // Facturas del trabajo (carga cuando el seguimiento tiene trabajo_id)
+  const [facturas, setFacturas] = useState<{ id: string; numero: string | null; estado: string; fecha: string; total: number }[]>([]);
 
   const [confirmEstado, setConfirmEstado] = useState<EstadoSeguimiento | null>(null);
   const [confirmEliminar, setConfirmEliminar] = useState(false);
@@ -150,6 +197,14 @@ export default function SeguimientoFichaPage() {
     api.get('/presupuestos', { params: { trabajo_id: actual.trabajo_id } })
       .then(res => setPresupuestos(res.data.data ?? res.data ?? []))
       .catch(() => setPresupuestos([]));
+  }, [actual?.trabajo_id]);
+
+  // Cargar facturas cuando hay trabajo vinculado
+  useEffect(() => {
+    if (!actual?.trabajo_id) { setFacturas([]); return; }
+    api.get('/facturas', { params: { trabajo_id: actual.trabajo_id } })
+      .then(res => setFacturas(res.data.data ?? res.data ?? []))
+      .catch(() => setFacturas([]));
   }, [actual?.trabajo_id]);
 
   if (cargando && !actual) return <Spinner label="Cargando…" />;
@@ -485,18 +540,50 @@ export default function SeguimientoFichaPage() {
                 <div
                   key={p.id}
                   style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(110px, max-content) 64px 1fr max-content',
+                    alignItems: 'center', gap: 10,
                     padding: '8px 10px', borderRadius: 'var(--radius)',
                     background: 'var(--bg-3)', cursor: 'pointer',
                   }}
                   onClick={() => navigate(`/presupuestos/${p.id}`)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Badge estado={p.estado} />
-                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtFecha(p.fecha)}</span>
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>
+                  <Badge estado={p.estado} />
+                  <span />
+                  <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtFecha(p.fecha)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'right' }}>
                     {Number(p.importe ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Lista de facturas del trabajo */}
+          {facturas.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Facturas
+              </div>
+              {facturas.map(f => (
+                <div
+                  key={f.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(110px, max-content) 64px 1fr max-content',
+                    alignItems: 'center', gap: 10,
+                    padding: '8px 10px', borderRadius: 'var(--radius)',
+                    background: 'var(--bg-3)', cursor: 'pointer',
+                  }}
+                  onClick={() => navigate(`/facturas/${f.id}`)}
+                >
+                  <Badge estado={f.estado} />
+                  <span style={{ fontSize: 12, color: 'var(--text)' }}>
+                    {f.numero ? `#${f.numero}` : 'Borrador'}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtFecha(f.fecha)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'right' }}>
+                    {Number(f.total ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                   </span>
                 </div>
               ))}

@@ -1,3 +1,32 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * Layout.tsx — App shell (sidebar + content area)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   The outer chrome for all authenticated app routes: a mobile top bar with a
+ *   hamburger that toggles the Sidebar, a backdrop for the mobile drawer, the
+ *   Sidebar itself, and a <main> that renders the active route via <Outlet/>.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · react-router-dom (Outlet) → renders the matched child route
+ *     · @components/Layout/Sidebar → navigation menu
+ *   Used by:
+ *     · App.tsx — element of the "/" parent route wrapping all pages
+ *
+ * PROPS
+ *   · (none) — receives no props; owns local mobileOpen state
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  routed child pages (via <Outlet/>)
+ *   Output: full-height flex shell; toggles Sidebar open/close on mobile
+ *
+ * NOTES
+ *   · mobile-topbar / sidebar-backdrop are shown/hidden purely via CSS breakpoints.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '@components/Layout/Sidebar';

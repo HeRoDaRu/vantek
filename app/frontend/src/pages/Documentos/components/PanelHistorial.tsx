@@ -1,3 +1,35 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * PanelHistorial.tsx — Document version history modal
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Modal listing the saved versions of an invoice or quote (number + date),
+ *   each with a link to open the corresponding PDF.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @ui/Modal → dialog shell
+ *   Backend:
+ *     · GET /api/{facturas|presupuestos}/:id/pdf/latest → opened via "Ver PDF" link
+ *   Used by:
+ *     · FacturaPage, PresupuestoPage (Historial action)
+ *
+ * PROPS
+ *   · versiones: Version[] → list of saved versions (id, numero_version, pdf_path, created_at)
+ *   · documentoId: string → id used to build the PDF link
+ *   · tipo: 'factura' | 'presupuesto' → selects the API base path
+ *   · onClose: () => void → dismiss the modal
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  versiones list + props
+ *   Output: rendered table; opens PDFs in a new tab
+ *
+ * NOTES
+ *   · All rows link to /pdf/latest (not a per-version path).
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import Modal from '@ui/Modal';
 
 interface Version {

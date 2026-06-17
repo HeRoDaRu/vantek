@@ -1,3 +1,47 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * facturas.router.ts — Invoices (facturas) REST router
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Express router mounted at /api/facturas. Handles invoice lifecycle: list,
+ *   detail, create (optionally importing a presupuesto), line saving, autosave,
+ *   close (assign number), state changes, PDF generation/serving and email send.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @services/facturas.service (* as svc) → all invoice logic
+ *     · @services/pdf.service (generarPdf) → render PDF with Puppeteer
+ *     · @services/email.service (enviarFactura) → email the invoice
+ *     · @utils/paths (PDFS_DIR) → resolve stored PDF files
+ *   Used by:
+ *     · index.ts → app.use('/api/facturas', router)
+ *
+ * ENDPOINTS
+ *   · GET    /                 → list (?trabajo_id/estado/cliente_id)
+ *   · GET    /:id              → detail (404 if missing)
+ *   · POST   /                 → create (trabajo_id required; imports presupuesto)
+ *   · PUT    /:id/lineas        → save lines
+ *   · POST   /desde-albaran     → add albarán lines to the trabajo draft invoice
+ *   · POST   /:id/borrador      → autosave draft
+ *   · POST   /:id/cerrar        → close & assign number (422 on validation fail)
+ *   · POST   /:id/estado        → change state (entregada/pendiente_pago/pagada/reopen)
+ *   · POST   /:id/pdf           → generate PDF + store version
+ *   · GET    /:id/pdf/latest    → serve latest PDF (404 if none)
+ *   · POST   /:id/enviar        → email invoice then set estado=entregada
+ *   · DELETE /:id              → delete invoice
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  HTTP req params/query/body
+ *   Output: JSON factura data / { ok } / file (PDF) / { error }
+ *
+ * NOTES
+ *   · Close business rules live in the frontend; backend only rejects if the
+ *     document doesn't exist or isn't a borrador.
+ *   · default export = the configured Router.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { Router } from 'express';
 import path from 'path';
 import { asyncHandler } from '@middleware/errorHandler';
@@ -43,6 +87,22 @@ router.put('/:id/lineas', asyncHandler(async (req, res) => {
   await svc.guardarLineas(req.params.id, lineas);
   const datos = await svc.obtenerFactura(req.params.id);
   res.json(datos);
+}));
+
+// Añadir líneas de albarán a la factura borrador del trabajo (crea borrador si no hay)
+// body: { trabajo_id, albaran_linea_ids }
+router.post('/desde-albaran', asyncHandler(async (req, res) => {
+  const { trabajo_id, albaran_linea_ids } = req.body;
+  if (!trabajo_id) return res.status(400).json({ error: 'trabajo_id es obligatorio' });
+  if (!Array.isArray(albaran_linea_ids) || albaran_linea_ids.length === 0) {
+    return res.status(400).json({ error: 'albaran_linea_ids debe ser un array no vacío' });
+  }
+  try {
+    const resultado = await svc.agregarLineasDesdeAlbaran(trabajo_id, albaran_linea_ids);
+    res.json(resultado);
+  } catch (e: any) {
+    return res.status(400).json({ error: e?.message ?? 'No se pudieron añadir las líneas' });
+  }
 }));
 
 // Autoguardado

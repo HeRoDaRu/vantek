@@ -1,3 +1,30 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# install.ps1 — First-time Windows installer for Vantek CRM
+# ──────────────────────────────────────────────────────────────────────────────
+#
+# WHAT IT DOES
+#   Run once by the technician as Administrator on the client PC. Downloads the
+#   latest Vantek-release.zip from GitHub, provisions portable Node.js and NSSM
+#   locally (nothing installed system-wide), and registers the "VANTEK" Windows
+#   service via install-service.bat. node\ and tools\ survive later auto-updates.
+#
+# RELATIONSHIPS
+#   Used by / Calls:
+#     · Technician (manual, elevated PowerShell) → one-time bootstrap
+#     · GitHub Releases API + nodejs.org + nssm.cc → download release, Node, NSSM
+#     · launcher\install-service.bat → register and start the Windows service
+#
+# INPUTS / OUTPUTS
+#   Input:  params -InstallDir/-Repo/-NodeVersion/-Token/-Force; internet access
+#   Output: installed app tree in InstallDir, node\, tools\nssm.exe, running VANTEK
+#           service; temp working folder cleaned up on exit
+#
+# NOTES
+#   · Windows-only. Requires Administrator privileges and TLS 1.2.
+#   · Safe to re-run; skips Node/NSSM unless -Force, and won't clobber an existing
+#     service registration.
+# ──────────────────────────────────────────────────────────────────────────────
+
 <#
 .SYNOPSIS
     Instalador de primera vez de Vantek CRM para Windows.

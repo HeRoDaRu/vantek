@@ -1,3 +1,46 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * presupuestos.router.ts — Quotes (presupuestos) REST router
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Express router mounted at /api/presupuestos. Handles quote lifecycle: list,
+ *   detail, create, header/line saving, autosave, state changes, PDF
+ *   generation/serving and email send (auto-generating a PDF when needed).
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @services/presupuestos.service (* as svc, guardarVersion) → all logic
+ *     · @services/pdf.service (generarPdf) → render PDF with Puppeteer
+ *     · @services/email.service (enviarPresupuesto) → email the quote
+ *     · @utils/paths (PDFS_DIR) → resolve stored PDF files
+ *   Used by:
+ *     · index.ts → app.use('/api/presupuestos', router)
+ *
+ * ENDPOINTS
+ *   · GET    /              → list (?trabajo_id/estado/cliente_id)
+ *   · GET    /:id           → detail (404 if missing)
+ *   · POST   /              → create (trabajo_id required)
+ *   · PUT    /:id           → update header (notas, fecha)
+ *   · PUT    /:id/lineas     → save lines
+ *   · POST   /:id/borrador   → autosave draft
+ *   · POST   /:id/estado     → change state (syncs linked seguimiento)
+ *   · POST   /:id/pdf        → generate PDF + store version
+ *   · GET    /:id/pdf/latest → serve latest PDF (404 if none)
+ *   · POST   /:id/enviar     → email quote then set estado=enviado
+ *   · DELETE /:id           → delete quote
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  HTTP req params/query/body
+ *   Output: JSON presupuesto data / { ok } / file (PDF) / { error }
+ *
+ * NOTES
+ *   · Presupuestos carry no IVA in the total and use the same editor/template
+ *     as facturas (watermark differs).
+ *   · default export = the configured Router.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { Router } from 'express';
 import path from 'path';
 import { asyncHandler } from '@middleware/errorHandler';

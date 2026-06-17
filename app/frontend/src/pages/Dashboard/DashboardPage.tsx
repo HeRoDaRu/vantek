@@ -1,3 +1,40 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * DashboardPage.tsx — Home dashboard: pending actions, KPIs and revenue chart
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Landing page (/ redirects here). Shows three KPI cards (cobrado real,
+ *   proyección, pendientes), a list of pending actions, and a revenue chart
+ *   (recharts) groupable by mes/trimestre/año. Unpaid invoices
+ *   (factura_sin_cobrar) are sorted first with top visual priority; each
+ *   pending row navigates to its document.
+ *
+ * ROUTE
+ *   /dashboard
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/dashboard.store → cargar/setAgrupacion + data/cargando/error state
+ *     · @ui/Spinner → loading indicator
+ *     · recharts → ComposedChart (bars + lines)
+ *   Backend (via store):
+ *     · GET /api/dashboard?agrupacion=mes|trimestre|anio → pendientes + resumen
+ *   Used by:
+ *     · Route /dashboard in App.tsx (inside Layout); / redirects here
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  agrupación selector; clicks on KPIs/pending rows
+ *   Output: rendered KPIs/chart/pending list; navigation to facturas/presupuestos
+ *
+ * NOTES
+ *   · factura_sin_cobrar is rendered first (red badge); the threshold in days is
+ *     config-driven (dashboard.dias_factura_sin_cobrar).
+ *   · Y-axis formatter only switches to "k" units at >= 1000 to avoid collapsing
+ *     small values to "0k".
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,6 +46,17 @@ import Spinner from '@ui/Spinner';
 
 function fmt(n: number): string {
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n);
+}
+
+// Formato del eje Y: usa "k" solo a partir de 1000 (con decimal si hace falta);
+// por debajo muestra el valor en euros para no colapsar todo a "0k".
+function fmtEje(v: number): string {
+  if (v === 0) return '0';
+  if (Math.abs(v) >= 1000) {
+    const miles = v / 1000;
+    return `${Number.isInteger(miles) ? miles : miles.toFixed(1)}k`;
+  }
+  return `${Math.round(v)}`;
 }
 
 function fmtFecha(iso: string): string {
@@ -148,7 +196,7 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-2)' }} />
                 <YAxis
-                  tickFormatter={v => `${(v / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => `${fmtEje(value)}€`}
                   tick={{ fontSize: 11, fill: 'var(--text-2)' }}
                 />
                 <Tooltip content={<TooltipCustom />} />

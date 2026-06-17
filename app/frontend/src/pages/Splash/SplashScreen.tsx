@@ -1,3 +1,34 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * SplashScreen.tsx — Boot splash that preloads the OCR engine
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Full-screen boot overlay shown before the app mounts. Calls
+ *   preinicializarTesseract() to warm up the singleton Tesseract worker so the
+ *   first albarán scan has no latency, then invokes onListo() to hand control to
+ *   the app. Preload failure is non-blocking: it shows a warning and continues
+ *   (the worker will be created on-demand at first scan).
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @hooks/useTesseract → preinicializarTesseract() singleton warm-up
+ *   Used by:
+ *     · main.tsx — rendered before App until OCR preload settles
+ *
+ * PROPS
+ *   · onListo: () => void → called when preload finishes (or fails non-blockingly)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  none (runs preload on mount)
+ *   Output: splash UI; calls onListo() to reveal the app
+ *
+ * NOTES
+ *   · Not a routed page — it is mounted by main.tsx, not via App.tsx.
+ *   · Cleanup guards against calling onListo after unmount (cancelado flag).
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState } from 'react';
 import { preinicializarTesseract } from '@hooks/useTesseract';
 

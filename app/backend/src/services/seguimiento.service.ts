@@ -1,3 +1,45 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * seguimiento.service.ts — Seguimiento/órdenes de trabajo y sincronización de estados
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Core of seguimiento (reformas leads and taller orders, shared table).
+ *   CRUD + state machine, automatic conversion to cliente+agrupador+obra
+ *   (with fuzzy deduplication), and bidirectional synchronization between
+ *   the seguimiento state, its documents and the obra.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · ../db/connection (getDb) → SQLite handle (direct SQL only)
+ *     · uuid (v4) → IDs of seguimiento and the auto-created entities
+ *     · ../utils/config (getAppConfig) → default margen of the created obra
+ *   Used by:
+ *     · routes/seguimiento.router.ts → exposes CRUD and state changes
+ *     · facturas.service.ts and presupuestos.service.ts → syncSeguimientoDesdeDocumento
+ *
+ * EXPORTS
+ *   · listar(filtros?) / obtener(id) → query with JOINs to obra/agrupador/cliente
+ *   · crear(dto) / actualizar(id, dto) / eliminar(id) → CRUD
+ *   · cambiarEstado(id, nuevoEstado) → transition + conversion/sync/cancellation
+ *   · syncSeguimientoDesdeDocumento(trabajoId, tipo, estadoDoc) → documento → seguimiento
+ *   · (types) EstadoSeguimiento, Seguimiento, CrearSeguimientoDto, ActualizarSeguimientoDto
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  seguimiento dto/ids, target state; state of the DB
+ *   Output: Seguimiento rows; effects on seguimiento/trabajos/clientes/documents
+ *
+ * NOTES
+ *   · The dependency is always documentos → seguimiento; syncSeguimientoDesdeDocumento
+ *     uses only direct SQL to avoid circular dependencies.
+ *   · _convertirACliente deduplicates in JS (DNI/CIF exact, or phone exact + fuzzy
+ *     name via Levenshtein); _normalizar strips accents/ordinals.
+ *   · The obra is created at pendiente_presupuesto (reformas) or en_curso (taller).
+ *   · Cancelling is only possible in ESTADOS_CANCELABLES; entregada requires a generated PDF.
+ *   · _syncTrabajoDesdeEstado derives trabajo.estado (activo/completado/cancelado).
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { getDb } from '../db/connection';
 import { v4 as uuidv4 } from 'uuid';
 import { getAppConfig } from '../utils/config';

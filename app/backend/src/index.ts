@@ -1,3 +1,47 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * index.ts — Express server entry point & API bootstrap
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Builds the Express app: global middleware (helmet, cors, compression, JSON,
+ *   request logger), serves static frontend/PDFs, mounts every /api router, and
+ *   exposes status + update endpoints. On start() it runs config + DB migrations
+ *   and listens on PORT (default 3000).
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @db/migrate (runMigrations) → bring the SQLite schema up to date on boot
+ *     · @utils/config (migrateConfig) → merge new keys into app.config.json
+ *     · @middleware/errorHandler → notFound + central error handlers
+ *     · @routes/* → clientes, albaranes, setup, presupuestos, facturas,
+ *       dashboard, config, seguimiento routers
+ *     · @services/facturas.service (hayBorradorSucio) → /api/status/draft
+ *     · @utils/paths (APP_ROOT, PDFS_DIR) → resolve static/PDF/update paths
+ *   Used by:
+ *     · launcher / Docker entrypoint → started as the backend process
+ *
+ * ENDPOINTS        (mounts + locally defined routes)
+ *   · use /api/config, /api/setup, /api/clientes, /api/albaranes,
+ *     /api/presupuestos, /api/facturas, /api/dashboard, /api/seguimiento
+ *   · GET  /api/status → { ok, version }
+ *   · GET  /api/status/draft → { sucio } (launcher checks for dirty draft)
+ *   · GET  /api/status/update → update state read from data/update-state.json
+ *   · POST /api/status/update/apply → flags launcher to apply an update
+ *   · GET  * (production) → SPA fallback to frontend index.html
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  HTTP requests; env (PORT, NODE_ENV, VANTEK_ROOT)
+ *   Output: running HTTP server; default export = the Express app
+ *
+ * NOTES
+ *   · SPA fallback and express.static only active when NODE_ENV=production; in
+ *     Docker nginx serves the frontend so those never fire behind the proxy.
+ *   · /api/status/update[/apply] are placeholders backed by update-state.json,
+ *     functional only with the Windows launcher (no-op under Docker).
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

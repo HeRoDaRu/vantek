@@ -1,3 +1,38 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * TrabajoModal.tsx — Create/edit trabajo (obra) form modal
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Controlled modal form for a trabajo (nombre required; descripcion optional;
+ *   margen_porcentaje seeded from the global default margen_defecto). Labels are
+ *   profile-aware via t('entidades.trabajo'). Validates the name and a
+ *   non-negative numeric margin, then delegates persistence via onSubmit.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @ui/Modal → modal shell with footer actions
+ *     · @store/config.store → t() + appConfig.documentos.margen_defecto
+ *     · @store/clientes.store (TrabajoBrief type) → shape of `inicial`
+ *   Used by:
+ *     · ClienteFichaPage (create/edit trabajo)
+ *
+ * PROPS
+ *   · open: boolean → whether the modal is visible
+ *   · onClose: () => void → close handler
+ *   · onSubmit: (data) => Promise<void> → persist { nombre, descripcion?, margen_porcentaje? }
+ *   · inicial?: Partial<TrabajoBrief & { descripcion?; margen_porcentaje? }> → seed values when editing
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  user-typed nombre/descripcion/margen; open/inicial props
+ *   Output: calls onSubmit with cleaned data; surfaces validation/save errors
+ *
+ * NOTES
+ *   · margen_porcentaje defaults to the global config margen_defecto for new trabajos.
+ *   · The margin is internal and never appears on client-facing PDFs.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState, useEffect } from 'react';
 import Modal from '@ui/Modal';
 import { useConfigStore } from '@store/config.store';

@@ -1,3 +1,30 @@
+// ──────────────────────────────────────────────────────────────────────────────
+// setup-ocr-assets.mjs — Provision Tesseract.js OCR assets at build/install time
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// WHAT IT DOES
+//   Provisions the (un-versioned) OCR assets: copies the Tesseract worker and core
+//   WASM from node_modules into public/tesseract-worker/, and downloads the Spanish
+//   language model (spa.traineddata.gz) into public/tessdata/ if absent. Idempotent
+//   and dependency-free (only node:fs and node:https).
+//
+// RELATIONSHIPS
+//   Used by / Calls:
+//     · Frontend package.json (postinstall / prebuild / npm run setup:ocr) → runs it
+//     · node_modules tesseract.js / tesseract.js-core → source of worker + WASM
+//     · tessdata.projectnaptha.com → download the spa language model
+//     · Consumed at runtime by useTesseract.ts / OCRAlbaranModal.tsx
+//
+// INPUTS / OUTPUTS
+//   Input:  resolvable tesseract.js modules; internet access for the model
+//   Output: public/tesseract-worker/{worker.min.js, tesseract-core.wasm[.js]},
+//           public/tessdata/spa.traineddata.gz
+//
+// NOTES
+//   · Runs identically on Linux/Docker build and Windows local build.
+//   · Assets are git-ignored and regenerated on each build; exits non-zero on failure.
+// ──────────────────────────────────────────────────────────────────────────────
+
 // =============================================================================
 // Vantek — Provisión de assets de OCR (Tesseract.js)
 // =============================================================================

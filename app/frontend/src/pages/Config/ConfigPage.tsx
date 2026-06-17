@@ -1,6 +1,45 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * ConfigPage.tsx — Global app configuration editor
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Loads the full app.config.json, keeps it in local state, and saves the
+ *   complete object back via PUT (the backend writes it without validating).
+ *   Has sections for empresa, documentos, templates PDF, dashboard, email/SMTP
+ *   and sistema. Normalizes legacy configs (e.g. numeracion_facturas →
+ *   numeracion_factura, missing email plantillas) on load. Also hosts the
+ *   year-rollover dialog that resets the invoice counter at the start of a new year.
+ *
+ * ROUTE
+ *   /configuracion
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @utils/api → GET/PUT /config/app
+ *     · @ui/Spinner → loading indicator
+ *     · ../../config/tokens → available PDF/email template tokens
+ *   Backend:
+ *     · GET /api/config/app → load configuration
+ *     · PUT /api/config/app → persist full config object (no server validation)
+ *   Used by:
+ *     · Route /configuracion in App.tsx (inside Layout)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  field edits across sections; year-rollover confirmation
+ *   Output: persisted app.config.json; transient ok/error messages
+ *
+ * NOTES
+ *   · The frontend is responsible for sending a complete, coherent config object.
+ *   · The year-rollover dialog lives here: it fires when numeracion_factura.anio
+ *     is older than the current year, sending contador 0 + current year on confirm.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState, Fragment } from 'react';
 import api from '@utils/api';
 import Spinner from '@ui/Spinner';
+import { TOKENS_EMAIL, TOKENS_PDF, BLOQUES_PDF } from '../../config/tokens';
 
 // ─── tipos locales ────────────────────────────────────────────────────────────
 
@@ -38,6 +77,10 @@ interface AppConfig {
       pass: string;
       from: string;
     };
+    plantillas: {
+      factura: { asunto: string; cuerpo: string };
+      presupuesto: { asunto: string; cuerpo: string };
+    };
   };
   sistema: {
     ventana_inicio: string;
@@ -61,6 +104,21 @@ function normalizarConfig(raw: any): AppConfig {
   }
   if (!doc.numeracion_factura) {
     doc.numeracion_factura = { contador: 0, anio: new Date().getFullYear() };
+  }
+  // Garantiza las plantillas de email para instalaciones antiguas.
+  raw.email = raw.email ?? {};
+  raw.email.smtp = raw.email.smtp ?? {};
+  if (!raw.email.plantillas) {
+    raw.email.plantillas = {
+      factura: {
+        asunto: 'Factura {{numero}} — {{empresa}}',
+        cuerpo: 'Estimado/a {{cliente}},\n\nAdjuntamos la factura {{numero}}.\n\nUn saludo,\n{{empresa}}',
+      },
+      presupuesto: {
+        asunto: 'Presupuesto — {{obra}}',
+        cuerpo: 'Estimado/a {{cliente}},\n\nAdjuntamos el presupuesto solicitado para {{obra}}.\n\nUn saludo,\n{{empresa}}',
+      },
+    };
   }
   return raw as AppConfig;
 }
@@ -142,6 +200,139 @@ function Grid2({ children }: { children: React.ReactNode }) {
   return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>{children}</div>;
 }
 
+// ─── botón de prueba de conexión SMTP ─────────────────────────────────────────
+
+function BotonProbarEmail({ smtp }: { smtp: AppConfig['email']['smtp'] }) {
+  const [estado, setEstado] = useState<'idle' | 'probando'>('idle');
+  const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  async function probar() {
+    setEstado('probando');
+    setResultado(null);
+    try {
+      await api.post('/config/email/test', { smtp });
+      setResultado({ ok: true, texto: 'Conexión correcta. El servidor aceptó las credenciales.' });
+    } catch (err: any) {
+      const texto = err?.response?.data?.error ?? 'No se pudo conectar con el servidor SMTP.';
+      setResultado({ ok: false, texto });
+    } finally {
+      setEstado('idle');
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        onClick={probar}
+        disabled={estado === 'probando' || !smtp.host}
+      >
+        {estado === 'probando' ? 'Probando…' : 'Probar conexión'}
+      </button>
+      {resultado && (
+        <div style={{
+          fontSize: 12, marginTop: 8,
+          color: resultado.ok ? 'var(--green)' : 'var(--red)',
+        }}>
+          {resultado.ok ? '✓ ' : '✗ '}{resultado.texto}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── panel de informe de errores al técnico ───────────────────────────────────
+
+function fechaISO(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function PanelErrores({ emailDestino }: { emailDestino: string }) {
+  const hoy = new Date();
+  const hace7 = new Date();
+  hace7.setDate(hoy.getDate() - 7);
+
+  const [desde, setDesde] = useState(fechaISO(hace7));
+  const [hasta, setHasta] = useState(fechaISO(hoy));
+  const [total, setTotal] = useState<number | null>(null);
+  const [estado, setEstado] = useState<'idle' | 'consultando' | 'enviando'>('idle');
+  const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  async function consultar() {
+    setEstado('consultando');
+    setResultado(null);
+    try {
+      const r = await api.get<{ total: number }>('/config/errores', { params: { desde, hasta } });
+      setTotal(r.data.total);
+    } catch {
+      setResultado({ ok: false, texto: 'No se pudo consultar los errores.' });
+    } finally {
+      setEstado('idle');
+    }
+  }
+
+  async function enviar() {
+    setEstado('enviando');
+    setResultado(null);
+    try {
+      const r = await api.post<{ enviados: number }>('/config/errores/enviar', { desde, hasta });
+      setResultado({ ok: true, texto: `Informe enviado (${r.data.enviados} error(es)). Los errores enviados se han borrado.` });
+      setTotal(0);
+    } catch (err: any) {
+      setResultado({ ok: false, texto: err?.response?.data?.error ?? 'No se pudo enviar el informe.' });
+    } finally {
+      setEstado('idle');
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 }}>
+        Envía los errores registrados del rango seleccionado al email de notificaciones
+        {emailDestino ? <> (<code>{emailDestino}</code>)</> : ' configurado arriba'}. Tras un envío
+        correcto, esos errores se eliminan.
+      </div>
+      <Grid2>
+        <Campo label="Desde">
+          <Input value={desde} type="date" onChange={setDesde} />
+        </Campo>
+        <Campo label="Hasta">
+          <Input value={hasta} type="date" onChange={setHasta} />
+        </Campo>
+      </Grid2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+        <button type="button" className="btn btn-ghost" onClick={consultar} disabled={estado !== 'idle'}>
+          {estado === 'consultando' ? 'Consultando…' : 'Consultar'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={enviar}
+          disabled={estado !== 'idle' || !emailDestino || total === 0}
+        >
+          {estado === 'enviando' ? 'Enviando…' : 'Enviar informe'}
+        </button>
+        {total !== null && (
+          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>
+            {total} error(es) en el rango
+          </span>
+        )}
+      </div>
+      {!emailDestino && (
+        <div style={{ fontSize: 12, color: 'var(--orange, #c80)', marginTop: 8 }}>
+          Configura el «Email para notificaciones de error» de arriba para poder enviar.
+        </div>
+      )}
+      {resultado && (
+        <div style={{ fontSize: 12, marginTop: 8, color: resultado.ok ? 'var(--green)' : 'var(--red)' }}>
+          {resultado.ok ? '✓ ' : '✗ '}{resultado.texto}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── carga de logo (se guarda como data URI base64) ───────────────────────────
 
 function LogoUpload({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
@@ -216,37 +407,9 @@ function Seccion({ titulo, desc, children }: { titulo: string; desc?: string; ch
 
 // Variables disponibles en la plantilla. Deben coincidir con el contexto que
 // construye el backend en pdf.service.ts (construirContexto).
-const VARIABLES_TEMPLATE: { token: string; desc: string }[] = [
-  { token: '{{{STYLES}}}', desc: 'CSS de la plantilla (insertar dentro de <style>)' },
-  { token: '{{titulo_doc}}', desc: 'FACTURA o PRESUPUESTO' },
-  { token: '{{etiqueta_numero}}', desc: '«Nº Factura:» o «Nº Presupuesto:»' },
-  { token: '{{numero}}', desc: 'Número del documento (o BORRADOR)' },
-  { token: '{{{logo}}}', desc: 'Logo de la empresa (usar como src de <img>)' },
-  { token: '{{empresa_nombre}}', desc: 'Nombre o razón social' },
-  { token: '{{empresa_cif}}', desc: 'CIF / NIF' },
-  { token: '{{empresa_direccion}}', desc: 'Dirección fiscal' },
-  { token: '{{empresa_email}}', desc: 'Email de empresa' },
-  { token: '{{empresa_telefono}}', desc: 'Teléfono' },
-  { token: '{{cliente_nombre}}', desc: 'Nombre del cliente' },
-  { token: '{{cliente_dni_cif}}', desc: 'DNI / CIF del cliente' },
-  { token: '{{cliente_direccion}}', desc: 'Dirección de la obra' },
-  { token: '{{fecha}}', desc: 'Fecha (ej. «22 de Enero 2025»)' },
-  { token: '{{subtotal}}', desc: 'Subtotal con € (ej. «6.907,00 €»)' },
-  { token: '{{iva_pct}}', desc: 'Porcentaje de IVA' },
-  { token: '{{iva_importe}}', desc: 'Importe del IVA con €' },
-  { token: '{{total}}', desc: 'Total con €' },
-  { token: '{{notas}}', desc: 'Notas del documento' },
-  { token: '{{footer}}', desc: 'Pie de página configurado' },
-];
+const VARIABLES_TEMPLATE = TOKENS_PDF;
 
-const BLOQUES_TEMPLATE: { token: string; desc: string }[] = [
-  { token: '{{#each lineas}} … {{/each}}', desc: 'Repite por cada línea. Dentro: {{descripcion}}, {{cantidad}}, {{unidad}}, {{precio}}, {{importe}}' },
-  { token: '{{#if mostrar_iva}} … {{/if}}', desc: 'Solo en facturas (fila de IVA)' },
-  { token: '{{#if mostrar_nota_iva}} … {{/if}}', desc: 'Solo en presupuestos (aviso de IVA aparte)' },
-  { token: '{{#if mostrar_sello}} … {{/if}}', desc: 'Solo facturas pagadas (sello PAGADA)' },
-  { token: '{{#if has_logo}} … {{else}} … {{/if}}', desc: 'Según haya logo o no' },
-  { token: '{{#if cliente_dni_cif}} … {{/if}}', desc: 'Solo si el cliente tiene DNI/CIF' },
-];
+const BLOQUES_TEMPLATE = BLOQUES_PDF;
 
 function ReferenciaVariables() {
   const [abierto, setAbierto] = useState(false);
@@ -666,6 +829,38 @@ export default function ConfigPage() {
                 <Campo label="Dirección de envío (From)">
                   <Input value={config.email.smtp.from} placeholder="Reformas García <info@reformas.com>" onChange={v => set(['email', 'smtp', 'from'], v)} />
                 </Campo>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, lineHeight: 1.5 }}>
+                  Gmail y Apple (iCloud) exigen una <strong>contraseña de aplicación</strong>, no la
+                  contraseña normal de la cuenta. Gmail: servidor <code>smtp.gmail.com</code>, puerto
+                  587 (STARTTLS) o 465 (SSL/TLS). iCloud: <code>smtp.mail.me.com</code>, puerto 587
+                  (STARTTLS). Guarda los cambios y pulsa «Probar conexión» para validar.
+                </div>
+                <BotonProbarEmail smtp={config.email.smtp} />
+
+                <div style={{ borderTop: '1px solid var(--border)', margin: '20px 0 4px' }} />
+                <h4 style={{ margin: '0 0 4px', fontSize: 14 }}>Plantillas de email</h4>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12, lineHeight: 1.5 }}>
+                  Texto del email que acompaña a facturas y presupuestos. Tokens disponibles:{' '}
+                  {TOKENS_EMAIL.map((t, i) => (
+                    <Fragment key={t.token}>
+                      {i > 0 && ', '}
+                      <code>{t.token}</code>
+                    </Fragment>
+                  ))}
+                  . Los presupuestos no llevan número: usa <code>{'{{obra}}'}</code>.
+                </div>
+                <Campo label="Asunto — Factura">
+                  <Input value={config.email.plantillas.factura.asunto} onChange={v => set(['email', 'plantillas', 'factura', 'asunto'], v)} />
+                </Campo>
+                <Campo label="Cuerpo — Factura">
+                  <Textarea rows={5} value={config.email.plantillas.factura.cuerpo} onChange={v => set(['email', 'plantillas', 'factura', 'cuerpo'], v)} />
+                </Campo>
+                <Campo label="Asunto — Presupuesto">
+                  <Input value={config.email.plantillas.presupuesto.asunto} onChange={v => set(['email', 'plantillas', 'presupuesto', 'asunto'], v)} />
+                </Campo>
+                <Campo label="Cuerpo — Presupuesto">
+                  <Textarea rows={5} value={config.email.plantillas.presupuesto.cuerpo} onChange={v => set(['email', 'plantillas', 'presupuesto', 'cuerpo'], v)} />
+                </Campo>
               </Seccion>
             )}
 
@@ -686,6 +881,11 @@ export default function ConfigPage() {
                 <Campo label="Minutos de inactividad para actualizar" hint="Solo aplica actualizaciones si el usuario lleva X minutos sin actividad">
                   <Input value={config.sistema.minutos_inactividad} type="number" onChange={v => set(['sistema', 'minutos_inactividad'], parseInt(v))} />
                 </Campo>
+
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Informe de errores al técnico</div>
+                  <PanelErrores emailDestino={config.sistema.email_errores} />
+                </div>
 
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Actualización manual</div>

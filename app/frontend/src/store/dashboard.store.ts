@@ -1,3 +1,34 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * dashboard.store.ts — Zustand store for the dashboard (pendientes + economy)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Loads the dashboard payload: the «pendientes de acción» list (including
+ *   factura_sin_cobrar) and the economic summary (cobrado real vs proyección)
+ *   grouped by mes / trimestre / año. Keeps the current grouping in state.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · zustand (create) → store factory
+ *     · @utils/api → axios instance (baseURL '/api')
+ *   Used by:
+ *     · DashboardPage → renders pendientes, KPIs and the chart
+ *
+ * STATE & ACTIONS
+ *   · state: data (DashboardData|null), cargando, error, agrupacion
+ *   · cargar(agrupacion?) → GET /dashboard?agrupacion=mes|trimestre|anio
+ *   · setAgrupacion(a) → updates grouping then re-cargar()
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  agrupacion ('mes' | 'trimestre' | 'anio')
+ *   Output: DashboardData (pendientes[], resumen, grafico_tipo)
+ *
+ * NOTES
+ *   · factura_sin_cobrar pendientes carry the highest visual priority in the UI.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { create } from 'zustand';
 import api from '@utils/api';
 

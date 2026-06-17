@@ -1,3 +1,47 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * AlbaranFichaPage.tsx — Single albarán detail: assign, edit, move, invoice
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Shows one albarán with its lines and per-line trabajo assignments. Lets
+ *   the user assign the whole albarán to a trabajo, edit it (NuevoAlbaranModal
+ *   in edit mode), move single lines between trabajos, delete the albarán, and
+ *   push assigned lines into the draft invoice of their obra (whole albarán or
+ *   a single line).
+ *
+ * ROUTE
+ *   /albaranes/:id
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @utils/api → all detail/assign/move/delete/invoice calls
+ *     · @ui/Badge, @ui/Spinner, @ui/Modal → state chip / loading / dialogs
+ *     · @store/config.store → t() for the profile's trabajo label
+ *     · @store/toast.store → user feedback toasts
+ *     · ./components/NuevoAlbaranModal → edit-mode editor
+ *   Backend:
+ *     · GET    /api/albaranes/:id → detail with lines + assignments
+ *     · GET    /api/clientes (+ /api/clientes/:id) → build trabajo options
+ *     · POST   /api/albaranes/:id/asignar → assign all lines to a trabajo
+ *     · POST   /api/albaranes/lineas/:lineaId/mover → move a line between trabajos
+ *     · DELETE /api/albaranes/:id → delete the albarán
+ *     · POST   /api/facturas/desde-albaran → push lines into a draft invoice
+ *   Used by:
+ *     · Route /albaranes/:id in App.tsx (navigated from AlbaranesPage)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  url param :id; assign/move/delete/invoice user actions
+ *   Output: rendered detail UI; navigation to the resulting factura or list
+ *
+ * NOTES
+ *   · OCR lives only in creation (inside NuevoAlbaranModal); this ficha edits
+ *     an existing albarán and has no scan button.
+ *   · Albarán prices are internal coste; assignment state is computed.
+ *   · "Pasar a factura" only appears when at least one line is assigned.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '@utils/api';
@@ -5,6 +49,7 @@ import Badge from '@ui/Badge';
 import Spinner from '@ui/Spinner';
 import Modal from '@ui/Modal';
 import { useConfigStore } from '@store/config.store';
+import { useToastStore } from '@store/toast.store';
 import NuevoAlbaranModal from './components/NuevoAlbaranModal';
 
 interface LineaAlbaran {
@@ -12,7 +57,7 @@ interface LineaAlbaran {
   descripcion: string;
   cantidad: number;
   precio_unitario: number;
-  trabajos_asignados: { id: string; nombre: string }[];
+  trabajos_asignados: { trabajo_id: string; trabajo_nombre: string }[];
 }
 
 interface AlbaranDetalle {
@@ -37,6 +82,7 @@ export default function AlbaranFichaPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useConfigStore();
+  const mostrar = useToastStore(s => s.mostrar);
 
   const [albaran, setAlbaran]   = useState<AlbaranDetalle | null>(null);
   const [loading, setLoading]   = useState(false);
@@ -64,8 +110,11 @@ export default function AlbaranFichaPage() {
   const [eliminando, setEliminando]           = useState(false);
   const [eliminarErr, setEliminarErr]         = useState('');
 
-  const cargar = async () => {
-    if (!id) return;
+  // Pasar a factura
+  const [pasandoAlbaran, setPasandoAlbaran]   = useState(false);
+  const [pasandoLineaId, setPasandoLineaId]   = useState<string | null>(null);
+
+  const cargar = async () => {    if (!id) return;
     setLoading(true);
     setError('');
     try {
@@ -99,7 +148,7 @@ export default function AlbaranFichaPage() {
 
   const abrirMover = async (linea: LineaAlbaran) => {
     setMoveLinea(linea);
-    setDesdeTrabajo(linea.trabajos_asignados[0]?.id ?? '');
+    setDesdeTrabajo(linea.trabajos_asignados[0]?.trabajo_id ?? '');
     setHastaTrabajo('');
     setMoveErr('');
     await cargarTrabajos();
@@ -169,6 +218,74 @@ export default function AlbaranFichaPage() {
   const formatFecha = (s: string) =>
     new Date(s).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  // Envía un mapa trabajo → líneas a sus facturas borrador (creando si no hay).
+  const enviarAFacturas = async (porTrabajo: Map<string, string[]>) => {
+    if (porTrabajo.size === 0) {
+      mostrar(`No hay líneas asignadas a ninguna ${t('entidades.trabajo').toLowerCase()}`, 'info');
+      return;
+    }
+    let agregadas = 0;
+    let omitidas = 0;
+    let facturaId: string | null = null;
+    let nFacturas = 0;
+    try {
+      for (const [trabajoId, lineaIds] of porTrabajo) {
+        const res = await api.post('/facturas/desde-albaran', {
+          trabajo_id: trabajoId,
+          albaran_linea_ids: lineaIds,
+        });
+        agregadas += res.data.agregadas ?? 0;
+        omitidas  += res.data.omitidas ?? 0;
+        facturaId  = res.data.factura_id;
+        nFacturas++;
+      }
+    } catch (e: any) {
+      mostrar(e.response?.data?.error ?? e.message ?? 'No se pudo pasar a factura', 'error');
+      return;
+    }
+    if (agregadas === 0) {
+      mostrar(omitidas > 0 ? 'Esas líneas ya estaban en la factura' : 'No se añadió ninguna línea', 'info');
+    } else {
+      const destino = nFacturas === 1 ? 'la factura borrador' : `${nFacturas} facturas`;
+      mostrar(
+        `${agregadas} línea(s) añadida(s) a ${destino}${omitidas ? ` (${omitidas} ya estaban)` : ''}`,
+        'success'
+      );
+    }
+    // Si todo fue a una única factura, abrimos su editor.
+    if (nFacturas === 1 && facturaId) navigate(`/facturas/${facturaId}`);
+  };
+
+  // Pasa una sola línea a la(s) factura(s) de su(s) obra(s) asignada(s).
+  const pasarLineaAFactura = async (linea: LineaAlbaran) => {
+    const porTrabajo = new Map<string, string[]>();
+    for (const tr of linea.trabajos_asignados) porTrabajo.set(tr.trabajo_id, [linea.id]);
+    setPasandoLineaId(linea.id);
+    try {
+      await enviarAFacturas(porTrabajo);
+    } finally {
+      setPasandoLineaId(null);
+    }
+  };
+
+  // Pasa todas las líneas asignadas a las facturas de sus respectivas obras.
+  const pasarAlbaranAFactura = async () => {
+    const porTrabajo = new Map<string, string[]>();
+    for (const l of (albaran?.lineas ?? [])) {
+      for (const tr of l.trabajos_asignados) {
+        const arr = porTrabajo.get(tr.trabajo_id) ?? [];
+        arr.push(l.id);
+        porTrabajo.set(tr.trabajo_id, arr);
+      }
+    }
+    setPasandoAlbaran(true);
+    try {
+      await enviarAFacturas(porTrabajo);
+    } finally {
+      setPasandoAlbaran(false);
+    }
+  };
+
   const formatEuros = (n: number) =>
     n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
@@ -214,6 +331,16 @@ export default function AlbaranFichaPage() {
           >
             Asignar a {t('entidades.trabajo').toLowerCase()}
           </button>
+          {lineasAsignadas > 0 && (
+            <button
+              className="btn btn-ghost"
+              onClick={pasarAlbaranAFactura}
+              disabled={pasandoAlbaran}
+              title="Añadir todas las líneas asignadas a la factura borrador de su obra"
+            >
+              {pasandoAlbaran ? 'Pasando…' : 'Pasar a factura'}
+            </button>
+          )}
           <button
             className="btn btn-primary"
             onClick={() => setEditarAbierto(true)}
@@ -285,7 +412,7 @@ export default function AlbaranFichaPage() {
                         {asignada
                           ? linea.trabajos_asignados.map(tr => (
                             <span
-                              key={tr.id}
+                              key={tr.trabajo_id}
                               style={{
                                 display: 'inline-block',
                                 background: 'var(--accent-dim)',
@@ -296,7 +423,7 @@ export default function AlbaranFichaPage() {
                                 marginRight: 4,
                               }}
                             >
-                              {tr.nombre}
+                              {tr.trabajo_nombre}
                             </span>
                           ))
                           : <span className="text-muted">Sin asignar</span>
@@ -304,12 +431,22 @@ export default function AlbaranFichaPage() {
                       </td>
                       <td>
                         {asignada && (
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => abrirMover(linea)}
-                          >
-                            Mover
-                          </button>
+                          <div className="flex items-center gap-1" style={{ justifyContent: 'flex-end' }}>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => pasarLineaAFactura(linea)}
+                              disabled={pasandoLineaId === linea.id}
+                              title="Añadir esta línea a la factura borrador de su obra"
+                            >
+                              {pasandoLineaId === linea.id ? 'Pasando…' : '→ Factura'}
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => abrirMover(linea)}
+                            >
+                              Mover
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -350,7 +487,7 @@ export default function AlbaranFichaPage() {
             >
               <option value="">Seleccionar…</option>
               {moveLinea?.trabajos_asignados.map(tr => (
-                <option key={tr.id} value={tr.id}>{tr.nombre}</option>
+                <option key={tr.trabajo_id} value={tr.trabajo_id}>{tr.trabajo_nombre}</option>
               ))}
             </select>
           </div>

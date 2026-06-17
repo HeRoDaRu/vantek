@@ -1,3 +1,47 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * clientes.store.ts — Zustand store for clients, agrupadores and trabajos
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Manages the client hierarchy (Cliente → Agrupador → Trabajo) on the frontend.
+ *   Holds the full list of clients, the currently selected client (with its
+ *   nested agrupadores and trabajos), and CRUD actions for every level.
+ *   Deletes are logical on the backend (activo = 0).
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · zustand (create) → store factory
+ *     · @utils/api → axios instance (baseURL '/api') for all REST calls
+ *   Used by:
+ *     · ClientesPage / ClienteFichaPage → list, view and edit clients
+ *     · ClienteModal / AgrupadorModal / TrabajoModal → create & edit entities
+ *
+ * STATE & ACTIONS
+ *   · state: clientes[], selected (Cliente|null), loading, error
+ *   · fetchAll(search?) → GET /clientes (optional ?search)
+ *   · fetchById(id) → GET /clientes/:id (nested agrupadores + trabajos)
+ *   · create(data) → POST /clientes
+ *   · update(id, data) → PUT /clientes/:id
+ *   · remove(id) → DELETE /clientes/:id (logical)
+ *   · createAgrupador(clienteId, data) → POST /clientes/:cId/agrupadores
+ *   · updateAgrupador(clienteId, agrupadorId, data) → PUT /clientes/:cId/agrupadores/:id
+ *   · removeAgrupador(clienteId, agrupadorId) → DELETE /clientes/:cId/agrupadores/:id
+ *   · createTrabajo(clienteId, agrupadorId, data) → POST /clientes/:cId/agrupadores/:aId/trabajos
+ *   · updateTrabajo(clienteId, agrupadorId, trabajoId, data) → PUT /clientes/:cId/agrupadores/:aId/trabajos/:id
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  partial Cliente/Agrupador/Trabajo DTOs, ids
+ *   Output: typed entities; nested mutations applied to `selected` in place
+ *
+ * NOTES
+ *   · TrabajoBrief.estado_seguimiento reflects the real linked seguimiento state
+ *     (returned by the backend JOIN), preferred over trabajo.estado in the UI.
+ *   · Nested updates mutate `selected` immutably so the open client ficha stays
+ *     in sync without re-fetching.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { create } from 'zustand';
 import api from '@utils/api';
 

@@ -1,3 +1,39 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * PresupuestosListPage.tsx — Quotes list with filters and creation
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Lists quotes from the store with state + text filters and an optional
+ *   trabajo (obra) filter from the URL. Lets the user create a new quote via
+ *   SelectorTrabajoModal and navigate to any row's editor.
+ *
+ * ROUTE
+ *   /presupuestos
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/presupuestos.store → list load + crearPresupuesto
+ *     · @ui/Badge → quote state chip
+ *     · @ui/Spinner → loading indicator
+ *     · @ui/SelectorTrabajoModal → cascade cliente→agrupador→trabajo picker
+ *   Backend (via store):
+ *     · GET  /api/presupuestos → list (optional estado / trabajo_id params)
+ *     · POST /api/presupuestos → create new quote for a trabajo
+ *   Used by:
+ *     · Route /presupuestos in App.tsx (sidebar navigation)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  search params (estado, cliente, trabajo, trabajo_label); user
+ *           filter changes and the «Nuevo presupuesto» action
+ *   Output: rendered table; navigation to /presupuestos/:id on create/row click
+ *
+ * NOTES
+ *   · Text search filters client-side over cliente_nombre / agrupador_label;
+ *     estado and trabajo_id are sent to the backend.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { usePresupuestosStore } from '@store/presupuestos.store';

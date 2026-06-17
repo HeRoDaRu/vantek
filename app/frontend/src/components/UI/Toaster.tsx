@@ -1,3 +1,32 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * Toaster.tsx — Global toast notification container
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Subscribes to the toast store and renders the active toasts as a stacked
+ *   live region. Each toast shows a type icon (error/success/info), its message,
+ *   and a close button that dismisses it via the store.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/toast.store → toasts list + descartar(id) action
+ *   Used by:
+ *     · src/main.tsx (mounted once, alongside the app root)
+ *
+ * PROPS
+ *   · (none) — reads all state from the toast store
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  toast entries pushed into the store from anywhere in the app
+ *   Output: aria-live notification stack; close click calls descartar(id)
+ *
+ * NOTES
+ *   · Renders nothing when there are no toasts.
+ *   · role="region" + aria-live="polite" for accessible announcements.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useToastStore } from '@store/toast.store';
 
 export default function Toaster() {

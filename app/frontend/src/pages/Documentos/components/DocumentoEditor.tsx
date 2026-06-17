@@ -1,3 +1,46 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * DocumentoEditor.tsx — Shared CONTROLLED line editor for invoices/quotes
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Renders the editable line table and totals for a document. It is a
+ *   CONTROLLED component: the lineas array lives in the parent page
+ *   (FacturaPage / PresupuestoPage) and every change is pushed up via
+ *   onChange. Supports inline edit, reorder, delete, an "add manual item"
+ *   modal and an optional "add from albarán" hook. Recomputes precio_unitario
+ *   from coste × (1 + margen/100) and the subtotal/IVA/total.
+ *   Also exports the LineaEditor type, genKey() and fmt() helpers.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/config.store → default margin for the manual-item modal
+ *     · @ui/Modal → dialog for the manual item form
+ *   Backend:
+ *     · none — purely UI; persistence is the parent's responsibility
+ *   Used by:
+ *     · FacturaPage, PresupuestoPage; ModalAñadirAlbaran/FacturaPage reuse the
+ *       exported LineaEditor / genKey
+ *
+ * PROPS
+ *   · tipo: 'factura' | 'presupuesto' → IVA only added for facturas
+ *   · lineas: LineaEditor[] → the controlled line state from the parent
+ *   · onChange: (lineas: LineaEditor[]) => void → emits every mutation upward
+ *   · iva_porcentaje: number → IVA rate applied to the subtotal (facturas)
+ *   · readonly: boolean → hides edit controls when not in borrador
+ *   · onAbrirAlbaran?: () => void → opens the add-from-albarán modal (facturas)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  controlled lineas + user edits
+ *   Output: onChange with the next lineas array; rendered table + totals
+ *
+ * NOTES
+ *   · coste_unitario and margen_porcentaje are internal-only and never appear
+ *     in the PDF; editing either recomputes precio_unitario automatically.
+ *   · Unit defaults by tipo: manual → 'h', material/concepto → 'ud'.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState, useCallback } from 'react';
 import { useConfigStore } from '@store/config.store';
 import Modal from '@ui/Modal';

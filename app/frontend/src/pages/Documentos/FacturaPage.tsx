@@ -1,3 +1,54 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * FacturaPage.tsx — Invoice editor page (full document workspace)
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Loads a single invoice by id and renders its full editor: header data,
+ *   the controlled DocumentoEditor (line state lives HERE, in the parent),
+ *   the BarraAcciones toolbar and modals (add-from-albarán, send email,
+ *   history). Owns autosave (every 3 min while in borrador), explicit save,
+ *   PDF download/print, sending, closing and deletion.
+ *
+ * ROUTE
+ *   /facturas/:id
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/facturas.store → load/save/close/state/pdf/send/delete actions
+ *     · @store/config.store → default margin for new albarán lines
+ *     · DocumentoEditor → controlled line editor (receives lineas + onChange)
+ *     · BarraAcciones → action toolbar (Guardar/Cerrar/PDF/Enviar/…)
+ *     · PanelHistorial → version history modal
+ *     · ModalAñadirAlbaran → pick albarán lines to import as material
+ *     · @utils/api → direct blob fetch of the latest PDF
+ *   Backend (via store unless noted):
+ *     · GET    /api/facturas/:id → load detail
+ *     · PUT    /api/facturas/:id/lineas → save lines
+ *     · POST   /api/facturas/:id/borrador → autosave draft
+ *     · POST   /api/facturas/:id/cerrar → close & assign number
+ *     · POST   /api/facturas/:id/estado → reopen as borrador
+ *     · POST   /api/facturas/:id/pdf → generate PDF version
+ *     · GET    /api/facturas/:id/pdf/latest → download/print (direct api call)
+ *     · POST   /api/facturas/:id/enviar → email the invoice
+ *     · DELETE /api/facturas/:id → delete draft
+ *   Used by:
+ *     · Route /facturas/:id in App.tsx (navigated from lists/cliente ficha)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  url param :id; user edits lines and triggers toolbar actions
+ *   Output: rendered editor UI, persisted lines/state, generated PDFs,
+ *           navigation back on delete
+ *
+ * NOTES
+ *   · Editing is only allowed in 'borrador'; other states are readonly until
+ *     reopened (which drops the assigned number).
+ *   · Close requires ≥1 material line (blocks) and warns (no block) if there
+ *     is no labour line; all this business logic lives in the frontend.
+ *   · coste_unitario / margen_porcentaje are internal and never shown in PDF.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFacturasStore, LineaFactura } from '@store/facturas.store';
@@ -8,6 +59,7 @@ import BarraAcciones from '@pages/Documentos/components/BarraAcciones';
 import PanelHistorial from '@pages/Documentos/components/PanelHistorial';
 import ModalAñadirAlbaran from '@pages/Documentos/components/ModalAñadirAlbaran';
 import { useConfigStore } from '@store/config.store';
+import api from '@utils/api';
 
 const AUTOSAVE_MS = 3 * 60 * 1000;
 
@@ -60,6 +112,7 @@ export default function FacturaPage() {
   const [guardando, setGuardando] = useState(false);
   const [showHistorial, setShowHistorial] = useState(false);
   const [showEnviar, setShowEnviar] = useState(false);
+  const [enviando, setEnviando] = useState(false);
   const [showModalAlbaran, setShowModalAlbaran] = useState(false);
   const [emailDestino, setEmailDestino] = useState('');
   const [errorCierre, setErrorCierre] = useState<string | null>(null);
@@ -150,8 +203,19 @@ export default function FacturaPage() {
   const handlePdf = useCallback(async () => {
     if (!id) return;
     await generarPdf(id);
-    window.open(`/api/facturas/${id}/pdf/latest`, '_blank');
-  }, [id, generarPdf]);
+    // Descarga directa del PDF (sin abrir otra pestaña)
+    const res = await api.get(`/facturas/${id}/pdf/latest`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(res.data as Blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const nombreCliente = (actual?.cliente_nombre ?? '').replace(/\s+/g, '_');
+    const numero = actual?.numero ?? 'BORRADOR';
+    a.download = `Factura_${numero}_${nombreCliente}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }, [id, generarPdf, actual?.cliente_nombre, actual?.numero]);
 
   const handleImprimir = useCallback(async () => {
     if (!id) return;
@@ -162,8 +226,13 @@ export default function FacturaPage() {
 
   const handleEnviar = useCallback(async () => {
     if (!id || !emailDestino) return;
-    await enviar(id, emailDestino);
-    setShowEnviar(false);
+    setEnviando(true);
+    try {
+      await enviar(id, emailDestino);
+      setShowEnviar(false);
+    } finally {
+      setEnviando(false);
+    }
   }, [id, emailDestino, enviar]);
 
   const handleReabrir = useCallback(async () => {
@@ -196,75 +265,81 @@ export default function FacturaPage() {
   return (
     <div className="page">
 
-      {/* Breadcrumb */}
-      <div className="breadcrumb">
-        <button className="btn-link" onClick={() => navigate(-1)}>← Volver</button>
-        <span>{actual.cliente_nombre}</span>
-        <span>›</span>
-        <span>{actual.agrupador_label}</span>
-        <span>›</span>
-        <span>{actual.trabajo_nombre}</span>
-        <span>›</span>
-        <span>Factura {actual.numero ?? 'Borrador'}</span>
-      </div>
-
-      {/* Barra de acciones */}
-      <BarraAcciones
-        tipo="factura"
-        estado={actual.estado}
-        numero={actual.numero}
-        guardando={guardando}
-        onGuardar={handleGuardar}
-        onCerrar={handleCerrar}
-        onPdf={handlePdf}
-        onEnviar={() => setShowEnviar(true)}
-        onImprimir={handleImprimir}
-        onAlbaranes={() => navigate(`/albaranes?trabajo_id=${actual.trabajo_id}`)}
-        onHistorial={() => setShowHistorial(true)}
-        onReabrir={handleReabrir}
-        onEliminar={handleEliminar}
-      />
-
-      {/* Cabecera del documento */}
-      <div className="card" style={{ marginTop: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div>
-            <div className="form-label">Cliente</div>
-            <div style={{ fontWeight: 600 }}>{actual.cliente_nombre}</div>
-            {actual.cliente_empresa && (
-              <div style={{ color: 'var(--text-2)' }}>{actual.cliente_empresa}</div>
-            )}
-            {actual.cliente_dni_cif && (
-              <div style={{ color: 'var(--text-2)' }}>{actual.cliente_dni_cif}</div>
-            )}
-          </div>
-          <div>
-            <div className="form-label">Dirección del trabajo</div>
-            <div style={{ color: 'var(--text-2)' }}>{actual.agrupador_label}</div>
-          </div>
-          <div>
-            <div className="form-label">Fecha</div>
-            <div>{actual.fecha}</div>
-          </div>
-          {actual.fecha_cierre && (
-            <div>
-              <div className="form-label">Fecha de cierre</div>
-              <div>{actual.fecha_cierre.slice(0, 10)}</div>
-            </div>
-          )}
+      <div className="page-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+        {/* Breadcrumb */}
+        <div className="breadcrumb">
+          <button className="btn-link" onClick={() => navigate(-1)}>← Volver</button>
+          <span>{actual.cliente_nombre}</span>
+          <span>›</span>
+          <span>{actual.agrupador_label}</span>
+          <span>›</span>
+          <span>{actual.trabajo_nombre}</span>
+          <span>›</span>
+          <span>Factura {actual.numero ?? 'Borrador'}</span>
         </div>
       </div>
 
-      {/* Editor controlado */}
-      <div className="card" style={{ marginTop: 12 }}>
-        <DocumentoEditor
+      <div className="page-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Barra de acciones */}
+        <BarraAcciones
           tipo="factura"
-          lineas={lineas}
-          onChange={setLineas}
-          iva_porcentaje={actual.iva_porcentaje}
-          readonly={readonly}
-          onAbrirAlbaran={readonly ? undefined : () => setShowModalAlbaran(true)}
+          estado={actual.estado}
+          numero={actual.numero}
+          guardando={guardando}
+          onGuardar={handleGuardar}
+          onCerrar={handleCerrar}
+          onPdf={handlePdf}
+          onEnviar={() => setShowEnviar(true)}
+          onImprimir={handleImprimir}
+          onAlbaranes={() => navigate(`/albaranes?trabajo_id=${actual.trabajo_id}`)}
+          onHistorial={() => setShowHistorial(true)}
+          onReabrir={handleReabrir}
+          onEliminar={handleEliminar}
         />
+
+        {/* Cabecera del documento */}
+        <div className="card">
+          <div className="card-body">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <div className="form-label">Cliente</div>
+                <div style={{ fontWeight: 600 }}>{actual.cliente_nombre}</div>
+                {actual.cliente_empresa && (
+                  <div style={{ color: 'var(--text-2)' }}>{actual.cliente_empresa}</div>
+                )}
+                {actual.cliente_dni_cif && (
+                  <div style={{ color: 'var(--text-2)' }}>{actual.cliente_dni_cif}</div>
+                )}
+              </div>
+              <div>
+                <div className="form-label">Dirección del trabajo</div>
+                <div style={{ color: 'var(--text-2)' }}>{actual.agrupador_label}</div>
+              </div>
+              <div>
+                <div className="form-label">Fecha</div>
+                <div>{actual.fecha}</div>
+              </div>
+              {actual.fecha_cierre && (
+                <div>
+                  <div className="form-label">Fecha de cierre</div>
+                  <div>{actual.fecha_cierre.slice(0, 10)}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Editor controlado */}
+        <div className="card">
+          <DocumentoEditor
+            tipo="factura"
+            lineas={lineas}
+            onChange={setLineas}
+            iva_porcentaje={actual.iva_porcentaje}
+            readonly={readonly}
+            onAbrirAlbaran={readonly ? undefined : () => setShowModalAlbaran(true)}
+          />
+        </div>
       </div>
 
       {/* ── Modales ── */}
@@ -324,15 +399,15 @@ export default function FacturaPage() {
           onClose={() => setShowEnviar(false)}
           footer={
             <>
-              <button className="btn btn-ghost" onClick={() => setShowEnviar(false)}>
+              <button className="btn btn-ghost" onClick={() => setShowEnviar(false)} disabled={enviando}>
                 Cancelar
               </button>
               <button
                 className="btn btn-primary"
-                disabled={!emailDestino}
+                disabled={!emailDestino || enviando}
                 onClick={handleEnviar}
               >
-                Enviar
+                {enviando ? <><span className="spinner" /> Enviando…</> : 'Enviar'}
               </button>
             </>
           }

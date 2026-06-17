@@ -1,3 +1,39 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * SelectorTrabajoModal.tsx — Cascading cliente → agrupador → trabajo picker
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Modal used when creating a new presupuesto/factura. Step 1 searches clientes
+ *   (debounced 300ms); step 2 lists the chosen client's agrupadores (obras);
+ *   step 3 picks an active trabajo. A breadcrumb shows context and the footer
+ *   confirms with the selected trabajo id.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @ui/Modal → dialog shell (title/footer/size)
+ *     · @utils/api → axios client (GET /clientes, GET /clientes/:id)
+ *   Used by:
+ *     · FacturasListPage / PresupuestosListPage ("Nueva factura/presupuesto")
+ *
+ * PROPS
+ *   · open: boolean → modal visibility (resets internal state on close)
+ *   · onClose: () => void → dismiss without selecting
+ *   · tipo: 'presupuesto' | 'factura' → drives title and confirm button text
+ *   · onConfirmar: (trabajoId: string) => void → called with the chosen trabajo id
+ *   · cargando?: boolean → disables actions / shows "Creando…" while parent works
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  open/tipo/cargando props + user search & selections
+ *   Output: onConfirmar(trabajoId) on confirm; onClose on cancel
+ *
+ * NOTES
+ *   · Client search is debounced 300ms via debounceRef; empty query clears results.
+ *   · Cancelled trabajos are filtered out of the selectable list.
+ *   · State (cliente/agrupador/trabajo) resets whenever open becomes false.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState, useEffect, useRef } from 'react';
 import Modal from '@ui/Modal';
 import api from '@utils/api';

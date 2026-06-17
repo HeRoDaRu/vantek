@@ -1,3 +1,37 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * ClienteModal.tsx — Create/edit client form modal
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Controlled modal form for a client (nombre required; empresa, dni_cif,
+ *   telefono, email, notas optional). Resets its local state from `inicial`
+ *   whenever it opens, validates the name, and delegates persistence to the
+ *   parent through onSubmit. Shows inline errors and a saving state.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @ui/Modal → modal shell with footer actions
+ *     · @store/clientes.store (Cliente type) → shape of `inicial`
+ *   Used by:
+ *     · ClientesPage (create) and ClienteFichaPage (edit)
+ *
+ * PROPS
+ *   · open: boolean → whether the modal is visible
+ *   · onClose: () => void → close handler
+ *   · onSubmit: (data) => Promise<void> → persist the trimmed client fields
+ *   · titulo: string → modal title (e.g. "Nuevo Cliente")
+ *   · inicial?: Partial<Cliente> → seed values when editing
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  user-typed fields; open/inicial props
+ *   Output: calls onSubmit with cleaned data; surfaces validation/save errors
+ *
+ * NOTES
+ *   · Empty optional fields are sent as undefined (not empty strings).
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useState, useEffect } from 'react';
 import Modal from '@ui/Modal';
 import { Cliente } from '@store/clientes.store';

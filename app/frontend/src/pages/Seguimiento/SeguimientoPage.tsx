@@ -1,3 +1,40 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * SeguimientoPage.tsx — Seguimiento / órdenes de trabajo list
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Lists seguimiento records with a state filter, lets the user create a new
+ *   one (nombre required) and navigate to its ficha, and prints the visible
+ *   list filtered by a created_at date range. Columns and the new-record form
+ *   adapt to the profile: taller (modulos.matriculas) shows matrícula/marca/
+ *   problema, reformas shows teléfono/dirección/petición.
+ *
+ * ROUTE
+ *   /seguimiento
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/seguimiento.store → cargarLista/crear/setFiltroEstado + state
+ *     · @store/config.store → profile (modulos.matriculas, seguimiento.label) + t()
+ *     · @ui/Badge, @ui/Modal, @ui/Spinner → UI primitives
+ *   Backend (via store):
+ *     · GET /api/seguimiento?estado= → load/filter list
+ *     · POST /api/seguimiento → create record
+ *   Used by:
+ *     · Route /seguimiento in App.tsx (inside Layout)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  state filter, date range, new-record form, print button
+ *   Output: rendered list; navigation to /seguimiento/:id; print window
+ *
+ * NOTES
+ *   · Single component for both reformas and taller; the modulos.matriculas flag
+ *     toggles taller-specific columns and fields.
+ *   · Print HTML escapes all values (escapeHtml) before injection.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSeguimientoStore, EstadoSeguimiento, Seguimiento, CrearSeguimientoDto } from '@store/seguimiento.store';
@@ -24,6 +61,29 @@ function fmtFecha(iso: string) {
   return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
+// Escapa texto para insertarlo de forma segura en el HTML de impresión.
+function escapeHtml(valor: unknown): string {
+  return String(valor ?? '—')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+const ESTADO_LABEL: Record<string, string> = {
+  nuevo: 'Nuevo',
+  contactado: 'Contactado',
+  visita_agendada: 'Visita agendada',
+  pendiente_presupuesto: 'Pendiente presupuesto',
+  a_la_espera: 'A la espera',
+  en_curso: 'En curso',
+  pendiente_facturar: 'Pendiente facturar',
+  entregada: 'Entregada',
+  pagada: 'Pagada',
+  completado: 'Completado',
+  cancelado: 'Cancelado',
+};
+
 export default function SeguimientoPage() {
   const navigate = useNavigate();
   const { lista, cargando, error, filtroEstado, cargarLista, crear, setFiltroEstado } = useSeguimientoStore();
@@ -34,6 +94,8 @@ export default function SeguimientoPage() {
   const [modalNuevo, setModalNuevo] = useState(false);
   const [creando, setCreando] = useState(false);
   const [form, setForm] = useState<Partial<CrearSeguimientoDto>>({});
+  const [rangoDesde, setRangoDesde] = useState('');
+  const [rangoHasta, setRangoHasta] = useState('');
 
   useEffect(() => { cargarLista(filtroEstado || undefined); }, [filtroEstado]);
 
@@ -56,6 +118,88 @@ export default function SeguimientoPage() {
     setFiltroEstado(estado);
   }
 
+  // ─── Impresión por rango de fechas ─────────────────────────────────
+  // Filtra la lista visible por created_at dentro del rango y abre una ventana
+  // limpia para imprimir. Sin rango, imprime todos los registros visibles.
+  function filtrarPorRango(items: Seguimiento[]): Seguimiento[] {
+    return items.filter(s => {
+      const fecha = s.created_at.slice(0, 10);
+      if (rangoDesde && fecha < rangoDesde) return false;
+      if (rangoHasta && fecha > rangoHasta) return false;
+      return true;
+    });
+  }
+
+  function handleImprimir() {
+    const items = filtrarPorRango(lista);
+    if (items.length === 0) {
+      alert('No hay registros en el rango seleccionado.');
+      return;
+    }
+
+    const cabeceras = esTaller
+      ? ['Estado', 'Nombre', 'Matrícula', 'Marca / Modelo', 'Problema', 'Fecha', 'Obra']
+      : ['Estado', 'Nombre', 'Teléfono', 'Dirección', 'Petición', 'Fecha', 'Obra'];
+
+    const filas = items.map(s => {
+      const col3 = esTaller ? s.matricula : s.telefono;
+      const col4 = esTaller ? s.marca_modelo : s.direccion;
+      const col5 = esTaller ? s.descripcion_problema : s.peticion;
+      const obra = s.trabajo_nombre ? `${s.cliente_nombre ?? ''} · ${s.trabajo_nombre}` : '—';
+      return `<tr>
+        <td>${escapeHtml(ESTADO_LABEL[s.estado] ?? s.estado)}</td>
+        <td>${escapeHtml(s.nombre)}</td>
+        <td>${escapeHtml(col3)}</td>
+        <td>${escapeHtml(col4)}</td>
+        <td>${escapeHtml(col5)}</td>
+        <td>${escapeHtml(fmtFecha(s.created_at))}</td>
+        <td>${escapeHtml(obra)}</td>
+      </tr>`;
+    }).join('');
+
+    const subtitulo = [
+      filtroEstado ? `Estado: ${ESTADO_LABEL[filtroEstado] ?? filtroEstado}` : 'Todos los estados',
+      rangoDesde ? `Desde ${rangoDesde}` : null,
+      rangoHasta ? `Hasta ${rangoHasta}` : null,
+    ].filter(Boolean).join(' · ');
+
+    const html = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(label)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; margin: 24px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { font-size: 12px; color: #555; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th, td { border: 1px solid #bbb; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #f0f0f0; font-weight: 700; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .meta { margin-top: 16px; font-size: 10px; color: #888; }
+  @media print { body { margin: 0; } }
+</style></head>
+<body>
+  <h1>${escapeHtml(label)}</h1>
+  <div class="sub">${escapeHtml(subtitulo)} — ${items.length} registro(s)</div>
+  <table>
+    <thead><tr>${cabeceras.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>
+    <tbody>${filas}</tbody>
+  </table>
+  <div class="meta">Generado el ${escapeHtml(new Date().toLocaleString('es-ES'))}</div>
+</body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('El navegador ha bloqueado la ventana de impresión. Permite las ventanas emergentes e inténtalo de nuevo.');
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    // Esperar a que el contenido se renderice antes de abrir el diálogo.
+    win.onload = () => win.print();
+  }
+
   if (cargando && lista.length === 0) return <Spinner label={`Cargando ${label.toLowerCase()}…`} />;
 
   return (
@@ -75,7 +219,7 @@ export default function SeguimientoPage() {
         </button>
       </div>
 
-      {/* Filtro por estado */}
+      {/* Filtro por estado (tags) */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {ESTADOS_SEGUIMIENTO.map(e => (
           <button
@@ -86,6 +230,60 @@ export default function SeguimientoPage() {
             {e.label}
           </button>
         ))}
+      </div>
+
+      {/* Barra de impresión por rango de fechas (separada de los tags) */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 10,
+        flexWrap: 'wrap',
+        padding: '12px 14px',
+        background: 'var(--bg-2)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+      }}>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label" style={{ fontSize: 11 }}>Desde</label>
+          <input
+            className="input"
+            type="date"
+            value={rangoDesde}
+            max={rangoHasta || undefined}
+            onChange={e => setRangoDesde(e.target.value)}
+            style={{ width: 160 }}
+          />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label" style={{ fontSize: 11 }}>Hasta</label>
+          <input
+            className="input"
+            type="date"
+            value={rangoHasta}
+            min={rangoDesde || undefined}
+            onChange={e => setRangoHasta(e.target.value)}
+            style={{ width: 160 }}
+          />
+        </div>
+        {(rangoDesde || rangoHasta) && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => { setRangoDesde(''); setRangoHasta(''); }}
+          >
+            Limpiar
+          </button>
+        )}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+            {(rangoDesde || rangoHasta)
+              ? 'Imprime los registros del rango'
+              : 'Sin fechas: imprime todos los registros'}
+          </span>
+          <button className="btn btn-ghost btn-sm" onClick={handleImprimir}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4 }}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Imprimir
+          </button>
+        </div>
       </div>
 
       {/* Error */}

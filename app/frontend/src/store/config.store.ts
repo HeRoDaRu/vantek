@@ -1,3 +1,37 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * config.store.ts — Zustand store for business profile + app configuration
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Loads and exposes the business profile (terminology + active modules) and
+ *   the app configuration (company, documents, email, system). Provides the
+ *   t() translator that maps generic entity keys to profile-specific labels.
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · zustand (create) → store factory
+ *   Used by:
+ *     · Sidebar / pages → labels via t('entidades.…') and module flags
+ *     · ConfigPage → reads/edits appConfig
+ *     · DocumentoEditor, dashboard, etc. → IVA, margin and module gating
+ *
+ * STATE & ACTIONS
+ *   · state: profile (ProfileConfig|null), appConfig (AppConfig|null), loaded, error
+ *   · load() → GET /api/config/profile + GET /api/config/app (parallel, native fetch)
+ *   · t(key) → resolves a dot-path key against `profile`, falls back to the key
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  dot-path string keys for t()
+ *   Output: profile/appConfig objects and resolved label strings
+ *
+ * NOTES
+ *   · load() uses native fetch (not @utils/api) so it can run before the axios
+ *     instance/interceptor matters; it never rejects (errors stored in `error`).
+ *   · The PUT /api/config/app write lives in ConfigPage, not here.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { create } from 'zustand';
 
 export interface ProfileConfig {

@@ -1,3 +1,44 @@
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ * ClienteFichaPage.tsx — Client detail with nested agrupadores/trabajos
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * WHAT IT DOES
+ *   Shows a single client's data and an accordion of agrupadores → trabajos.
+ *   From each trabajo the user can open/create its factura or presupuesto;
+ *   smart dialogs handle the case where a draft, closed, accepted or rejected
+ *   document already exists (e.g. offer a rectificativa for a closed invoice).
+ *   Supports editing the client/agrupador/trabajo and logical deletion.
+ *
+ * ROUTE
+ *   /clientes/:id
+ *
+ * RELATIONSHIPS
+ *   Imports:
+ *     · @store/clientes.store → fetchById/update/create+update agrupador/trabajo/remove + types
+ *     · @store/config.store → t() for profile terminology
+ *     · @ui/Spinner, @ui/Modal, @ui/Badge → UI primitives
+ *     · ClienteModal/AgrupadorModal/TrabajoModal → edit/create forms
+ *     · @utils/api → direct GET/POST for facturas & presupuestos of a trabajo
+ *   Backend:
+ *     · GET /api/clientes/:id → full ficha (agrupadores+trabajos nested)
+ *     · GET /api/facturas?trabajo_id= , GET /api/presupuestos?trabajo_id= → existing docs
+ *     · POST /api/facturas , POST /api/presupuestos → create document
+ *     · DELETE /api/clientes/:id (via remove) → logical delete
+ *   Used by:
+ *     · Route /clientes/:id in App.tsx (inside Layout)
+ *
+ * INPUTS / OUTPUTS
+ *   Input:  :id url param; user clicks on factura/presupuesto/edit/delete buttons
+ *   Output: rendered ficha; navigation to document editors; persisted edits/deletion
+ *
+ * NOTES
+ *   · The trabajo Badge uses estado_seguimiento (the linked seguimiento's real
+ *     state) and falls back to trabajo.estado when no seguimiento is linked.
+ *   · Deletion is always logical (activo = 0); historical documents are kept.
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useClientesStore, Agrupador, TrabajoBrief } from '@store/clientes.store';
