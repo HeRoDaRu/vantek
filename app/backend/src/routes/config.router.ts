@@ -25,6 +25,7 @@
  *   · POST /email/test     → verify SMTP credentials (optional body.smtp)
  *   · GET  /errores        → list + count recorded errors (?desde&hasta)
  *   · POST /errores/enviar → email errors to the technician, then delete them
+ *   · POST /reset-datos    → wipe all business data + PDFs (keeps config)
  *
  * INPUTS / OUTPUTS
  *   Input:  HTTP req body/query
@@ -43,6 +44,7 @@ import { asyncHandler } from '@middleware/errorHandler';
 import { getProfileConfig, getAppConfig, reloadProfileConfig, reloadAppConfig } from '@utils/config';
 import { verificarSmtp, enviarErrores } from '@services/email.service';
 import { listarErrores, contarErrores, borrarErrores } from '@services/errores.service';
+import { resetDatos } from '@services/reset.service';
 import { CONFIG_DIR } from '@utils/paths';
 import fs from 'fs';
 import path from 'path';
@@ -132,6 +134,15 @@ router.post('/errores/enviar', asyncHandler(async (req: Request, res: Response) 
   // Solo se borran tras un envío correcto.
   const borrados = borrarErrores(desde, hasta);
   res.json({ ok: true, enviados: errores.length, borrados });
+}));
+
+// POST /api/config/reset-datos — borra todos los datos de negocio (mantiene la config)
+router.post('/reset-datos', asyncHandler(async (req: Request, res: Response) => {
+  if (req.body?.confirmar !== 'BORRAR') {
+    return res.status(400).json({ error: 'Confirmación inválida.' });
+  }
+  resetDatos();
+  res.json({ ok: true });
 }));
 
 export default router;

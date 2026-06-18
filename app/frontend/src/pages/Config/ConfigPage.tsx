@@ -39,6 +39,7 @@
 import { useEffect, useState, Fragment } from 'react';
 import api from '@utils/api';
 import Spinner from '@ui/Spinner';
+import Modal from '@ui/Modal';
 import { TOKENS_EMAIL, TOKENS_PDF, BLOQUES_PDF } from '../../config/tokens';
 
 // ─── tipos locales ────────────────────────────────────────────────────────────
@@ -328,6 +329,89 @@ function PanelErrores({ emailDestino }: { emailDestino: string }) {
         <div style={{ fontSize: 12, marginTop: 8, color: resultado.ok ? 'var(--green)' : 'var(--red)' }}>
           {resultado.ok ? '✓ ' : '✗ '}{resultado.texto}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── panel de borrado total de datos (fresh start) ───────────────────────────
+
+function PanelReset() {
+  const [abierto, setAbierto] = useState(false);
+  const [texto, setTexto] = useState('');
+  const [estado, setEstado] = useState<'idle' | 'borrando'>('idle');
+  const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  function cerrar() {
+    setAbierto(false);
+    setTexto('');
+  }
+
+  async function borrar() {
+    setEstado('borrando');
+    try {
+      await api.post('/config/reset-datos', { confirmar: 'BORRAR' });
+      setResultado({ ok: true, texto: 'Todos los datos se han borrado. La configuración se ha conservado.' });
+      cerrar();
+    } catch (err: any) {
+      setResultado({ ok: false, texto: err?.response?.data?.error ?? 'No se pudieron borrar los datos.' });
+    } finally {
+      setEstado('idle');
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10, lineHeight: 1.5 }}>
+        Elimina <strong>todos</strong> los clientes, direcciones, obras, albaranes, presupuestos,
+        facturas, seguimientos y PDFs generados, dejando la base de datos vacía como recién instalada.
+        La configuración (empresa, email, plantillas…) se conserva. Esta acción no se puede deshacer.
+      </div>
+      <button type="button" className="btn btn-danger" onClick={() => { setResultado(null); setAbierto(true); }}>
+        Borrar todos los datos
+      </button>
+      {resultado && (
+        <div style={{ fontSize: 12, marginTop: 8, color: resultado.ok ? 'var(--green)' : 'var(--red)' }}>
+          {resultado.ok ? '✓ ' : '✗ '}{resultado.texto}
+        </div>
+      )}
+
+      {abierto && (
+        <Modal
+          title="Borrar todos los datos"
+          size="sm"
+          onClose={cerrar}
+          footer={
+            <>
+              <button type="button" className="btn btn-ghost" onClick={cerrar} disabled={estado === 'borrando'}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={borrar}
+                disabled={texto !== 'BORRAR' || estado === 'borrando'}
+              >
+                {estado === 'borrando' ? <><span className="spinner" /> Borrando…</> : 'Borrar definitivamente'}
+              </button>
+            </>
+          }
+        >
+          <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+            Se eliminarán de forma permanente todos los clientes, albaranes, presupuestos,
+            facturas y seguimientos, junto con sus PDFs. La configuración se conserva.
+            <br /><br />
+            Escribe <code>BORRAR</code> para confirmar:
+          </div>
+          <input
+            className="input"
+            style={{ marginTop: 10 }}
+            value={texto}
+            onChange={e => setTexto(e.target.value)}
+            placeholder="BORRAR"
+            autoFocus
+          />
+        </Modal>
       )}
     </div>
   );
@@ -890,6 +974,11 @@ export default function ConfigPage() {
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Actualización manual</div>
                   <UpdatePanel />
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--red)' }}>Zona peligrosa — Reiniciar datos</div>
+                  <PanelReset />
                 </div>
               </Seccion>
             )}
