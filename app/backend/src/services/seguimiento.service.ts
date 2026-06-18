@@ -116,6 +116,30 @@ const ESTADOS_CANCELABLES: EstadoSeguimiento[] = [
   'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto', 'a_la_espera',
 ];
 
+// Orden canónico del flujo de seguimiento. Se usa para que la sincronización
+// documento → seguimiento solo pueda AVANZAR el estado, nunca retrocederlo: al
+// reabrir/reenviar un presupuesto o factura antiguos (p. ej. cuando el cliente
+// de mi cliente pide una copia) el estado del trabajo no debe cambiar.
+const ORDEN_SEGUIMIENTO: Record<EstadoSeguimiento, number> = {
+  nuevo: 0,
+  contactado: 1,
+  visita_agendada: 2,
+  pendiente_presupuesto: 3,
+  a_la_espera: 4,
+  en_curso: 5,
+  pendiente_facturar: 6,
+  entregada: 7,
+  pagada: 8,
+  completado: 9,
+  cancelado: 99, // terminal: nunca debe ser modificado por documentos
+};
+
+// Estados finales/cerrados: la sincronización desde documentos los ignora por
+// completo. Una vez el trabajo está cerrado, manipular documentos antiguos
+// (reimprimir, reenviar PDF) no altera el estado del seguimiento.
+const ESTADOS_BLOQUEADOS_SYNC: EstadoSeguimiento[] = ['completado', 'cancelado'];
+
+
 // ─── Query base con JOINs ─────────────────────────────────────────────────────
 
 const SELECT_CON_JOINS = `
@@ -311,6 +335,10 @@ export function syncSeguimientoDesdeDocumento(
     .get(trabajoId) as { id: string; estado: string } | undefined;
   if (!seg) return;
 
+  // Trabajo cerrado (completado/cancelado): los documentos antiguos pueden
+  // reimprimirse o reenviarse sin que el estado del seguimiento cambie.
+  if (ESTADOS_BLOQUEADOS_SYNC.includes(seg.estado as EstadoSeguimiento)) return;
+
   let nuevoEstadoSeg: EstadoSeguimiento | null = null;
 
   if (tipo === 'presupuesto') {
@@ -325,6 +353,13 @@ export function syncSeguimientoDesdeDocumento(
   }
 
   if (nuevoEstadoSeg) {
+    // Solo se permite AVANZAR: si el destino no está más adelante que el estado
+    // actual, se ignora. Evita que reenviar/reabrir un documento antiguo
+    // retroceda el seguimiento (p. ej. completado → a_la_espera).
+    const rangoActual  = ORDEN_SEGUIMIENTO[seg.estado as EstadoSeguimiento] ?? -1;
+    const rangoDestino = ORDEN_SEGUIMIENTO[nuevoEstadoSeg];
+    if (rangoDestino <= rangoActual) return;
+
     db.prepare(`
       UPDATE seguimiento SET estado = ?, updated_at = datetime('now') WHERE id = ?
     `).run(nuevoEstadoSeg, seg.id);

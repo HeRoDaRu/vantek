@@ -439,8 +439,34 @@ export async function cerrarFactura(id: string): Promise<ResultadoCierre> {
 
 // ─── Cambiar estado ───────────────────────────────────────────────────────────
 
+// Transiciones de estado permitidas para una factura. Evita que reenviar/
+// reimprimir una factura antigua la arrastre hacia atrás: una factura 'pagada'
+// o 'pendiente_pago' no vuelve a 'entregada' solo por mandar de nuevo el PDF.
+// Reabrir como borrador (acción explícita del usuario, con aviso) se permite
+// desde cualquier estado.
+const TRANSICIONES_FACTURA: Record<EstadoFactura, EstadoFactura[]> = {
+  borrador:       ['cerrada'],
+  cerrada:        ['entregada', 'pendiente_pago', 'pagada', 'borrador'],
+  entregada:      ['pendiente_pago', 'pagada', 'borrador'],
+  pendiente_pago: ['pagada', 'borrador'],
+  pagada:         ['borrador'],   // solo reapertura explícita
+};
+
 export async function cambiarEstado(id: string, estado: EstadoFactura) {
   const db = getDb();
+
+  const actual = db
+    .prepare('SELECT estado FROM facturas WHERE id = ?')
+    .get(id) as { estado: EstadoFactura } | undefined;
+  if (!actual) return obtenerFactura(id);
+
+  // Guardia de transición: destino no válido desde el estado actual (y distinto
+  // del mismo estado) → se ignora sin error. Reenviar el PDF de una factura ya
+  // cerrada/cobrada no cambia su estado, pero el envío en sí no falla.
+  if (estado !== actual.estado &&
+      !TRANSICIONES_FACTURA[actual.estado].includes(estado)) {
+    return obtenerFactura(id);
+  }
 
   // Reabrir como borrador: limpiar número si vuelve a borrador
   if (estado === 'borrador') {

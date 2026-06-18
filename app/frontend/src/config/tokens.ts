@@ -31,79 +31,81 @@
  * NOTES
  *   · This file is only the help list; adding a real token also requires wiring
  *     the value in the corresponding backend `origen` service.
+ *
+ * DEVELOPER INDEX
+ *   This registry is also the developer index: when a change is requested, here
+ *   is WHICH tokens exist and WHERE their value is filled in the code.
+ *   If you add a new token, you must touch BOTH places:
+ *     · this registry (so it shows up in the help), and
+ *     · the backend `origen` (so the token is actually filled).
+ *
+ *   Contexts and where the values are resolved:
+ *     · email → app/backend/src/services/email.service.ts  (renderPlantilla)
+ *     · pdf   → app/backend/src/services/pdf.service.ts     (builds the context)
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
-// ─────────────────────────────────────────────────────────────────────────────
-// REGISTRO CENTRAL DE TOKENS / VARIABLES DE PLANTILLAS
-// ─────────────────────────────────────────────────────────────────────────────
-// Mapa único de todas las variables {{token}} reemplazables de la aplicación.
-// Sirve para dos cosas:
-//   1. Alimentar las listas de ayuda que ve el usuario en Configuración.
-//   2. Ser el "índice para el desarrollador": ante una petición de cambio,
-//      aquí está QUÉ tokens existen y DÓNDE se rellena su valor en el código.
-//
-// IMPORTANTE: este fichero es la lista de ayuda (frontend). El VALOR de cada
-// token se calcula en el backend, en los ficheros indicados en `origen`.
-// Si añades un token nuevo, hay que tocar AMBOS sitios:
-//   · este registro (para que aparezca en la ayuda), y
-//   · el backend `origen` (para que el token se rellene de verdad).
-//
-// Contextos y dónde se resuelven los valores:
-//   · email      → app/backend/src/services/email.service.ts  (renderPlantilla)
-//   · pdf        → app/backend/src/services/pdf.service.ts     (construye el contexto)
-// ─────────────────────────────────────────────────────────────────────────────
-
 export interface Token {
-  /** Token tal cual se escribe en la plantilla, ej. '{{empresa}}'. */
+  /** Token exactly as written in the template, e.g. '{{empresa}}'. */
   token: string;
-  /** Descripción para el usuario. */
+  /** Description for the user. */
   desc: string;
-  /** Fichero del backend donde se rellena el valor (referencia para el desarrollador). */
+  /**
+   * Exact location in the backend where the token value is computed, in the
+   * format `path/to/file.ts → function()`. It is the direct reference for the
+   * developer: that is where the code that fills this token lives, without
+   * having to search the file tree for it.
+   */
   origen: string;
 }
 
-// ─── Email (asunto y cuerpo de facturas y presupuestos) ───────────────────────
-// Valores resueltos en: app/backend/src/services/email.service.ts
+// ─── Email (subject and body of invoices and quotes) ──────────────────────────
+// Substitution engine: app/backend/src/services/email.service.ts → renderPlantilla()
+// The token map is built in enviarFactura() / enviarPresupuesto() (same file)
+// and applied with renderPlantilla(plantilla, tokens).
 export const TOKENS_EMAIL: Token[] = [
-  { token: '{{empresa}}', desc: 'Nombre de la empresa (Configuración → Empresa)', origen: 'email.service.ts' },
-  { token: '{{cliente}}', desc: 'Nombre del cliente del documento', origen: 'email.service.ts' },
-  { token: '{{obra}}', desc: 'Nombre de la obra / trabajo', origen: 'email.service.ts' },
-  { token: '{{numero}}', desc: 'Nº de factura (los presupuestos no llevan número: usa {{obra}})', origen: 'email.service.ts' },
+  { token: '{{empresa}}', desc: 'Nombre de la empresa (Configuración → Empresa)', origen: 'app/backend/src/services/email.service.ts → enviarFactura()/enviarPresupuesto() (config.empresa.nombre)' },
+  { token: '{{cliente}}', desc: 'Nombre del cliente del documento', origen: 'app/backend/src/services/email.service.ts → enviarFactura()/enviarPresupuesto() (doc.cliente_nombre)' },
+  { token: '{{obra}}', desc: 'Nombre de la obra / trabajo', origen: 'app/backend/src/services/email.service.ts → enviarFactura()/enviarPresupuesto() (doc.trabajo_nombre)' },
+  { token: '{{numero}}', desc: 'Nº de factura (los presupuestos no llevan número: usa {{obra}})', origen: 'app/backend/src/services/email.service.ts → enviarFactura() (doc.numero)' },
 ];
 
-// ─── PDF — interpolaciones simples ────────────────────────────────────────────
-// Valores resueltos en: app/backend/src/services/pdf.service.ts
+// ─── PDF — simple interpolations ──────────────────────────────────────────────
+// All values are computed in app/backend/src/services/pdf.service.ts inside
+// construirContexto() (the context object that renderTemplate() interpolates),
+// except the logo and the CSS, which have their own helper (logoSrc()/leerCss()).
 export const TOKENS_PDF: Token[] = [
-  { token: '{{{STYLES}}}', desc: 'CSS de la plantilla (insertar dentro de <style>)', origen: 'pdf.service.ts' },
-  { token: '{{titulo_doc}}', desc: 'FACTURA o PRESUPUESTO', origen: 'pdf.service.ts' },
-  { token: '{{etiqueta_numero}}', desc: '«Nº Factura:» o «Nº Presupuesto:»', origen: 'pdf.service.ts' },
-  { token: '{{numero}}', desc: 'Número del documento (o BORRADOR)', origen: 'pdf.service.ts' },
-  { token: '{{{logo}}}', desc: 'Logo de la empresa (usar como src de <img>)', origen: 'pdf.service.ts' },
-  { token: '{{empresa_nombre}}', desc: 'Nombre o razón social', origen: 'pdf.service.ts' },
-  { token: '{{empresa_cif}}', desc: 'CIF / NIF', origen: 'pdf.service.ts' },
-  { token: '{{empresa_direccion}}', desc: 'Dirección fiscal', origen: 'pdf.service.ts' },
-  { token: '{{empresa_email}}', desc: 'Email de empresa', origen: 'pdf.service.ts' },
-  { token: '{{empresa_telefono}}', desc: 'Teléfono', origen: 'pdf.service.ts' },
-  { token: '{{cliente_nombre}}', desc: 'Nombre del cliente', origen: 'pdf.service.ts' },
-  { token: '{{cliente_dni_cif}}', desc: 'DNI / CIF del cliente', origen: 'pdf.service.ts' },
-  { token: '{{cliente_direccion}}', desc: 'Dirección de la obra', origen: 'pdf.service.ts' },
-  { token: '{{fecha}}', desc: 'Fecha (ej. «22 de Enero 2025»)', origen: 'pdf.service.ts' },
-  { token: '{{subtotal}}', desc: 'Subtotal con € (ej. «6.907,00 €»)', origen: 'pdf.service.ts' },
-  { token: '{{iva_pct}}', desc: 'Porcentaje de IVA', origen: 'pdf.service.ts' },
-  { token: '{{iva_importe}}', desc: 'Importe del IVA con €', origen: 'pdf.service.ts' },
-  { token: '{{total}}', desc: 'Total con €', origen: 'pdf.service.ts' },
-  { token: '{{notas}}', desc: 'Notas del documento', origen: 'pdf.service.ts' },
-  { token: '{{footer}}', desc: 'Pie de página configurado', origen: 'pdf.service.ts' },
+  { token: '{{{STYLES}}}', desc: 'CSS de la plantilla (insertar dentro de <style>)', origen: 'app/backend/src/services/pdf.service.ts → leerCss() (asignado en construirContexto().STYLES)' },
+  { token: '{{titulo_doc}}', desc: 'FACTURA o PRESUPUESTO', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (titulo_doc)' },
+  { token: '{{etiqueta_numero}}', desc: '«Nº Factura:» o «Nº Presupuesto:»', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (etiqueta_numero)' },
+  { token: '{{numero}}', desc: 'Número del documento (o BORRADOR)', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (numero)' },
+  { token: '{{{logo}}}', desc: 'Logo de la empresa (usar como src de <img>)', origen: 'app/backend/src/services/pdf.service.ts → logoSrc() (asignado en construirContexto().logo)' },
+  { token: '{{empresa_nombre}}', desc: 'Nombre o razón social', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (empresa_nombre)' },
+  { token: '{{empresa_cif}}', desc: 'CIF / NIF', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (empresa_cif)' },
+  { token: '{{empresa_direccion}}', desc: 'Dirección fiscal', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (empresa_direccion)' },
+  { token: '{{empresa_email}}', desc: 'Email de empresa', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (empresa_email)' },
+  { token: '{{empresa_telefono}}', desc: 'Teléfono', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (empresa_telefono)' },
+  { token: '{{cliente_nombre}}', desc: 'Nombre del cliente', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (cliente_nombre)' },
+  { token: '{{cliente_dni_cif}}', desc: 'DNI / CIF del cliente', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (cliente_dni_cif)' },
+  { token: '{{cliente_direccion}}', desc: 'Dirección de la obra', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (cliente_direccion)' },
+  { token: '{{fecha}}', desc: 'Fecha (ej. «22 de Enero 2025»)', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (fecha, vía fmtFecha())' },
+  { token: '{{subtotal}}', desc: 'Subtotal con € (ej. «6.907,00 €»)', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (subtotal, vía fmt())' },
+  { token: '{{iva_pct}}', desc: 'Porcentaje de IVA', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (iva_pct)' },
+  { token: '{{iva_importe}}', desc: 'Importe del IVA con €', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (iva_importe, vía fmt())' },
+  { token: '{{total}}', desc: 'Total con €', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (total, vía fmt())' },
+  { token: '{{notas}}', desc: 'Notas del documento', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (notas)' },
+  { token: '{{footer}}', desc: 'Pie de página configurado', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (footer)' },
 ];
 
-// ─── PDF — bloques (condicionales y bucles) ───────────────────────────────────
-// Motor de bloques en: app/backend/src/services/pdf.service.ts
+// ─── PDF — blocks (conditionals and loops) ────────────────────────────────────
+// The {{#each}}/{{#if}}/{{else}} engine lives in app/backend/src/services/pdf.service.ts
+// → renderTemplate() (the mini template engine function). The flags and the list
+// the blocks consume are computed in construirContexto() (same file).
 export const BLOQUES_PDF: Token[] = [
-  { token: '{{#each lineas}} … {{/each}}', desc: 'Repite por cada línea. Dentro: {{descripcion}}, {{cantidad}}, {{unidad}}, {{precio}}, {{importe}}', origen: 'pdf.service.ts' },
-  { token: '{{#if mostrar_iva}} … {{/if}}', desc: 'Solo en facturas (fila de IVA)', origen: 'pdf.service.ts' },
-  { token: '{{#if mostrar_nota_iva}} … {{/if}}', desc: 'Solo en presupuestos (aviso de IVA aparte)', origen: 'pdf.service.ts' },
-  { token: '{{#if mostrar_sello}} … {{/if}}', desc: 'Solo facturas pagadas (sello PAGADA)', origen: 'pdf.service.ts' },
-  { token: '{{#if has_logo}} … {{else}} … {{/if}}', desc: 'Según haya logo o no', origen: 'pdf.service.ts' },
-  { token: '{{#if cliente_dni_cif}} … {{/if}}', desc: 'Solo si el cliente tiene DNI/CIF', origen: 'pdf.service.ts' },
+  { token: '{{#each lineas}} … {{/each}}', desc: 'Repite por cada línea. Dentro: {{descripcion}}, {{cantidad}}, {{unidad}}, {{precio}}, {{importe}}', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · lista en construirContexto() (lineas[])' },
+  { token: '{{#if mostrar_iva}} … {{/if}}', desc: 'Solo en facturas (fila de IVA)', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · bandera en construirContexto() (mostrar_iva)' },
+  { token: '{{#if mostrar_nota_iva}} … {{/if}}', desc: 'Solo en presupuestos (aviso de IVA aparte)', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · bandera en construirContexto() (mostrar_nota_iva)' },
+  { token: '{{#if mostrar_sello}} … {{/if}}', desc: 'Solo facturas pagadas (sello PAGADA)', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · bandera en construirContexto() (mostrar_sello)' },
+  { token: '{{#if has_logo}} … {{else}} … {{/if}}', desc: 'Según haya logo o no', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · bandera en construirContexto() (has_logo)' },
+  { token: '{{#if cliente_dni_cif}} … {{/if}}', desc: 'Solo si el cliente tiene DNI/CIF', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · valor en construirContexto() (cliente_dni_cif)' },
 ];

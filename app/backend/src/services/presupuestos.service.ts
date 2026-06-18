@@ -302,13 +302,39 @@ export async function guardarBorrador(
 
 // ─── Cambio de estado ─────────────────────────────────────────────────────────
 
+// Transiciones de estado permitidas para un presupuesto. Un estado solo puede
+// moverse a los destinos listados (más el propio estado, que es un no-op). Esto
+// evita que reenviar/reimprimir un presupuesto antiguo lo arrastre hacia atrás:
+// p. ej. un presupuesto 'aceptado' (la obra ya empezó) no vuelve a 'enviado'
+// solo por mandar de nuevo el PDF. Las salidas laterales válidas (rechazar,
+// caducar, reabrir como borrador, recotizar) sí están permitidas.
+const TRANSICIONES_PRESUPUESTO: Record<EstadoPresupuesto, EstadoPresupuesto[]> = {
+  borrador:  ['enviado', 'aceptado', 'rechazado', 'caducado'],
+  enviado:   ['aceptado', 'rechazado', 'caducado', 'borrador'],
+  aceptado:  [],                       // terminal: la obra ya está en curso
+  rechazado: ['enviado', 'borrador'],  // recotizar / reabrir
+  caducado:  ['enviado', 'borrador'],  // recotizar / reabrir
+};
+
 export async function cambiarEstado(
   id: string,
   estado: EstadoPresupuesto
 ) {
   const db = getDb();
 
-  // Si pasa a aceptado, intentar crear trabajo vinculado (lógica básica, Fase 5 la completa)
+  const actual = db
+    .prepare('SELECT estado FROM presupuestos WHERE id = ?')
+    .get(id) as { estado: EstadoPresupuesto } | undefined;
+  if (!actual) return obtenerPresupuesto(id);
+
+  // Guardia de transición: si el destino no es válido desde el estado actual
+  // (y no es el mismo estado), se ignora sin error. Así reenviar el PDF de un
+  // presupuesto ya cerrado no cambia su estado, pero el envío en sí no falla.
+  if (estado !== actual.estado &&
+      !TRANSICIONES_PRESUPUESTO[actual.estado].includes(estado)) {
+    return obtenerPresupuesto(id);
+  }
+
   db.prepare(
     `UPDATE presupuestos
      SET estado = ?, updated_at = datetime('now')
