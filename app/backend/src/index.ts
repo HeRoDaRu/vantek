@@ -163,7 +163,7 @@ app.post('/api/status/update/apply', (req, res) => {
 // portable sirve el index.html del frontend compilado; en Docker nunca se
 // alcanza porque nginx atiende las rutas no-/api.
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (_req, res) => {
+  app.get('/*splat', (_req, res) => {
     res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
   });
 }

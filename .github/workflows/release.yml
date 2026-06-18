@@ -29,7 +29,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Verja de calidad: valida tipos + tests en Ubuntu (reutiliza ci.yml). Si algo
+  # falla, el empaquetado Windows NO se ejecuta y el tag no produce release.
+  test:
+    name: Validar main
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: test
     runs-on: windows-latest
 
     env:

@@ -1,0 +1,67 @@
+# CI — Validación de Vantek (tipos + tests)
+#
+# Comprueba el monorepo antes de fusionar a main y antes de empaquetar una
+# release. Se ejecuta en tres situaciones:
+#   · pull_request hacia main → BLOQUEA la fusión si los tests fallan (combínalo
+#     con una regla de protección de rama que exija este check).
+#   · push a dev → validación continua de la rama de trabajo.
+#   · workflow_call → lo invoca release.yml para validar main antes de crear el
+#     paquete con el tag vX.Y.Z.
+#
+# Corre en Ubuntu (rápido y barato); el empaquetado Windows vive en release.yml.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [dev]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tipos y tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci --workspaces --include-workspace-root
+
+      # better-sqlite3 es un módulo nativo. El prebuilt de prebuild-install no
+      # siempre cubre el ABI del runner (Node 22.x → ABI 127), así que lo
+      # compilamos SIEMPRE desde fuente (Ubuntu ya trae python3 + build-essential)
+      # y verificamos que el binding existe, fallando claro si no.
+      - name: Compilar better-sqlite3 desde fuente
+        working-directory: node_modules/better-sqlite3
+        run: |
+          npm run build-release
+          test -f build/Release/better_sqlite3.node \
+            && echo "binding OK: build/Release/better_sqlite3.node" \
+            || { echo "::error::better-sqlite3 no compiló el binding nativo"; exit 1; }
+
+      - name: Comprobar tipos (backend)
+        run: npx tsc --noEmit -p app/backend/tsconfig.json
+
+      - name: Comprobar tipos (frontend)
+        run: npx tsc --noEmit -p app/frontend/tsconfig.json
+
+      - name: Ejecutar tests (backend + frontend)
+        run: npm test
