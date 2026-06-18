@@ -1,0 +1,61 @@
+# CI — Validación de Vantek (tipos + tests)
+#
+# Comprueba el monorepo antes de fusionar a main y antes de empaquetar una
+# release. Se ejecuta en tres situaciones:
+#   · pull_request hacia main → BLOQUEA la fusión si los tests fallan (combínalo
+#     con una regla de protección de rama que exija este check).
+#   · push a dev → validación continua de la rama de trabajo.
+#   · workflow_call → lo invoca release.yml para validar main antes de crear el
+#     paquete con el tag vX.Y.Z.
+#
+# Corre en Ubuntu (rápido y barato); el empaquetado Windows vive en release.yml.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [dev]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tipos y tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci --workspaces --include-workspace-root
+
+      # better-sqlite3 es un módulo nativo. En los runners estándar prebuild-install
+      # suele bajar el binario; si no, lo compilamos desde fuente (Ubuntu ya trae
+      # python3 + build-essential). El require dispara la carga del binding nativo.
+      - name: Asegurar binario nativo de better-sqlite3
+        run: node -e "require('better-sqlite3')" || npm run build-release --prefix node_modules/better-sqlite3
+
+      - name: Comprobar tipos (backend)
+        run: npx tsc --noEmit -p app/backend/tsconfig.json
+
+      - name: Comprobar tipos (frontend)
+        run: npx tsc --noEmit -p app/frontend/tsconfig.json
+
+      - name: Ejecutar tests (backend + frontend)
+        run: npm test

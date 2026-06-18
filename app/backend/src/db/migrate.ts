@@ -209,15 +209,7 @@ const migrations: { version: number; sql: string }[] = [
           'a_la_espera','en_curso','pendiente_facturar','entregada','pagada'
         )),
         trabajo_id TEXT REFERENCES trabajos(id),
-        fecha_visita TEXT,
         notas TEXT,
-        matricula TEXT,
-        marca_modelo TEXT,
-        fecha_entrada TEXT,
-        fecha_salida_estimada TEXT,
-        descripcion_problema TEXT,
-        firma_entrada TEXT,
-        firma_salida TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
