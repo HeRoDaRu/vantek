@@ -461,8 +461,8 @@ async function applyUpdate(): Promise<void> {
 
 function dentroDeVentana(): boolean {
   const config = getConfig();
-  const inicio = config?.sistema?.ventana_inicio ?? '15:00';
-  const fin    = config?.sistema?.ventana_fin    ?? '16:00';
+  const inicio = config?.sistema?.actualizacion?.hora_inicio ?? '15:00';
+  const fin    = config?.sistema?.actualizacion?.hora_fin    ?? '16:00';
 
   const ahora = new Date();
   const hhmm  = (t: string) => {
@@ -476,7 +476,7 @@ function dentroDeVentana(): boolean {
 
 function inactividadSuficiente(): boolean {
   const config = getConfig();
-  const umbralMin = config?.sistema?.minutos_inactividad ?? 15;
+  const umbralMin = config?.sistema?.actualizacion?.inactividad_minutos ?? 15;
   const idleSecs  = getIdleSeconds();
   return idleSecs >= umbralMin * 60;
 }

@@ -84,10 +84,12 @@ interface AppConfig {
     };
   };
   sistema: {
-    ventana_inicio: string;
-    ventana_fin: string;
-    minutos_inactividad: number;
     email_errores: string;
+    actualizacion: {
+      hora_inicio: string;
+      hora_fin: string;
+      inactividad_minutos: number;
+    };
   };
 }
 
@@ -121,6 +123,19 @@ function normalizarConfig(raw: any): AppConfig {
       },
     };
   }
+  // Garantiza la sección de actualización (forma anidada) para configs antiguas.
+  raw.sistema = raw.sistema ?? {};
+  if (!raw.sistema.actualizacion) {
+    raw.sistema.actualizacion = {
+      hora_inicio: raw.sistema.ventana_inicio ?? '15:00',
+      hora_fin: raw.sistema.ventana_fin ?? '16:00',
+      inactividad_minutos: raw.sistema.minutos_inactividad ?? 15,
+    };
+  }
+  // Limpia las claves planas heredadas (la forma canónica es sistema.actualizacion).
+  delete raw.sistema.ventana_inicio;
+  delete raw.sistema.ventana_fin;
+  delete raw.sistema.minutos_inactividad;
   return raw as AppConfig;
 }
 
@@ -956,14 +971,14 @@ export default function ConfigPage() {
                 </Campo>
                 <Grid2>
                   <Campo label="Ventana actualización — inicio" hint="Hora en formato HH:MM">
-                    <Input value={config.sistema.ventana_inicio} placeholder="15:00" onChange={v => set(['sistema', 'ventana_inicio'], v)} />
+                    <Input value={config.sistema.actualizacion.hora_inicio} placeholder="15:00" onChange={v => set(['sistema', 'actualizacion', 'hora_inicio'], v)} />
                   </Campo>
                   <Campo label="Ventana actualización — fin" hint="Hora en formato HH:MM">
-                    <Input value={config.sistema.ventana_fin} placeholder="16:00" onChange={v => set(['sistema', 'ventana_fin'], v)} />
+                    <Input value={config.sistema.actualizacion.hora_fin} placeholder="16:00" onChange={v => set(['sistema', 'actualizacion', 'hora_fin'], v)} />
                   </Campo>
                 </Grid2>
                 <Campo label="Minutos de inactividad para actualizar" hint="Solo aplica actualizaciones si el usuario lleva X minutos sin actividad">
-                  <Input value={config.sistema.minutos_inactividad} type="number" onChange={v => set(['sistema', 'minutos_inactividad'], parseInt(v))} />
+                  <Input value={config.sistema.actualizacion.inactividad_minutos} type="number" onChange={v => set(['sistema', 'actualizacion', 'inactividad_minutos'], parseInt(v))} />
                 </Campo>
 
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
