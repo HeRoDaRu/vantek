@@ -45,11 +45,17 @@ jobs:
       - name: Instalar dependencias
         run: npm ci --workspaces --include-workspace-root
 
-      # better-sqlite3 es un módulo nativo. En los runners estándar prebuild-install
-      # suele bajar el binario; si no, lo compilamos desde fuente (Ubuntu ya trae
-      # python3 + build-essential). El require dispara la carga del binding nativo.
-      - name: Asegurar binario nativo de better-sqlite3
-        run: node -e "require('better-sqlite3')" || npm run build-release --prefix node_modules/better-sqlite3
+      # better-sqlite3 es un módulo nativo. El prebuilt de prebuild-install no
+      # siempre cubre el ABI del runner (Node 22.x → ABI 127), así que lo
+      # compilamos SIEMPRE desde fuente (Ubuntu ya trae python3 + build-essential)
+      # y verificamos que el binding existe, fallando claro si no.
+      - name: Compilar better-sqlite3 desde fuente
+        working-directory: node_modules/better-sqlite3
+        run: |
+          npm run build-release
+          test -f build/Release/better_sqlite3.node \
+            && echo "binding OK: build/Release/better_sqlite3.node" \
+            || { echo "::error::better-sqlite3 no compiló el binding nativo"; exit 1; }
 
       - name: Comprobar tipos (backend)
         run: npx tsc --noEmit -p app/backend/tsconfig.json
