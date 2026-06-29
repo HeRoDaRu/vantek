@@ -82,6 +82,20 @@ export interface Cliente extends BaseEntity {
 
 export interface ClienteConAgrupadores extends Cliente {
   agrupadores: AgrupadorConTrabajos[];
+  incidencias?: ClienteIncidencia[];
+}
+
+// ─── Incidencias de cliente ──────────────────────────────────────────────────
+
+export interface ClienteIncidencia {
+  id: string;
+  cliente_id: string;
+  seguimiento_id?: string;
+  trabajo_id?: string;
+  trabajo_nombre?: string;
+  estado_cancelacion: string;
+  motivo: string;
+  created_at: string;
 }
 
 // ─── Agrupadores ─────────────────────────────────────────────────────────────
@@ -114,6 +128,8 @@ export interface TrabajoBrief {
   nombre: string;
   estado: TrabajoEstado;
   estado_seguimiento?: string;
+  matricula?: string;
+  marca_modelo?: string;
   created_at: string;
 }
 
@@ -275,7 +291,9 @@ export type SeguimientoEstado =
   | 'en_curso'
   | 'pendiente_facturar'
   | 'entregada'
-  | 'pagada';
+  | 'pagada'
+  | 'completado'
+  | 'cancelado';
 
 export interface Seguimiento extends BaseEntity {
   cliente_id?: string;
@@ -349,6 +367,9 @@ export interface DefaultConfig {
   seguimiento: {
     tipo: string;
     label: string;
+    // Lista ordenada de estados del flujo aplicables a este perfil. Define qué
+    // estados aparecen como filtros y por qué transiciones avanza la ficha.
+    estados?: string[];
   };
   footer: {
     factura: string;

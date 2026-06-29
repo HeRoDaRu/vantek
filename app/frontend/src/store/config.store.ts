@@ -44,7 +44,7 @@ export interface ProfileConfig {
   menu: Record<string, string>;
   documentos: Record<string, string>;
   modulos: { albaranes: boolean; seguimiento: boolean; matriculas: boolean };
-  seguimiento: { tipo: string; label: string };
+  seguimiento: { tipo: string; label: string; estados?: string[] };
   footer: { factura: string; presupuesto: string };
 }
 

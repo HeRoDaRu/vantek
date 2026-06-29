@@ -116,6 +116,16 @@ const ESTADOS_CANCELABLES: EstadoSeguimiento[] = [
   'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto', 'a_la_espera',
 ];
 
+// Estados en los que la obra ya está iniciada (presupuesto aceptado en adelante).
+// Cancelar desde aquí es posible pero exige un motivo, que queda registrado en
+// la ficha del cliente como incidencia ("cliente difícil").
+const ESTADOS_OBRA_INICIADA: EstadoSeguimiento[] = [
+  'en_curso', 'pendiente_facturar', 'entregada', 'pagada',
+];
+
+// Estados terminales: ya no admiten transición a cancelado.
+const ESTADOS_TERMINALES: EstadoSeguimiento[] = ['completado', 'cancelado'];
+
 // Orden canónico del flujo de seguimiento. Se usa para que la sincronización
 // documento → seguimiento solo pueda AVANZAR el estado, nunca retrocederlo: al
 // reabrir/reenviar un presupuesto o factura antiguos (p. ej. cuando el cliente
@@ -267,27 +277,53 @@ export function eliminar(id: string): void {
 
 // ─── Máquina de estados ───────────────────────────────────────────────────────
 
-export function cambiarEstado(id: string, nuevoEstado: EstadoSeguimiento): Seguimiento {
+export function cambiarEstado(id: string, nuevoEstado: EstadoSeguimiento, motivo?: string): Seguimiento {
   const db = getDb();
   const seg = obtener(id);
   if (!seg) throw new Error('Seguimiento no encontrado');
 
-  // Cancelar solo es posible antes de iniciar la obra. La obra arranca al pasar
-  // a en_curso (presupuesto aceptado); a partir de ahí no se admite cancelar.
-  if (nuevoEstado === 'cancelado' && !ESTADOS_CANCELABLES.includes(seg.estado)) {
-    throw Object.assign(
-      new Error('No se puede cancelar: la obra ya está en curso. La cancelación solo es posible hasta que se acepta el presupuesto.'),
-      { statusCode: 400 },
-    );
-  }
+  // Cancelar es posible en cualquier punto del flujo salvo en los estados
+  // terminales (completado/cancelado). Si la obra ya está iniciada (presupuesto
+  // aceptado en adelante) el motivo es obligatorio y queda como incidencia del
+  // cliente; antes de iniciar la obra no se exige justificación.
+  if (nuevoEstado === 'cancelado') {
+    if (ESTADOS_TERMINALES.includes(seg.estado)) {
+      throw Object.assign(
+        new Error('No se puede cancelar: el seguimiento ya está finalizado o cancelado.'),
+        { statusCode: 400 },
+      );
+    }
 
-  // Al cancelar antes de iniciar la obra se limpian las entidades autocreadas
-  // (presupuestos en borrador, obra, agrupador y, si queda vacío, el cliente).
-  if (nuevoEstado === 'cancelado' && seg.trabajo_id) {
-    _limpiarObraAlCancelar(db, seg.trabajo_id);
-    db.prepare(`
-      UPDATE seguimiento SET estado = 'cancelado', trabajo_id = NULL, updated_at = datetime('now') WHERE id = ?
-    `).run(id);
+    const obraIniciada = ESTADOS_OBRA_INICIADA.includes(seg.estado);
+    if (obraIniciada && !motivo?.trim()) {
+      throw Object.assign(
+        new Error('Indica el motivo de la cancelación: la obra ya está en curso y quedará registrado en la ficha del cliente.'),
+        { statusCode: 400 },
+      );
+    }
+
+    if (seg.trabajo_id && obraIniciada) {
+      // Obra ya iniciada: se cancela la obra y se registra la incidencia en el
+      // cliente. NO se borran facturas/presupuestos (son registros de negocio)
+      // ni se desactiva el cliente (queda activo y marcado como difícil).
+      _cancelarObraIniciada(db, seg, motivo!.trim());
+      db.prepare(`
+        UPDATE seguimiento SET estado = 'cancelado', updated_at = datetime('now') WHERE id = ?
+      `).run(id);
+    } else if (seg.trabajo_id) {
+      // Cancelación temprana con obra autocreada (pendiente_presupuesto/a_la_espera):
+      // se limpian las entidades autocreadas (presupuestos borrador, obra, agrupador
+      // y cliente si queda vacío). Sin incidencia.
+      _limpiarObraAlCancelar(db, seg.trabajo_id);
+      db.prepare(`
+        UPDATE seguimiento SET estado = 'cancelado', trabajo_id = NULL, updated_at = datetime('now') WHERE id = ?
+      `).run(id);
+    } else {
+      // Cancelación temprana sin obra todavía (nuevo/contactado/visita_agendada).
+      db.prepare(`
+        UPDATE seguimiento SET estado = 'cancelado', updated_at = datetime('now') WHERE id = ?
+      `).run(id);
+    }
     return obtener(id)!;
   }
 
@@ -296,6 +332,14 @@ export function cambiarEstado(id: string, nuevoEstado: EstadoSeguimiento): Segui
   // generar el presupuesto/factura sobre la obra.
   if ((nuevoEstado === 'pendiente_presupuesto' || nuevoEstado === 'en_curso') && !seg.trabajo_id) {
     _convertirACliente(db, seg, id);
+  }
+
+  // Perfil taller: al entrar en obra (en_curso) se sella la fecha de entrada
+  // del vehículo si aún no se ha indicado.
+  if (nuevoEstado === 'en_curso' && !seg.fecha_entrada) {
+    db.prepare(`
+      UPDATE seguimiento SET fecha_entrada = date('now') WHERE id = ? AND fecha_entrada IS NULL
+    `).run(id);
   }
 
   // Antes de marcar como entregada, la factura debe tener un PDF generado
@@ -477,7 +521,7 @@ function _convertirACliente(
   // y tiene un agrupador con una dirección equivalente (comparación difusa
   // sobre el texto normalizado), se reutiliza esa obra; en caso contrario se
   // crea un agrupador nuevo.
-  const labelAgrupador = seg.direccion ?? 'Sin dirección';
+  const labelAgrupador = seg.direccion || seg.matricula || 'Sin dirección';
   let agrupadorId: string | undefined;
   if (clienteExistente) {
     const labelNorm = _normalizar(labelAgrupador);
@@ -502,10 +546,11 @@ function _convertirACliente(
   } catch { /* sin bloquear si la config no carga */ }
 
   const trabajoId = uuidv4();
+  const nombreTrabajo = seg.peticion || seg.descripcion_problema || 'Trabajo';
   db.prepare(`
     INSERT INTO trabajos (id, agrupador_id, nombre, margen_porcentaje, created_at, updated_at)
     VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-  `).run(trabajoId, agrupadorId, seg.peticion ?? 'Trabajo', margenDefecto);
+  `).run(trabajoId, agrupadorId, nombreTrabajo, margenDefecto);
 
   // Vincular seguimiento al trabajo recién creado
   db.prepare(`
@@ -658,4 +703,37 @@ function _limpiarObraAlCancelar(
       `).run(cli.cliente_id);
     }
   }
+}
+
+/**
+ * Cancela una obra YA INICIADA (presupuesto aceptado en adelante). A diferencia
+ * de la cancelación temprana, aquí se conservan los documentos de negocio
+ * (facturas y presupuestos) y el cliente permanece activo: solo se marca la obra
+ * como cancelada y se registra la incidencia (motivo) en la ficha del cliente
+ * para señalarlo como "cliente difícil" en futuros trabajos.
+ */
+function _cancelarObraIniciada(
+  db: ReturnType<typeof getDb>,
+  seg: Seguimiento,
+  motivo: string,
+): void {
+  const trabajo = db
+    .prepare(`
+      SELECT t.id, t.nombre, a.cliente_id
+      FROM trabajos t
+      JOIN agrupadores a ON a.id = t.agrupador_id
+      WHERE t.id = ?
+    `)
+    .get(seg.trabajo_id) as { id: string; nombre: string; cliente_id: string } | undefined;
+  if (!trabajo) return;
+
+  db.prepare(`
+    UPDATE trabajos SET estado = 'cancelado', updated_at = datetime('now') WHERE id = ?
+  `).run(trabajo.id);
+
+  db.prepare(`
+    INSERT INTO cliente_incidencias
+      (id, cliente_id, seguimiento_id, trabajo_id, trabajo_nombre, estado_cancelacion, motivo)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(uuidv4(), trabajo.cliente_id, seg.id, trabajo.id, trabajo.nombre, seg.estado, motivo);
 }

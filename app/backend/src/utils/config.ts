@@ -64,6 +64,11 @@ export interface ProfileConfig {
   seguimiento: {
     tipo: 'reformas' | 'taller';
     label: string;
+    // Lista ordenada de estados del flujo aplicables a este perfil. Define qué
+    // estados aparecen como filtros y por qué transiciones avanza la ficha de
+    // seguimiento. Si falta (instalaciones previas), getProfileConfig la rellena
+    // según modulos.matriculas.
+    estados?: string[];
   };
   footer: {
     factura: string;
@@ -129,9 +134,30 @@ export interface AppConfig {
 let profileCache: ProfileConfig | null = null;
 let appCache: AppConfig | null = null;
 
+// Orden canónico de estados de seguimiento por estructura. Es la fuente de
+// verdad para rellenar seguimiento.estados en instalaciones previas a que el
+// campo existiera (el setup ya lo escribe en el perfil para instalaciones
+// nuevas). Taller salta los estados de contacto/visita.
+const ESTADOS_SEGUIMIENTO_REFORMAS = [
+  'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto',
+  'a_la_espera', 'en_curso', 'pendiente_facturar', 'entregada',
+  'pagada', 'completado',
+];
+const ESTADOS_SEGUIMIENTO_TALLER = [
+  'nuevo', 'pendiente_presupuesto', 'a_la_espera', 'en_curso',
+  'pendiente_facturar', 'entregada', 'pagada', 'completado',
+];
+
 export function getProfileConfig(): ProfileConfig {
   if (!profileCache) {
-    profileCache = JSON.parse(fs.readFileSync(PROFILE_PATH, 'utf-8'));
+    const cfg: ProfileConfig = JSON.parse(fs.readFileSync(PROFILE_PATH, 'utf-8'));
+    // Backfill para perfiles guardados antes de que seguimiento.estados existiera.
+    if (cfg.seguimiento && !cfg.seguimiento.estados?.length) {
+      cfg.seguimiento.estados = cfg.modulos?.matriculas
+        ? ESTADOS_SEGUIMIENTO_TALLER
+        : ESTADOS_SEGUIMIENTO_REFORMAS;
+    }
+    profileCache = cfg;
   }
   return profileCache!;
 }

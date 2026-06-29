@@ -33,7 +33,19 @@
   },
   "seguimiento": {
     "tipo": "reformas",
-    "label": "Seguimiento"
+    "label": "Seguimiento",
+    "estados": [
+      "nuevo",
+      "contactado",
+      "visita_agendada",
+      "pendiente_presupuesto",
+      "a_la_espera",
+      "en_curso",
+      "pendiente_facturar",
+      "entregada",
+      "pagada",
+      "completado"
+    ]
   },
   "footer": {
     "factura": "",

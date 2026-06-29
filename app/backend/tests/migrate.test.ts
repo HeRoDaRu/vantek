@@ -1,6 +1,6 @@
 /**
  * ──────────────────────────────────────────────────────────────────────────────
- * migrate.test.ts — Schema migrations reach v7 and are idempotent
+ * migrate.test.ts — Schema migrations reach v8 and are idempotent
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
@@ -9,9 +9,9 @@ import { db } from './helpers/db';
 import { runMigrations } from '@db/migrate';
 
 describe('runMigrations', () => {
-  it('applied all migrations up to v7 during setup', () => {
+  it('applied all migrations up to v8 during setup', () => {
     const max = (db().prepare('SELECT MAX(version) AS v FROM _migraciones').get() as { v: number }).v;
-    expect(max).toBe(7);
+    expect(max).toBe(8);
   });
 
   it('is idempotent — running again applies nothing and does not throw', () => {
@@ -24,5 +24,12 @@ describe('runMigrations', () => {
   it('created the facturas.anio_numero column (v7)', () => {
     const cols = (db().prepare(`PRAGMA table_info(facturas)`).all() as { name: string }[]).map(c => c.name);
     expect(cols).toContain('anio_numero');
+  });
+
+  it('created the cliente_incidencias table (v8)', () => {
+    const tabla = db()
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'cliente_incidencias'`)
+      .get() as { name: string } | undefined;
+    expect(tabla?.name).toBe('cliente_incidencias');
   });
 });

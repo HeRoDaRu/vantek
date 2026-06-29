@@ -43,18 +43,28 @@ import Badge from '@ui/Badge';
 import Modal from '@ui/Modal';
 import Spinner from '@ui/Spinner';
 
-const ESTADOS_SEGUIMIENTO: { value: EstadoSeguimiento | ''; label: string }[] = [
-  { value: '', label: 'Todos' },
-  { value: 'nuevo', label: 'Nuevo' },
-  { value: 'contactado', label: 'Contactado' },
-  { value: 'visita_agendada', label: 'Visita agendada' },
-  { value: 'pendiente_presupuesto', label: 'Pendiente presupuesto' },
-  { value: 'a_la_espera', label: 'A la espera' },
-  { value: 'en_curso', label: 'En curso' },
-  { value: 'pendiente_facturar', label: 'Pendiente facturar' },
-  { value: 'entregada', label: 'Entregada' },
-  { value: 'pagada', label: 'Pagada' },
-  { value: 'completado', label: 'Completado' },
+// Etiqueta legible de cada estado. El orden y el subconjunto aplicables a cada
+// perfil vienen de profile.seguimiento.estados (config), no se codifican aquí.
+const ESTADO_LABEL: Record<string, string> = {
+  nuevo: 'Nuevo',
+  contactado: 'Contactado',
+  visita_agendada: 'Visita agendada',
+  pendiente_presupuesto: 'Pendiente presupuesto',
+  a_la_espera: 'A la espera',
+  en_curso: 'En curso',
+  pendiente_facturar: 'Pendiente facturar',
+  entregada: 'Entregada',
+  pagada: 'Pagada',
+  completado: 'Completado',
+  cancelado: 'Cancelado',
+};
+
+// Orden de respaldo si el perfil no trae seguimiento.estados (instalación previa
+// al campo; el backend ya lo rellena, esto es solo defensa extra).
+const ESTADOS_DEFECTO = [
+  'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto',
+  'a_la_espera', 'en_curso', 'pendiente_facturar', 'entregada',
+  'pagada', 'completado',
 ];
 
 function fmtFecha(iso: string) {
@@ -70,20 +80,6 @@ function escapeHtml(valor: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
-const ESTADO_LABEL: Record<string, string> = {
-  nuevo: 'Nuevo',
-  contactado: 'Contactado',
-  visita_agendada: 'Visita agendada',
-  pendiente_presupuesto: 'Pendiente presupuesto',
-  a_la_espera: 'A la espera',
-  en_curso: 'En curso',
-  pendiente_facturar: 'Pendiente facturar',
-  entregada: 'Entregada',
-  pagada: 'Pagada',
-  completado: 'Completado',
-  cancelado: 'Cancelado',
-};
-
 export default function SeguimientoPage() {
   const navigate = useNavigate();
   const { lista, cargando, error, filtroEstado, cargarLista, crear, setFiltroEstado } = useSeguimientoStore();
@@ -91,11 +87,21 @@ export default function SeguimientoPage() {
   const esTaller = profile?.modulos?.matriculas ?? false;
   const label = profile?.seguimiento?.label ?? 'Seguimiento';
 
+  // Opciones del filtro de estado: vienen del perfil (config), no se codifican.
+  const opcionesFiltro: { value: EstadoSeguimiento | ''; label: string }[] = [
+    { value: '', label: 'Todos' },
+    ...((profile?.seguimiento?.estados ?? ESTADOS_DEFECTO).map(e => ({
+      value: e as EstadoSeguimiento,
+      label: ESTADO_LABEL[e] ?? e,
+    }))),
+  ];
+
   const [modalNuevo, setModalNuevo] = useState(false);
   const [creando, setCreando] = useState(false);
   const [form, setForm] = useState<Partial<CrearSeguimientoDto>>({});
   const [rangoDesde, setRangoDesde] = useState('');
   const [rangoHasta, setRangoHasta] = useState('');
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => { cargarLista(filtroEstado || undefined); }, [filtroEstado]);
 
@@ -202,6 +208,13 @@ export default function SeguimientoPage() {
 
   if (cargando && lista.length === 0) return <Spinner label={`Cargando ${label.toLowerCase()}…`} />;
 
+  // Búsqueda libre por nombre, matrícula, marca/modelo, dirección o teléfono.
+  const q = busqueda.trim().toLowerCase();
+  const visibles = q
+    ? lista.filter(s => [s.nombre, s.matricula, s.marca_modelo, s.direccion, s.telefono]
+        .some(v => (v ?? '').toLowerCase().includes(q)))
+    : lista;
+
   return (
     <div className="scroll-page" style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 1100 }}>
 
@@ -221,7 +234,7 @@ export default function SeguimientoPage() {
 
       {/* Filtro por estado (tags) */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {ESTADOS_SEGUIMIENTO.map(e => (
+        {opcionesFiltro.map(e => (
           <button
             key={e.value}
             className={`btn btn-sm ${filtroEstado === e.value ? 'btn-primary' : 'btn-ghost'}`}
@@ -231,6 +244,16 @@ export default function SeguimientoPage() {
           </button>
         ))}
       </div>
+
+      {/* Búsqueda libre */}
+      <input
+        className="input"
+        type="search"
+        value={busqueda}
+        onChange={e => setBusqueda(e.target.value)}
+        placeholder={esTaller ? 'Buscar por matrícula, marca/modelo o nombre…' : 'Buscar por nombre, dirección o teléfono…'}
+        style={{ maxWidth: 380 }}
+      />
 
       {/* Barra de impresión por rango de fechas (separada de los tags) */}
       <div style={{
@@ -291,11 +314,11 @@ export default function SeguimientoPage() {
 
       {/* Tabla */}
       <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        {lista.length === 0 ? (
+        {visibles.length === 0 ? (
           <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-3)' }}>
             <div style={{ fontSize: 28, marginBottom: 10 }}>📋</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>
-              {filtroEstado ? `Sin registros en estado "${filtroEstado}"` : `Sin ${label.toLowerCase()} todavía`}
+              {q ? 'Sin coincidencias' : filtroEstado ? `Sin registros en estado "${filtroEstado}"` : `Sin ${label.toLowerCase()} todavía`}
             </div>
             <div style={{ fontSize: 12 }}>Pulsa el botón para crear el primero</div>
           </div>
@@ -315,7 +338,7 @@ export default function SeguimientoPage() {
                 </tr>
               </thead>
               <tbody>
-                {lista.map((s: Seguimiento) => (
+                {visibles.map((s: Seguimiento) => (
                   <tr
                     key={s.id}
                     className="tr-clickable"

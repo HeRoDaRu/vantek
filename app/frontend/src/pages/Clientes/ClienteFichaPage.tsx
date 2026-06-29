@@ -295,6 +295,35 @@ export default function ClienteFichaPage() {
       </div>
 
       <div className="page-body">
+        {/* Aviso de cliente difícil: incidencias por cancelaciones de obras iniciadas */}
+        {c.incidencias && c.incidencias.length > 0 && (
+          <div
+            style={{
+              marginBottom: 24, padding: '14px 18px',
+              background: 'var(--red-dim)', border: '1px solid var(--red)',
+              borderRadius: 'var(--radius-lg)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 16 }}>⚠</span>
+              <span style={{ fontWeight: 600, color: 'var(--red)' }}>
+                Cliente con {c.incidencias.length} cancelación{c.incidencias.length === 1 ? '' : 'es'} de obras iniciadas
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {c.incidencias.map(inc => (
+                <div key={inc.id} style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  <div style={{ color: 'var(--text-2)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {new Date(inc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {inc.trabajo_nombre ? ` · ${inc.trabajo_nombre}` : ''}
+                  </div>
+                  <div style={{ color: 'var(--text)' }}>{inc.motivo}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Info del cliente */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card-body">
@@ -370,12 +399,18 @@ export default function ClienteFichaPage() {
 
         {c.agrupadores?.map(agrupador => {
           const isOpen = expanded.has(agrupador.id);
+          const marcaModelo = agrupador.trabajos?.find(tr => tr.marca_modelo)?.marca_modelo;
           return (
             <div key={agrupador.id} className="accordion" style={{ marginBottom: 8 }}>
               <div className="accordion-header" onClick={() => toggleExpanded(agrupador.id)}>
                 <div className="accordion-header-left">
                   <ChevronIcon open={isOpen} />
                   <span className="font-medium" style={{ color: 'var(--text)' }}>{agrupador.label}</span>
+                  {marcaModelo && (
+                    <span className="text-secondary text-sm truncate" style={{ maxWidth: 300 }}>
+                      {marcaModelo}
+                    </span>
+                  )}
                   {agrupador.descripcion && (
                     <span className="text-secondary text-sm truncate" style={{ maxWidth: 300 }}>
                       {agrupador.descripcion}

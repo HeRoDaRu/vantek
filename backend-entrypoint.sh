@@ -35,7 +35,6 @@ echo "[Vantek] Comprobando inicialización de volúmenes..."
 
 # Asegurar que los directorios de datos existen
 mkdir -p /app/data/pdfs /app/logs /app/config
-chown -R node:node /app/data /app/logs /app/config
 
 # Config: copiar app.config.json y profile.config.json si no existen
 if [ ! -f /app/config/app.config.json ]; then
@@ -53,6 +52,10 @@ fi
 if [ ! -f /app/config/profile.config.json ]; then
     cp /app/config-default/profile.config.template.json /app/config/profile.config.json
 fi
+
+# Ajustar propiedad DESPUÉS de copiar, para que el usuario node pueda
+# sobreescribir los ficheros de configuración durante el asistente de setup.
+chown -R node:node /app/data /app/logs /app/config
 
 echo "[Vantek] Listo. Arrancando servidor..."
 exec gosu node "$@"
