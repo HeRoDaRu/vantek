@@ -340,6 +340,28 @@ const migrations: { version: number; sql: string }[] = [
       -- Lo usa siguienteNumeroFactura/cerrarFactura para numerar por año.
       ALTER TABLE facturas ADD COLUMN anio_numero INTEGER;
     `
+  },
+  {
+    version: 8,
+    sql: `
+      -- Incidencias del cliente: registro de cancelaciones de obras ya iniciadas.
+      -- Cuando se cancela un seguimiento cuya obra ya estaba en curso, el motivo
+      -- se adjunta aquí para marcar al cliente como "cliente difícil" y poder
+      -- decidir si se acepta un futuro trabajo suyo.
+      CREATE TABLE IF NOT EXISTS cliente_incidencias (
+        id TEXT PRIMARY KEY,
+        cliente_id TEXT NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+        seguimiento_id TEXT,
+        trabajo_id TEXT,
+        trabajo_nombre TEXT,
+        estado_cancelacion TEXT NOT NULL,
+        motivo TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_cliente_incidencias_cliente
+        ON cliente_incidencias(cliente_id);
+    `
   }
 ];
 

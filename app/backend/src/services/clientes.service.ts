@@ -39,7 +39,7 @@
 
 import { getDb } from '@db/connection';
 import { v4 as uuidv4 } from 'uuid';
-import { Cliente, ClienteConAgrupadores, Agrupador, AgrupadorConTrabajos, TrabajoBrief } from '../types';
+import { Cliente, ClienteConAgrupadores, Agrupador, AgrupadorConTrabajos, TrabajoBrief, ClienteIncidencia } from '../types';
 
 export const clientesService = {
 
@@ -51,9 +51,15 @@ export const clientesService = {
       clientes = db.prepare(`
         SELECT * FROM clientes
         WHERE activo = 1
-          AND (nombre LIKE ? OR empresa LIKE ? OR dni_cif LIKE ?)
+          AND (
+            nombre LIKE ? OR empresa LIKE ? OR dni_cif LIKE ?
+            OR EXISTS (
+              SELECT 1 FROM agrupadores ag
+              WHERE ag.cliente_id = clientes.id AND ag.activo = 1 AND ag.label LIKE ?
+            )
+          )
         ORDER BY nombre ASC
-      `).all(term, term, term) as Cliente[];
+      `).all(term, term, term, term) as Cliente[];
     } else {
       clientes = db.prepare(`
         SELECT * FROM clientes WHERE activo = 1 ORDER BY nombre ASC
@@ -98,14 +104,20 @@ export const clientesService = {
       agrupador.trabajos = db.prepare(`
         SELECT
           t.id, t.nombre, t.estado, t.created_at,
-          s.estado AS estado_seguimiento
+          s.estado AS estado_seguimiento,
+          s.matricula, s.marca_modelo
         FROM trabajos t
         LEFT JOIN seguimiento s ON s.trabajo_id = t.id
         WHERE t.agrupador_id = ? ORDER BY t.created_at DESC
       `).all(agrupador.id) as TrabajoBrief[];
     }
 
-    return { ...cliente, agrupadores };
+    // Incidencias: cancelaciones de obras ya iniciadas (cliente difícil).
+    const incidencias = db.prepare(`
+      SELECT * FROM cliente_incidencias WHERE cliente_id = ? ORDER BY created_at DESC
+    `).all(id) as ClienteIncidencia[];
+
+    return { ...cliente, agrupadores, incidencias };
   },
 
   // Búsqueda global: cliente + agrupador + dni/cif

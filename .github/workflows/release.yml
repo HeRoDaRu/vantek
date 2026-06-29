@@ -3,8 +3,9 @@ name: Release Windows
 # Empaqueta Vantek para el despliegue Windows (Node portable + servicio NSSM).
 # Se dispara al publicar un tag vX.Y.Z. Produce un único asset llamado
 # EXACTAMENTE "Vantek-release.zip" cuyo contenido raíz es el directorio de
-# instalación (app/, launcher/, node_modules/, config/, puppeteer/, version.json,
-# start.bat, install.ps1) MENOS node/ y tools/, que los aporta install.ps1 una
+# instalación (app/, launcher/, node_modules/, config/, templates/, puppeteer/,
+# version.json, start.bat, install.ps1) MENOS node/ y tools/, que los aporta
+# install.ps1 una
 # sola vez. install.ps1 viaja dentro del zip para tener una única fuente de
 # verdad: el instalador queda al día con cada actualización de la app.
 #
@@ -121,6 +122,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$rel\app\frontend" | Out-Null
           New-Item -ItemType Directory -Force -Path "$rel\launcher"     | Out-Null
           New-Item -ItemType Directory -Force -Path "$rel\config"       | Out-Null
+          New-Item -ItemType Directory -Force -Path "$rel\templates"    | Out-Null
 
           # Backend compilado + manifiesto (necesario para resolver dependencias)
           Copy-Tree 'app\backend\dist' "$rel\app\backend\dist"
@@ -144,6 +146,9 @@ jobs:
           # Plantillas de configuración (el launcher inicializa la config desde ellas)
           Copy-Item 'config\app.config.template.json'     "$rel\config\app.config.template.json"
           Copy-Item 'config\profile.config.template.json' "$rel\config\profile.config.template.json"
+
+          # Plantillas de documentos (HTML/CSS de factura y presupuesto)
+          Copy-Tree 'templates' "$rel\templates"
 
           # version.json, arranque manual, instalador y Chromium incluido.
           # install.ps1 viaja dentro del zip para tener una única fuente de

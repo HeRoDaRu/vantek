@@ -82,6 +82,11 @@ const PERFILES: Record<Exclude<PerfilNegocio, 'otro'>, DefaultConfig> = {
     seguimiento: {
       tipo: 'reformas',
       label: 'Seguimiento',
+      estados: [
+        'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto',
+        'a_la_espera', 'en_curso', 'pendiente_facturar', 'entregada',
+        'pagada', 'completado',
+      ],
     },
     footer: {
       factura: 'Garantía de 2 años en todos los trabajos realizados.',
@@ -124,6 +129,10 @@ const PERFILES: Record<Exclude<PerfilNegocio, 'otro'>, DefaultConfig> = {
     seguimiento: {
       tipo: 'orden_trabajo',
       label: 'Orden de trabajo',
+      estados: [
+        'nuevo', 'pendiente_presupuesto', 'a_la_espera', 'en_curso',
+        'pendiente_facturar', 'entregada', 'pagada', 'completado',
+      ],
     },
     footer: {
       factura: 'Gracias por confiar en nuestro taller.',
@@ -163,6 +172,11 @@ export function buildDefaultConfig(payload: SetupPayload): DefaultConfig {
       seguimiento: {
         tipo: 'personalizado',
         label: 'Seguimiento',
+        estados: [
+          'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto',
+          'a_la_espera', 'en_curso', 'pendiente_facturar', 'entregada',
+          'pagada', 'completado',
+        ],
       },
       footer: {
         factura: '',

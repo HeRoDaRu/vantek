@@ -72,10 +72,10 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
 // POST /api/seguimiento/:id/estado
 router.post('/:id/estado', asyncHandler(async (req, res) => {
-  const { estado } = req.body;
+  const { estado, motivo } = req.body;
   if (!estado) return res.status(400).json({ error: 'El campo estado es obligatorio' });
   try {
-    const item = SeguimientoService.cambiarEstado(req.params.id, estado);
+    const item = SeguimientoService.cambiarEstado(req.params.id, estado, motivo);
     res.json(item);
   } catch (err: any) {
     const status = err.statusCode ?? 500;

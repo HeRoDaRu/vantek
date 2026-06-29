@@ -48,6 +48,7 @@ import api from '@utils/api';
 export interface TrabajoBrief {
   id: string; nombre: string; estado: string; created_at: string;
   estado_seguimiento?: string;
+  matricula?: string; marca_modelo?: string;
   descripcion?: string; margen_porcentaje?: number;
 }
 
@@ -57,11 +58,18 @@ export interface Agrupador {
   trabajos?: TrabajoBrief[];
 }
 
+export interface ClienteIncidencia {
+  id: string; cliente_id: string;
+  seguimiento_id?: string; trabajo_id?: string; trabajo_nombre?: string;
+  estado_cancelacion: string; motivo: string; created_at: string;
+}
+
 export interface Cliente {
   id: string; nombre: string; empresa?: string; dni_cif?: string;
   telefono?: string; email?: string; notas?: string;
   activo: boolean; created_at: string; updated_at: string;
   agrupadores?: Agrupador[];
+  incidencias?: ClienteIncidencia[];
 }
 
 interface ClientesStore {

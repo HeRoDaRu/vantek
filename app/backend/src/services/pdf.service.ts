@@ -28,7 +28,8 @@
  * NOTES
  *   · The template carries a FACTURA/PRESUPUESTO watermark and PAGADA stamp depending on state.
  *   · IVA is only shown on facturas; the internal margen NEVER appears in the PDF.
- *   · Templates live in src/templates and are copied to dist/templates in the build.
+ *   · Templates live in the repo-root `templates/` folder and are copied to
+ *     <APP_ROOT>/templates at build/package time.
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
@@ -136,11 +137,23 @@ function logoSrc(valor?: string | null): string {
 
 // ─── Carga de plantillas ──────────────────────────────────────────────────────
 
-// Las plantillas (.html/.css) viven en src/templates y se copian a dist/templates
-// en el build (scripts/copy-templates.mjs). Se resuelven relativas al fichero
-// compilado, de modo que funciona igual en dev (tsx → src/templates) y en
-// producción (dist/templates), en Windows portable y en Docker.
-const TEMPLATES_DIR = path.join(__dirname, '..', 'templates');
+// Las plantillas (.html/.css) viven en una única carpeta `templates/` en la raíz
+// del repo y se copian a la raíz de instalación en el build/empaquetado
+// (Dockerfile, release Windows). En runtime están en <APP_ROOT>/templates. Para
+// dev (tsx, cwd = app/backend) se cae a la carpeta raíz del repo. Una sola copia
+// de cada plantilla, sin duplicar entre src y dist.
+function resolverTemplatesDir(): string {
+  const candidatos = [
+    path.join(APP_ROOT, 'templates'),
+    path.join(__dirname, '..', '..', '..', '..', 'templates'),
+  ];
+  for (const dir of candidatos) {
+    if (fs.existsSync(dir)) return dir;
+  }
+  return candidatos[0];
+}
+
+const TEMPLATES_DIR = resolverTemplatesDir();
 
 function leerCss(): string {
   try {
@@ -153,7 +166,7 @@ function leerCss(): string {
 // Devuelve el HTML de la plantilla a usar. Precedencia:
 //   1. documentos.template_html  — plantilla en línea editada desde Configuración
 //   2. documentos.template_path  — fichero HTML externo apuntado por el usuario
-//   3. plantilla incluida (dist/templates/documento.html)
+//   3. plantilla incluida (documento.html)
 function cargarPlantilla(): string {
   const docs = getAppConfig().documentos ?? {};
 

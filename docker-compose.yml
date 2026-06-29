@@ -10,10 +10,10 @@ services:
     environment:
       - NODE_ENV=production
     volumes:
-      - vantek-data:/app/data
-      - vantek-pdfs:/app/data/pdfs
-      - vantek-config:/app/config
-      - vantek-logs:/app/logs
+      - vantek-data-taller:/app/data
+      - vantek-pdfs-taller:/app/data/pdfs
+      - vantek-config-taller:/app/config
+      - vantek-logs-taller:/app/logs
     networks:
       - vantek-internal
     expose:
@@ -40,13 +40,13 @@ services:
     networks:
       - vantek-internal
     volumes:
-      - vantek-pdfs:/var/www/vantek/pdfs:ro
+      - vantek-pdfs-taller:/var/www/vantek/pdfs:ro
 
 volumes:
-  vantek-data:
-  vantek-pdfs:
-  vantek-config:
-  vantek-logs:
+  vantek-data-taller:
+  vantek-pdfs-taller:
+  vantek-config-taller:
+  vantek-logs-taller:
 
 networks:
   vantek-internal:

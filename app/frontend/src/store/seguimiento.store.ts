@@ -110,7 +110,7 @@ interface SeguimientoStore {
   cargarSeguimiento: (id: string) => Promise<void>;
   crear: (dto: CrearSeguimientoDto) => Promise<Seguimiento>;
   actualizar: (id: string, dto: Partial<CrearSeguimientoDto> & { fecha_visita?: string; firma_entrada?: string; firma_salida?: string }) => Promise<void>;
-  cambiarEstado: (id: string, estado: EstadoSeguimiento) => Promise<{ ok: boolean; error?: string; trabajo_id?: string }>;
+  cambiarEstado: (id: string, estado: EstadoSeguimiento, motivo?: string) => Promise<{ ok: boolean; error?: string; trabajo_id?: string }>;
   eliminar: (id: string) => Promise<void>;
   setFiltroEstado: (estado: EstadoSeguimiento | '') => void;
   limpiarActual: () => void;
@@ -161,9 +161,9 @@ export const useSeguimientoStore = create<SeguimientoStore>((set) => ({
     }));
   },
 
-  cambiarEstado: async (id, estado) => {
+  cambiarEstado: async (id, estado, motivo) => {
     try {
-      const { data } = await api.post<Seguimiento & { trabajo_id?: string }>(`/seguimiento/${id}/estado`, { estado });
+      const { data } = await api.post<Seguimiento & { trabajo_id?: string }>(`/seguimiento/${id}/estado`, { estado, motivo });
       set(s => ({
         lista: s.lista.map(x => x.id === id ? data : x),
         actual: s.actual?.id === id ? data : s.actual,

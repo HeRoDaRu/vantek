@@ -100,11 +100,40 @@ describe('cancellation rules', () => {
     expect(contarClientesActivos()).toBe(0);
   });
 
-  it('rejects cancelling once the obra is en_curso', () => {
+  it('requires a motivo to cancel once the obra is en_curso', () => {
     const seg = crear({ nombre: 'Pedro', telefono: '633000000', direccion: 'Calle Y 8' });
     cambiarEstado(seg.id, 'en_curso');
 
-    expect(() => cambiarEstado(seg.id, 'cancelado')).toThrowError(/no se puede cancelar/i);
+    expect(() => cambiarEstado(seg.id, 'cancelado')).toThrowError(/motivo/i);
+  });
+
+  it('cancels an obra en_curso with a motivo, keeps the cliente active and records an incidencia', () => {
+    const seg = crear({ nombre: 'Marta', telefono: '688000000', direccion: 'Calle V 5' });
+    const enCurso = cambiarEstado(seg.id, 'en_curso');
+    const trabajoId = enCurso.trabajo_id!;
+
+    const cancelado = cambiarEstado(seg.id, 'cancelado', 'Impagos reiterados');
+
+    expect(cancelado.estado).toBe('cancelado');
+    // La obra queda vinculada y marcada como cancelada (no se borra).
+    expect(cancelado.trabajo_id).toBe(trabajoId);
+    const trabajo = db().prepare('SELECT estado FROM trabajos WHERE id = ?').get(trabajoId) as { estado: string };
+    expect(trabajo.estado).toBe('cancelado');
+    // El cliente permanece activo (marcado como difícil, no desactivado).
+    expect(contarClientesActivos()).toBe(1);
+    // Se registra la incidencia con el motivo.
+    const inc = db().prepare('SELECT motivo, estado_cancelacion FROM cliente_incidencias').get() as { motivo: string; estado_cancelacion: string } | undefined;
+    expect(inc?.motivo).toBe('Impagos reiterados');
+    expect(inc?.estado_cancelacion).toBe('en_curso');
+  });
+
+  it('rejects cancelling a terminal (completado) seguimiento', () => {
+    const seg = crear({ nombre: 'Nuria', telefono: '699000000', direccion: 'Calle U 4' });
+    cambiarEstado(seg.id, 'en_curso');
+    // Forzar el estado terminal directamente para la prueba.
+    db().prepare(`UPDATE seguimiento SET estado = 'completado' WHERE id = ?`).run(seg.id);
+
+    expect(() => cambiarEstado(seg.id, 'cancelado', 'da igual')).toThrowError(/finalizado o cancelado/i);
   });
 });
 

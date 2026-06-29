@@ -35,6 +35,7 @@ RUN npm run build --workspace=app/frontend
 FROM deps AS backend-build
 COPY app/backend/ ./app/backend/
 COPY config/ ./config/
+COPY templates/ ./templates/
 COPY version.json ./
 RUN npm run build --workspace=app/backend
 
@@ -79,6 +80,7 @@ COPY --from=backend-build /build/app/backend/package.json ./
 COPY --from=backend-build /build/app/backend/tsconfig.json ./
 COPY --from=backend-build /build/config ./config-default
 COPY --from=backend-build /build/version.json ./
+COPY --from=backend-build /build/templates ./templates
 
 # Frontend como fallback en Express
 COPY --from=frontend-build /build/app/frontend/dist ./public

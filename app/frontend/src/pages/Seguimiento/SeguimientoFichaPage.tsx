@@ -6,10 +6,11 @@
  * WHAT IT DOES
  *   Single detail component serving BOTH reformas and taller profiles (taller
  *   fields gated by modulos.matriculas). Holds the seguimiento state machine
- *   (TRANSICIONES_BASE + ESTADOS_CANCELABLES) and chains side-effects per
- *   transition: ask for visit date, auto-create the obra, offer to create the
- *   presupuesto/factura, require a closed+PDF invoice before entregada, and
- *   close the trabajo (pagada → completado). Also edits the form and deletes.
+ *   (transitions derived from the profile's ordered estados list) and chains
+ *   side-effects per transition: ask for visit date, auto-create the obra, offer
+ *   to create the presupuesto/factura, require a closed+PDF invoice before
+ *   entregada, and close the trabajo (pagada → completado). Cancellation is
+ *   offered from any non-terminal state. Also edits the form and deletes.
  *
  * ROUTE
  *   /seguimiento/:id
@@ -35,10 +36,13 @@
  *   Output: persisted edits/state changes; navigation to document editors; deletion
  *
  * NOTES
- *   · Cancellation is allowed by STATE (ESTADOS_CANCELABLES), not by trabajo_id;
- *     once en_curso the obra has started and cancel is no longer offered.
- *   · Taller uses only the subset nuevo → en_curso → … ; intermediate visit/
- *     presupuesto states do not apply.
+ *   · Cancellation is allowed from any non-terminal state (not completado/
+ *     cancelado). Before the obra starts it is free; from en_curso onwards
+ *     (ESTADOS_OBRA_INICIADA) a motivo is mandatory and is recorded as a
+ *     cliente_incidencia ("cliente difícil") shown on the cliente ficha; the
+ *     obra is marked cancelado but its documents are preserved.
+ *   · The flow's estados come from the profile config; reformas and taller only
+ *     differ in that ordered list.
  *   · pagada is not terminal: the final transition is pagada → completado.
  * ──────────────────────────────────────────────────────────────────────────────
  */
@@ -56,38 +60,41 @@ import api from '@utils/api';
 
 // ─── Máquina de estados ───────────────────────────────────────────────────────
 
-// Estados desde los que aún se puede cancelar: hasta que se acepta el
-// presupuesto (en_curso). A partir de en_curso la obra ya está iniciada.
-const ESTADOS_CANCELABLES: EstadoSeguimiento[] = [
-  'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto', 'a_la_espera',
+// Estados en los que la obra ya está iniciada (presupuesto aceptado en adelante):
+// cancelar sigue siendo posible pero EXIGE un motivo, que se registra como
+// incidencia en la ficha del cliente ("cliente difícil").
+const ESTADOS_OBRA_INICIADA: EstadoSeguimiento[] = [
+  'en_curso', 'pendiente_facturar', 'entregada', 'pagada',
 ];
 
-const TRANSICIONES_BASE: Record<EstadoSeguimiento, EstadoSeguimiento[]> = {
-  nuevo:                  ['contactado'],
-  contactado:             ['visita_agendada'],
-  visita_agendada:        ['pendiente_presupuesto'],
-  pendiente_presupuesto:  ['a_la_espera'],
-  a_la_espera:            ['en_curso', 'pendiente_presupuesto'],
-  en_curso:               ['pendiente_facturar'],
-  pendiente_facturar:     ['entregada'],
-  entregada:              ['pagada'],
-  pagada:                 ['completado'],
-  completado:             [],
-  cancelado:              [],
-};
+// Estados terminales: ya no admiten cancelación.
+const ESTADOS_TERMINALES: EstadoSeguimiento[] = ['completado', 'cancelado'];
 
-function getTransiciones(estado: EstadoSeguimiento): EstadoSeguimiento[] {
-  const base = TRANSICIONES_BASE[estado] ?? [];
-  // Cancelar solo se ofrece hasta que se acepta el presupuesto (en_curso).
-  if (ESTADOS_CANCELABLES.includes(estado)) {
-    return [...base, 'cancelado'];
+// Orden de respaldo si el perfil no trae seguimiento.estados (instalación previa
+// al campo; el backend ya lo rellena, esto es solo defensa extra).
+const ESTADOS_DEFECTO: EstadoSeguimiento[] = [
+  'nuevo', 'contactado', 'visita_agendada', 'pendiente_presupuesto',
+  'a_la_espera', 'en_curso', 'pendiente_facturar', 'entregada',
+  'pagada', 'completado',
+];
+
+// Deriva las transiciones disponibles a partir de la lista ordenada de estados
+// del perfil (config). El flujo avanza al siguiente estado de la lista; desde
+// a_la_espera se puede re-presupuestar (volver a pendiente_presupuesto) y desde
+// los estados cancelables se puede cancelar. Así no hay grafos hardcodeados por
+// perfil: reformas y taller solo difieren en su lista de estados.
+function getTransiciones(estado: EstadoSeguimiento, estadosPerfil: EstadoSeguimiento[]): EstadoSeguimiento[] {
+  const out: EstadoSeguimiento[] = [];
+  const idx = estadosPerfil.indexOf(estado);
+  if (idx >= 0 && idx + 1 < estadosPerfil.length) out.push(estadosPerfil[idx + 1]);
+  // Re-presupuestar: si el cliente no acepta, volver a pendiente_presupuesto.
+  if (estado === 'a_la_espera' && estadosPerfil.includes('pendiente_presupuesto')) {
+    out.push('pendiente_presupuesto');
   }
-  return base;
+  // Cancelar es posible en cualquier punto salvo en los estados terminales.
+  if (!ESTADOS_TERMINALES.includes(estado)) out.push('cancelado');
+  return out;
 }
-
-const ESTADOS_TALLER: EstadoSeguimiento[] = [
-  'nuevo', 'en_curso', 'pendiente_facturar', 'entregada', 'pagada', 'completado', 'cancelado',
-];
 
 const ESTADO_LABELS: Record<EstadoSeguimiento, string> = {
   nuevo: 'Nuevo',
@@ -163,6 +170,7 @@ export default function SeguimientoFichaPage() {
   const [confirmEliminar, setConfirmEliminar] = useState(false);
   const [errEstado, setErrEstado] = useState<string | null>(null);
   const [fechaVisita, setFechaVisita] = useState('');
+  const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [postAccion, setPostAccion] = useState<null | 'crear_presupuesto' | 'crear_factura' | 'cerrar_trabajo'>(null);
   const [accionLoading, setAccionLoading] = useState(false);
 
@@ -213,9 +221,10 @@ export default function SeguimientoFichaPage() {
 
   const esCancelado = actual.estado === 'cancelado';
 
-  const estadosDisponibles = esTaller
-    ? getTransiciones(actual.estado).filter(e => ESTADOS_TALLER.includes(e))
-    : getTransiciones(actual.estado);
+  // Estados del flujo según el perfil (config); las transiciones se derivan de
+  // esa lista ordenada, sin grafos hardcodeados por perfil.
+  const estadosPerfil = (profile?.seguimiento?.estados as EstadoSeguimiento[] | undefined) ?? ESTADOS_DEFECTO;
+  const estadosDisponibles = getTransiciones(actual.estado, estadosPerfil);
 
   function setF(key: string) {
     return (v: string) => setForm(f => ({ ...f, [key]: v }));
@@ -250,7 +259,7 @@ export default function SeguimientoFichaPage() {
   }
 
   async function handleCambiarEstado() {
-    if (!id || !confirmEstado) return;
+    if (!id || !confirmEstado || !actual) return;
     // Al agendar la visita pedimos primero la fecha y la guardamos en fecha_visita
     if (confirmEstado === 'visita_agendada') {
       if (!fechaVisita) { setErrEstado('Indica la fecha de la visita'); return; }
@@ -261,8 +270,15 @@ export default function SeguimientoFichaPage() {
         return;
       }
     }
+    // Cancelar una obra ya iniciada exige un motivo (queda como incidencia del cliente).
+    const requiereMotivo = confirmEstado === 'cancelado' && ESTADOS_OBRA_INICIADA.includes(actual.estado);
+    if (requiereMotivo && !motivoCancelacion.trim()) {
+      setErrEstado('Indica el motivo de la cancelación: quedará registrado en la ficha del cliente.');
+      return;
+    }
     const destino = confirmEstado;
-    const res = await cambiarEstado(id, destino);
+    const motivo = confirmEstado === 'cancelado' && motivoCancelacion.trim() ? motivoCancelacion.trim() : undefined;
+    const res = await cambiarEstado(id, destino, motivo);
     setConfirmEstado(null);
     if (!res.ok) { setErrEstado(res.error ?? 'Error cambiando estado'); return; }
     // Acciones posteriores según el estado alcanzado
@@ -387,7 +403,7 @@ export default function SeguimientoFichaPage() {
                 <button
                   key={e}
                   className={`btn btn-sm ${e === 'cancelado' ? 'btn-danger' : 'btn-ghost'}`}
-                  onClick={() => { setErrEstado(null); setFechaVisita(actual.fecha_visita ?? ''); setConfirmEstado(e); }}
+                  onClick={() => { setErrEstado(null); setFechaVisita(actual.fecha_visita ?? ''); setMotivoCancelacion(''); setConfirmEstado(e); }}
                 >
                   {e === 'cancelado' ? '✕ Cancelar' : `→ ${ESTADO_LABELS[e]}`}
                 </button>
@@ -593,7 +609,7 @@ export default function SeguimientoFichaPage() {
       )}
 
       {/* Modal confirmar cambio de estado */}
-      {confirmEstado && (
+      {confirmEstado && actual && (
         <Modal
           title={confirmEstado === 'cancelado' ? 'Cancelar seguimiento' : 'Cambiar estado'}
           size="sm"
@@ -604,7 +620,10 @@ export default function SeguimientoFichaPage() {
               <button
                 className={`btn ${confirmEstado === 'cancelado' ? 'btn-danger' : 'btn-primary'}`}
                 onClick={handleCambiarEstado}
-                disabled={confirmEstado === 'visita_agendada' && !fechaVisita}
+                disabled={
+                  (confirmEstado === 'visita_agendada' && !fechaVisita) ||
+                  (confirmEstado === 'cancelado' && ESTADOS_OBRA_INICIADA.includes(actual.estado) && !motivoCancelacion.trim())
+                }
               >
                 {confirmEstado === 'cancelado' ? 'Sí, cancelar' : 'Confirmar'}
               </button>
@@ -615,9 +634,32 @@ export default function SeguimientoFichaPage() {
             {confirmEstado === 'cancelado' ? (
               <>
                 ¿Cancelar el seguimiento de <strong>{actual.nombre}</strong>?
-                <div style={{ marginTop: 8, fontSize: 13, color: 'var(--text-2)' }}>
-                  El registro quedará marcado como cancelado. No se eliminará y podrá consultarse.
-                </div>
+                {ESTADOS_OBRA_INICIADA.includes(actual.estado) ? (
+                  <>
+                    <div style={{ marginTop: 8, fontSize: 13, color: 'var(--text-2)' }}>
+                      La obra ya está en curso. Indica el motivo: quedará registrado en
+                      la ficha del {t('entidades.cliente').toLowerCase()} como incidencia.
+                      Los documentos (facturas, presupuestos) se conservan.
+                    </div>
+                    <div className="form-group" style={{ marginTop: 12 }}>
+                      <label className="form-label">
+                        Motivo de la cancelación<span style={{ color: 'var(--accent)', marginLeft: 2 }}>*</span>
+                      </label>
+                      <textarea
+                        className="input"
+                        rows={3}
+                        style={{ resize: 'vertical' }}
+                        placeholder="Ej. el cliente cambia de opinión a mitad de obra, impagos, conflictos…"
+                        value={motivoCancelacion}
+                        onChange={e => setMotivoCancelacion(e.target.value)}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ marginTop: 8, fontSize: 13, color: 'var(--text-2)' }}>
+                    El registro quedará marcado como cancelado. No se eliminará y podrá consultarse.
+                  </div>
+                )}
               </>
             ) : (
               <>

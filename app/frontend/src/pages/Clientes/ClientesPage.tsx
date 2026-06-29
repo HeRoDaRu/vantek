@@ -160,7 +160,7 @@ export default function ClientesPage() {
                 <tr>
                   <th>{t("entidades.cliente")}</th>
                   <th>Empresa</th>
-                  <th>Dirección</th>
+                  <th>{t("entidades.agrupador")}</th>
                   <th>DNI / CIF</th>
                   <th>Teléfono</th>
                   <th>Email</th>
