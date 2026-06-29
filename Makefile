@@ -21,7 +21,7 @@ NODE_IMAGE := node:22
 DOCKER_RUN := docker run --rm -v "$(CURDIR)":/app -w /app $(NODE_IMAGE) bash -lc
 
 .DEFAULT_GOAL := test
-.PHONY: setup install build-sqlite test test-backend test-frontend watch-backend watch-frontend clean
+.PHONY: setup install build-sqlite test test-backend test-frontend watch-backend watch-frontend clean deps-outdated deps-update deps-update-majors
 
 ## setup: install dependencies and compile native modules (run once)
 setup: install build-sqlite
@@ -57,3 +57,17 @@ watch-frontend:
 ## clean: remove installed dependencies
 clean:
 	$(DOCKER_RUN) 'rm -rf node_modules app/backend/node_modules app/frontend/node_modules'
+
+## deps-outdated: report outdated npm packages across all workspaces (no changes)
+deps-outdated:
+	$(DOCKER_RUN) 'npm outdated --workspaces --include-workspace-root || true'
+
+## deps-update: bump deps within the current major (safe), regen lock, rebuild sqlite
+deps-update:
+	$(DOCKER_RUN) 'bash scripts/update-deps.sh'
+	$(MAKE) build-sqlite
+
+## deps-update-majors: bump deps to latest incl. majors (breaking), regen lock, rebuild sqlite
+deps-update-majors:
+	$(DOCKER_RUN) 'bash scripts/update-deps.sh --majors'
+	$(MAKE) build-sqlite
