@@ -55,6 +55,7 @@ interface DocumentoParaPdf {
   agrupador_label?: string;
   lineas: {
     descripcion: string;
+    detalle?: string | null;
     cantidad: number;
     unidad?: string | null;
     precio_unitario: number;
@@ -65,6 +66,8 @@ interface DocumentoParaPdf {
     iva_porcentaje?: number;
     total: number;
   };
+  anticipo_total?: number;
+  restante?: number;
 }
 
 type TipoDocumento = 'factura' | 'presupuesto';
@@ -330,6 +333,8 @@ function construirContexto(doc: DocumentoParaPdf, tipo: TipoDocumento): Contexto
 
     lineas: doc.lineas.map(l => ({
       descripcion: l.descripcion ?? '',
+      detalle: l.detalle ?? '',
+      tiene_detalle: Boolean(l.detalle && String(l.detalle).trim()),
       cantidad: fmt(l.cantidad),
       unidad: l.unidad ?? '',
       precio: `${fmt(l.precio_unitario)} €`,
@@ -342,6 +347,11 @@ function construirContexto(doc: DocumentoParaPdf, tipo: TipoDocumento): Contexto
     subtotal: `${fmt(doc.totales.subtotal)} €`,
     total: `${fmt(doc.totales.total)} €`,
     mostrar_nota_iva: tipo === 'presupuesto',
+
+    // Anticipos entregados y restante a pagar (solo facturas con anticipos).
+    mostrar_anticipo: esFactura && (doc.anticipo_total ?? 0) > 0,
+    anticipo_total: `-${fmt(doc.anticipo_total ?? 0)} €`,
+    restante: `${fmt(doc.restante ?? doc.totales.total)} €`,
 
     notas: doc.notas ?? '',
     footer: footerTexto,

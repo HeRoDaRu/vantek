@@ -57,6 +57,7 @@ export interface LineaPresupuesto {
   id: string;
   presupuesto_id: string;
   descripcion: string;
+  detalle: string | null;
   cantidad: number;
   unidad: string | null;
   precio_unitario: number;
@@ -213,13 +214,13 @@ export async function crearPresupuesto(data: {
     if (data.lineas?.length) {
       const stmtLinea = db.prepare(
         `INSERT INTO presupuesto_lineas
-         (id, presupuesto_id, descripcion, cantidad, unidad,
+         (id, presupuesto_id, descripcion, detalle, cantidad, unidad,
           precio_unitario, coste_unitario, margen_porcentaje, tipo, orden)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       data.lineas.forEach((l, idx) => {
         stmtLinea.run(
-          uuidv4(), id, l.descripcion, l.cantidad, l.unidad ?? null,
+          uuidv4(), id, l.descripcion, l.detalle ?? null, l.cantidad, l.unidad ?? null,
           l.precio_unitario, l.coste_unitario ?? null,
           l.margen_porcentaje ?? null, l.tipo, idx
         );
@@ -268,14 +269,14 @@ export async function guardarLineas(
 
   const stmt = db.prepare(
     `INSERT INTO presupuesto_lineas
-     (id, presupuesto_id, descripcion, cantidad, unidad,
+     (id, presupuesto_id, descripcion, detalle, cantidad, unidad,
       precio_unitario, coste_unitario, margen_porcentaje, tipo, orden)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   lineas.forEach((l, idx) => {
     stmt.run(
-      uuidv4(), presupuesto_id, l.descripcion, l.cantidad, l.unidad ?? null,
+      uuidv4(), presupuesto_id, l.descripcion, l.detalle ?? null, l.cantidad, l.unidad ?? null,
       l.precio_unitario, l.coste_unitario ?? null,
       l.margen_porcentaje ?? null, l.tipo, idx
     );
@@ -412,7 +413,7 @@ export async function exportarLineasParaFactura(presupuesto_id: string) {
   const db = getDb();
   return db
     .prepare(
-      `SELECT descripcion, cantidad, unidad, precio_unitario,
+      `SELECT descripcion, detalle, cantidad, unidad, precio_unitario,
               coste_unitario, margen_porcentaje, tipo
        FROM presupuesto_lineas
        WHERE presupuesto_id = ?

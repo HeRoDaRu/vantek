@@ -79,7 +79,7 @@
   <tbody>
     {{#each lineas}}
     <tr>
-      <td class="desc">{{descripcion}}</td>
+      <td class="desc">{{descripcion}}{{#if tiene_detalle}}<div class="linea-detalle">{{detalle}}</div>{{/if}}</td>
       <td class="num">{{cantidad}}</td>
       <td class="num">{{unidad}}</td>
       <td class="num">{{precio}}</td>
@@ -105,6 +105,16 @@
       <td colspan="4" class="total-label">TOTAL</td>
       <td class="num">{{total}}</td>
     </tr>
+    {{#if mostrar_anticipo}}
+    <tr class="total-row anticipo-row">
+      <td colspan="4" class="total-label">Anticipos entregados</td>
+      <td class="num">{{anticipo_total}}</td>
+    </tr>
+    <tr class="total-final restante-row">
+      <td colspan="4" class="total-label">RESTANTE A PAGAR</td>
+      <td class="num">{{restante}}</td>
+    </tr>
+    {{/if}}
   </table>
 </div>
 

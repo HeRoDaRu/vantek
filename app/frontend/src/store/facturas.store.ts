@@ -52,6 +52,7 @@ export interface LineaFactura {
   id: string;
   factura_id: string;
   descripcion: string;
+  detalle: string | null;
   cantidad: number;
   unidad: string | null;
   precio_unitario: number;
@@ -84,6 +85,8 @@ export interface Factura {
   lineas: LineaFactura[];
   versiones: { id: string; numero_version: number; pdf_path: string; created_at: string }[];
   totales: { subtotal: number; iva: number; iva_porcentaje: number; total: number };
+  anticipo_total?: number;
+  restante?: number;
   borrador_data: string | null;
   borrador_updated_at: string | null;
   updated_at: string;

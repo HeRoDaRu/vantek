@@ -37,6 +37,7 @@ import { useState, useEffect } from 'react';
 import Modal from '@ui/Modal';
 import { useConfigStore } from '@store/config.store';
 import { TrabajoBrief } from '@store/clientes.store';
+import PagosObra from './PagosObra';
 
 interface Props {
   open: boolean;
@@ -136,6 +137,7 @@ export default function TrabajoModal({ open, onClose, onSubmit, inicial }: Props
             onChange={e => setForm(f => ({ ...f, margen_porcentaje: e.target.value }))}
           />
         </div>
+        {inicial?.id && <PagosObra trabajoId={inicial.id} />}
         {err && <span className="form-error">{err}</span>}
       </div>
     </Modal>

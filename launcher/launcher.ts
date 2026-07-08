@@ -389,9 +389,9 @@ async function downloadUpdate(): Promise<boolean> {
   const release = (state as any)._release;
   if (!release) return false;
 
-  const asset = (release.assets || []).find((a: any) => a.name === 'Vantek-release.zip');
+  const asset = (release.assets || []).find((a: any) => typeof a.name === 'string' && a.name.startsWith('Vantek-') && a.name.endsWith('.zip'));
   if (!asset) {
-    log('Asset Vantek-release.zip no encontrado en la release.');
+    log('Asset Vantek-*.zip no encontrado en la release.');
     state.error = 'Asset no encontrado en GitHub Release';
     writeState();
     return false;

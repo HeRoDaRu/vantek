@@ -61,6 +61,7 @@ import { hayBorradorSucio } from '@services/facturas.service';
 import dashboardRouter from '@routes/dashboard.router';
 import configRouter from '@routes/config.router';
 import seguimientoRouter from './routes/seguimiento.router';
+import pagosRouter from './routes/pagos.router';
 import { APP_ROOT, PDFS_DIR } from '@utils/paths';
 
 const app = express();
@@ -118,6 +119,7 @@ app.use('/api/presupuestos', presupuestosRouter);
 app.use('/api/facturas', facturasRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/seguimiento', seguimientoRouter);
+app.use('/api/trabajos/:trabajoId/pagos', pagosRouter);
 
 // ─── placeholders de actualización ────────────────────────────────────────────
 const UPDATE_STATE_PATH = path.join(APP_ROOT, 'data', 'update-state.json');

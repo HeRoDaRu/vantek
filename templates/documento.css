@@ -102,12 +102,19 @@ td.desc { width: 50%; }
 td.num { text-align: right; white-space: nowrap; }
 td.num.strong { font-weight: 700; }
 
+/* Detalle ampliado de la línea (descripción larga opcional bajo la corta) */
+.linea-detalle { margin-top: 3px; font-size: 9px; color: #666; white-space: pre-wrap; line-height: 1.35; }
+
 /* Totales */
 .totales { display: flex; justify-content: flex-end; }
 .totales-tabla { width: 280px; border-collapse: collapse; }
 .total-row td { padding: 4px 8px; font-size: 11px; }
 .total-label { text-align: right; color: #444; }
 .total-final td { font-size: 14px; font-weight: 800; color: var(--rojo); border-top: 2px solid var(--rojo); padding-top: 8px; }
+
+/* Anticipos entregados y restante a pagar */
+.anticipo-row td { color: #1f7a3d; font-weight: 600; }
+.restante-row td { color: var(--rojo); }
 
 /* Nota de IVA */
 .nota-iva { margin-top: 18px; font-size: 10px; color: #333; font-style: italic; }

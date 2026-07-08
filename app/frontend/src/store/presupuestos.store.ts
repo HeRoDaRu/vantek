@@ -52,6 +52,7 @@ export interface LineaPresupuesto {
   id: string;
   presupuesto_id: string;
   descripcion: string;
+  detalle: string | null;
   cantidad: number;
   unidad: string | null;
   precio_unitario: number;

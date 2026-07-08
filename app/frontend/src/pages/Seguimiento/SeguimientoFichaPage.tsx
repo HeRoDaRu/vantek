@@ -57,6 +57,7 @@ import Badge from '@ui/Badge';
 import Modal from '@ui/Modal';
 import Spinner from '@ui/Spinner';
 import api from '@utils/api';
+import { listarPagos } from '@utils/pagos.api';
 
 // ─── Máquina de estados ───────────────────────────────────────────────────────
 
@@ -165,6 +166,8 @@ export default function SeguimientoFichaPage() {
   const [presupuestos, setPresupuestos] = useState<{ id: string; estado: string; fecha: string; importe: number }[]>([]);
   // Facturas del trabajo (carga cuando el seguimiento tiene trabajo_id)
   const [facturas, setFacturas] = useState<{ id: string; numero: string | null; estado: string; fecha: string; total: number }[]>([]);
+  // Anticipos entregados para la obra vinculada
+  const [anticipoTotal, setAnticipoTotal] = useState(0);
 
   const [confirmEstado, setConfirmEstado] = useState<EstadoSeguimiento | null>(null);
   const [confirmEliminar, setConfirmEliminar] = useState(false);
@@ -213,6 +216,14 @@ export default function SeguimientoFichaPage() {
     api.get('/facturas', { params: { trabajo_id: actual.trabajo_id } })
       .then(res => setFacturas(res.data.data ?? res.data ?? []))
       .catch(() => setFacturas([]));
+  }, [actual?.trabajo_id]);
+
+  // Cargar anticipos entregados de la obra vinculada
+  useEffect(() => {
+    if (!actual?.trabajo_id) { setAnticipoTotal(0); return; }
+    listarPagos(actual.trabajo_id)
+      .then(res => setAnticipoTotal(res.total))
+      .catch(() => setAnticipoTotal(0));
   }, [actual?.trabajo_id]);
 
   if (cargando && !actual) return <Spinner label="Cargando…" />;
@@ -603,6 +614,16 @@ export default function SeguimientoFichaPage() {
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Anticipos entregados para la obra */}
+          {anticipoTotal > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>Anticipos entregados</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#1f7a3d' }}>
+                {anticipoTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+              </span>
             </div>
           )}
         </div>

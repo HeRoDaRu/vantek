@@ -36,17 +36,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Node 22
+      - name: Configurar Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
 
       - name: Instalar dependencias
         run: npm ci --workspaces --include-workspace-root
 
       # better-sqlite3 es un módulo nativo. El prebuilt de prebuild-install no
-      # siempre cubre el ABI del runner (Node 22.x → ABI 127), así que lo
+      # siempre cubre el ABI del runner (Node 24.x → ABI 137), así que lo
       # compilamos SIEMPRE desde fuente (Ubuntu ya trae python3 + build-essential)
       # y verificamos que el binding existe, fallando claro si no.
       - name: Compilar better-sqlite3 desde fuente

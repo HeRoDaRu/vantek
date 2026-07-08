@@ -93,6 +93,8 @@ export const TOKENS_PDF: Token[] = [
   { token: '{{iva_pct}}', desc: 'Porcentaje de IVA', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (iva_pct)' },
   { token: '{{iva_importe}}', desc: 'Importe del IVA con €', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (iva_importe, vía fmt())' },
   { token: '{{total}}', desc: 'Total con €', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (total, vía fmt())' },
+  { token: '{{anticipo_total}}', desc: 'Anticipos entregados con € y signo negativo (solo facturas con anticipos)', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (anticipo_total, vía fmt())' },
+  { token: '{{restante}}', desc: 'Restante a pagar = total con IVA − anticipos, con € (solo facturas)', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (restante, vía fmt())' },
   { token: '{{notas}}', desc: 'Notas del documento', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (notas)' },
   { token: '{{footer}}', desc: 'Pie de página configurado', origen: 'app/backend/src/services/pdf.service.ts → construirContexto() (footer)' },
 ];
@@ -102,8 +104,9 @@ export const TOKENS_PDF: Token[] = [
 // → renderTemplate() (the mini template engine function). The flags and the list
 // the blocks consume are computed in construirContexto() (same file).
 export const BLOQUES_PDF: Token[] = [
-  { token: '{{#each lineas}} … {{/each}}', desc: 'Repite por cada línea. Dentro: {{descripcion}}, {{cantidad}}, {{unidad}}, {{precio}}, {{importe}}', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · lista en construirContexto() (lineas[])' },
+  { token: '{{#each lineas}} … {{/each}}', desc: 'Repite por cada línea. Dentro: {{descripcion}}, {{detalle}}, {{cantidad}}, {{unidad}}, {{precio}}, {{importe}} y {{#if tiene_detalle}}', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · lista en construirContexto() (lineas[])' },
   { token: '{{#if mostrar_iva}} … {{/if}}', desc: 'Solo en facturas (fila de IVA)', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · bandera en construirContexto() (mostrar_iva)' },
+  { token: '{{#if mostrar_anticipo}} … {{/if}}', desc: 'Solo facturas con anticipos (filas Anticipos entregados / Restante a pagar)', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · bandera en construirContexto() (mostrar_anticipo)' },
   { token: '{{#if mostrar_nota_iva}} … {{/if}}', desc: 'Solo en presupuestos (aviso de IVA aparte)', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · bandera en construirContexto() (mostrar_nota_iva)' },
   { token: '{{#if mostrar_sello}} … {{/if}}', desc: 'Solo facturas pagadas (sello PAGADA)', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · bandera en construirContexto() (mostrar_sello)' },
   { token: '{{#if has_logo}} … {{else}} … {{/if}}', desc: 'Según haya logo o no', origen: 'app/backend/src/services/pdf.service.ts → renderTemplate() (motor) · bandera en construirContexto() (has_logo)' },

@@ -1,6 +1,6 @@
 {
   "name": "Vantek Dev",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:22-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:24-bookworm",
   "forwardPorts": [3000, 5173],
   "portsAttributes": {
     "3000": {

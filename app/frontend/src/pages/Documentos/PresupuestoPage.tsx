@@ -62,6 +62,7 @@ function presupuestoLineaToEditor(l: LineaPresupuesto): LineaEditor {
   return {
     _key: genKey(),
     descripcion: l.descripcion,
+    detalle: l.detalle ?? null,
     cantidad: l.cantidad,
     unidad: l.unidad ?? '',
     precio_unitario: l.precio_unitario,
@@ -117,6 +118,7 @@ export default function PresupuestoPage() {
     try {
       const lineasBack = lineas.map(l => ({
         descripcion: l.descripcion,
+        detalle: l.detalle ?? null,
         cantidad: l.cantidad,
         unidad: l.unidad || null,
         precio_unitario: l.precio_unitario,

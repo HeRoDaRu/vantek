@@ -49,6 +49,7 @@ const TABLAS_EN_ORDEN = [
   'albaran_linea_trabajo',
   'albaran_lineas',
   'albaranes',
+  'obra_pagos',
   'seguimiento',
   'trabajos',
   'agrupadores',
