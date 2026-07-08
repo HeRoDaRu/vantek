@@ -362,6 +362,34 @@ const migrations: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_cliente_incidencias_cliente
         ON cliente_incidencias(cliente_id);
     `
+  },
+  {
+    version: 9,
+    sql: `
+      -- Anticipos / pagos por obra: el cliente entrega dinero por adelantado
+      -- (a veces un único pago, a veces varios pagos parciales a lo largo del
+      -- trabajo). Cada pago se guarda en euros ya resueltos (importe); si se
+      -- introdujo como porcentaje se conserva tipo/valor/base para mostrarlo.
+      -- El restante de la factura = total con IVA - SUMA(importe).
+      CREATE TABLE IF NOT EXISTS obra_pagos (
+        id TEXT PRIMARY KEY,
+        trabajo_id TEXT NOT NULL REFERENCES trabajos(id) ON DELETE CASCADE,
+        tipo TEXT NOT NULL DEFAULT 'fijo' CHECK(tipo IN ('fijo','porcentaje')),
+        valor REAL NOT NULL DEFAULT 0,
+        importe REAL NOT NULL DEFAULT 0,
+        base REAL,
+        nota TEXT,
+        fecha TEXT NOT NULL DEFAULT (date('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_obra_pagos_trabajo ON obra_pagos(trabajo_id);
+
+      -- Detalle ampliado por línea de documento (descripción larga opcional que
+      -- el usuario rellena cuando quiere; se muestra bajo la descripción corta).
+      ALTER TABLE presupuesto_lineas ADD COLUMN detalle TEXT;
+      ALTER TABLE factura_lineas ADD COLUMN detalle TEXT;
+    `
   }
 ];
 

@@ -70,6 +70,7 @@ function facturaLineaToEditor(l: LineaFactura): LineaEditor {
   return {
     _key: genKey(),
     descripcion: l.descripcion,
+    detalle: l.detalle ?? null,
     cantidad: l.cantidad,
     unidad: l.unidad ?? '',
     precio_unitario: l.precio_unitario,
@@ -85,6 +86,7 @@ function facturaLineaToEditor(l: LineaFactura): LineaEditor {
 function editorLineaToBack(l: LineaEditor): Omit<LineaFactura, 'id' | 'factura_id' | 'orden'> {
   return {
     descripcion: l.descripcion,
+    detalle: l.detalle ?? null,
     cantidad: l.cantidad,
     unidad: l.unidad || null,
     precio_unitario: l.precio_unitario,
@@ -338,6 +340,7 @@ export default function FacturaPage() {
             iva_porcentaje={actual.iva_porcentaje}
             readonly={readonly}
             onAbrirAlbaran={readonly ? undefined : () => setShowModalAlbaran(true)}
+            anticipoTotal={actual.anticipo_total}
           />
         </div>
       </div>

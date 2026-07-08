@@ -2,23 +2,56 @@
 # package ecosystems to update and where the package manifests are located.
 # Please see the documentation for all configuration options:
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Convenciones de este repo:
+#   · Cada workspace (raiz, backend, frontend) abre PRs con su propia etiqueta
+#     (root / backend / frontend) y prefijo de commit para distinguirlos de un
+#     vistazo.
+#   · Se IGNORAN las actualizaciones de parche (semver-patch, X.Y.1 -> X.Y.2):
+#     generaban 8-10 PRs triviales. Solo llegan minor y major, que si merecen
+#     revision. Las actualizaciones de SEGURIDAD no se ven afectadas por este
+#     ignore (Dependabot las abre igualmente).
 
 version: 2
 updates:
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "npm"
+    directory: "/" # Raiz del monorepo (workspaces)
     target-branch: "dev"
     schedule:
       interval: "weekly"
+    labels:
+      - "dependencies"
+      - "root"
+    commit-message:
+      prefix: "deps(root)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
 
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/app/backend/" # Location of package manifests
+  - package-ecosystem: "npm"
+    directory: "/app/backend/"
     target-branch: "dev"
     schedule:
       interval: "weekly"
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "deps(backend)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
 
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/app/frontend/" # Location of package manifests
+  - package-ecosystem: "npm"
+    directory: "/app/frontend/"
     target-branch: "dev"
     schedule:
       interval: "weekly"
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "deps(frontend)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]

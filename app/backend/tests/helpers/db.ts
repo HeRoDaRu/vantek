@@ -28,6 +28,7 @@ const TABLAS = [
   'factura_versiones', 'factura_lineas', 'facturas',
   'presupuesto_versiones', 'presupuesto_lineas', 'presupuestos',
   'albaran_linea_trabajo', 'albaran_lineas', 'albaranes',
+  'obra_pagos',
   'seguimiento', 'trabajos', 'agrupadores', 'clientes', 'proveedores',
   'errores',
 ];

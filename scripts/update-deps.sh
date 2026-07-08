@@ -14,7 +14,7 @@
 #   `npm install`, required so the nested @types/express override is applied)
 #   and prints the remaining `npm outdated` report.
 #
-# USAGE (run via the Makefile, which wraps it in a node:22 container)
+# USAGE (run via the Makefile, which wraps it in a node:24 container)
 #   make deps-outdated        # report only, no changes
 #   make deps-update          # safe within-major bumps
 #   make deps-update-majors   # include breaking major bumps

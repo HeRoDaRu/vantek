@@ -1,6 +1,6 @@
 /**
  * ──────────────────────────────────────────────────────────────────────────────
- * migrate.test.ts — Schema migrations reach v8 and are idempotent
+ * migrate.test.ts — Schema migrations reach v9 and are idempotent
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
@@ -9,9 +9,9 @@ import { db } from './helpers/db';
 import { runMigrations } from '@db/migrate';
 
 describe('runMigrations', () => {
-  it('applied all migrations up to v8 during setup', () => {
+  it('applied all migrations up to v9 during setup', () => {
     const max = (db().prepare('SELECT MAX(version) AS v FROM _migraciones').get() as { v: number }).v;
-    expect(max).toBe(8);
+    expect(max).toBe(9);
   });
 
   it('is idempotent — running again applies nothing and does not throw', () => {
@@ -31,5 +31,17 @@ describe('runMigrations', () => {
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'cliente_incidencias'`)
       .get() as { name: string } | undefined;
     expect(tabla?.name).toBe('cliente_incidencias');
+  });
+
+  it('created the obra_pagos table and line detalle columns (v9)', () => {
+    const tabla = db()
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'obra_pagos'`)
+      .get() as { name: string } | undefined;
+    expect(tabla?.name).toBe('obra_pagos');
+
+    const fCols = (db().prepare(`PRAGMA table_info(factura_lineas)`).all() as { name: string }[]).map(c => c.name);
+    const pCols = (db().prepare(`PRAGMA table_info(presupuesto_lineas)`).all() as { name: string }[]).map(c => c.name);
+    expect(fCols).toContain('detalle');
+    expect(pCols).toContain('detalle');
   });
 });

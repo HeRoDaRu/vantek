@@ -2,15 +2,18 @@ name: Release Windows
 
 # Empaqueta Vantek para el despliegue Windows (Node portable + servicio NSSM).
 # Se dispara al publicar un tag vX.Y.Z. Produce un único asset llamado
-# EXACTAMENTE "Vantek-release.zip" cuyo contenido raíz es el directorio de
+# "Vantek-<version>.zip" (p. ej. Vantek-1.2.3.zip, tomando la version de
+# version.json / del tag) cuyo contenido raiz es el directorio de
 # instalación (app/, launcher/, node_modules/, config/, templates/, puppeteer/,
 # version.json, start.bat, install.ps1) MENOS node/ y tools/, que los aporta
 # install.ps1 una
 # sola vez. install.ps1 viaja dentro del zip para tener una única fuente de
 # verdad: el instalador queda al día con cada actualización de la app.
 #
-# El launcher (launcher/launcher.js) descarga este mismo asset en cada
-# actualización y lo extrae sobre el directorio de instalación con Expand-Archive.
+# El launcher (launcher/launcher.js) e install.ps1 localizan el asset por
+# patrón (Vantek-*.zip), no por nombre exacto, para tolerar la version en el
+# nombre. El launcher lo descarga en cada actualización y lo extrae sobre el
+# directorio de instalación.
 
 on:
   push:
@@ -50,10 +53,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Node 22
+      - name: Configurar Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Resolver versión
         id: version
@@ -132,7 +135,7 @@ jobs:
           Copy-Tree 'app\frontend\dist' "$rel\app\frontend\dist"
 
           # node_modules de producción (hoisted en la raíz por npm workspaces).
-          # Incluye better-sqlite3 (nativo, ABI Node 22 win-x64) y puppeteer.
+          # Incluye better-sqlite3 (nativo, ABI Node 24 win-x64) y puppeteer.
           Copy-Tree 'node_modules' "$rel\node_modules"
           if (Test-Path 'app\backend\node_modules') {
             Copy-Tree 'app\backend\node_modules' "$rel\app\backend\node_modules"
@@ -162,22 +165,24 @@ jobs:
           Write-Host 'Contenido de release/:'
           Get-ChildItem $rel | Select-Object Name
 
-      - name: Comprimir Vantek-release.zip
+      - name: Comprimir Vantek-<version>.zip
         shell: pwsh
         working-directory: release
         run: |
           $ErrorActionPreference = 'Stop'
-          7z a -tzip -mx=5 ..\Vantek-release.zip * | Out-Null
+          $v = '${{ steps.version.outputs.version }}'
+          $zip = "..\Vantek-$v.zip"
+          7z a -tzip -mx=5 $zip * | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "7z fallo (codigo $LASTEXITCODE)" }
-          $size = [math]::Round((Get-Item ..\Vantek-release.zip).Length / 1MB, 1)
-          Write-Host "Vantek-release.zip generado: $size MB"
+          $size = [math]::Round((Get-Item $zip).Length / 1MB, 1)
+          Write-Host "Vantek-$v.zip generado: $size MB"
 
       - name: Subir artefacto de prueba (solo ejecuciones manuales)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: Vantek-release
-          path: Vantek-release.zip
+          path: Vantek-*.zip
           retention-days: 7
 
       - name: Publicar release y subir asset
@@ -188,4 +193,4 @@ jobs:
           name: Vantek ${{ steps.version.outputs.version }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: Vantek-release.zip
+          files: Vantek-*.zip

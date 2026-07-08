@@ -141,6 +141,22 @@ export interface TrabajoConContexto extends Trabajo {
   cliente_empresa?: string;
 }
 
+// ─── Anticipos / pagos por obra ───────────────────────────────────────────
+
+export type ObraPagoTipo = 'fijo' | 'porcentaje';
+
+export interface ObraPago {
+  id: string;
+  trabajo_id: string;
+  tipo: ObraPagoTipo;
+  valor: number;
+  importe: number;
+  base?: number;
+  nota?: string;
+  fecha: string;
+  created_at: string;
+}
+
 // ─── Proveedores ─────────────────────────────────────────────────────────────
 
 export interface Proveedor extends BaseEntity {
@@ -196,6 +212,7 @@ export type LineaTipo = 'material' | 'manual' | 'concepto';
 export interface LineaDocumento {
   id: string;
   descripcion: string;
+  detalle?: string;
   cantidad: number;
   precio_unitario: number;
   coste_unitario?: number;
@@ -253,6 +270,8 @@ export interface Factura extends BaseEntity {
   iva_porcentaje: number;
   iva_importe: number;
   total: number;
+  anticipo_total?: number;
+  restante?: number;
 }
 
 export interface FacturaListItem {

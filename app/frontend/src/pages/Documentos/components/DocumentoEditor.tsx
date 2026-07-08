@@ -48,6 +48,7 @@ import Modal from '@ui/Modal';
 export type LineaEditor = {
   _key: string;
   descripcion: string;
+  detalle?: string | null;
   cantidad: number;
   unidad: string;
   precio_unitario: number;
@@ -83,6 +84,7 @@ interface DocumentoEditorProps {
   iva_porcentaje: number;
   readonly: boolean;
   onAbrirAlbaran?: () => void;
+  anticipoTotal?: number;
 }
 
 // ─── Modal ítem manual ────────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ interface ModalItemManualProps {
 
 function ModalItemManual({ margenDefecto, onConfirm, onClose }: ModalItemManualProps) {
   const [descripcion, setDescripcion] = useState('');
+  const [detalle, setDetalle] = useState('');
   const [cantidad, setCantidad] = useState('1');
   const [coste, setCoste] = useState('');
   const [margen, setMargen] = useState(String(margenDefecto));
@@ -107,6 +110,7 @@ function ModalItemManual({ margenDefecto, onConfirm, onClose }: ModalItemManualP
     if (!descripcion.trim()) return;
     onConfirm({
       descripcion,
+      detalle: detalle.trim() || null,
       cantidad: Number(cantidad) || 1,
       unidad,
       precio_unitario: Number(precio.toFixed(2)),
@@ -161,6 +165,23 @@ function ModalItemManual({ margenDefecto, onConfirm, onClose }: ModalItemManualP
           onChange={e => setDescripcion(e.target.value)}
           placeholder={tipo === 'manual' ? 'ej. Mano de obra pintura' : 'ej. Gestión de residuos'}
           autoFocus
+        />
+      </div>
+
+      <div className="form-group" style={{ marginTop: 12 }}>
+        <label className="form-label">
+          Detalle
+          <span style={{ marginLeft: 6, color: 'var(--text-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+            (opcional, se muestra bajo la descripción en el PDF)
+          </span>
+        </label>
+        <textarea
+          className="input"
+          value={detalle}
+          onChange={e => setDetalle(e.target.value)}
+          rows={2}
+          style={{ resize: 'vertical' }}
+          placeholder="Descripción ampliada del trabajo o notas para el cliente"
         />
       </div>
 
@@ -229,6 +250,7 @@ export default function DocumentoEditor({
   iva_porcentaje,
   readonly,
   onAbrirAlbaran,
+  anticipoTotal,
 }: DocumentoEditorProps) {
   const { appConfig } = useConfigStore();
   const margenDefecto = appConfig?.documentos?.margen_defecto ?? 0;
@@ -317,13 +339,24 @@ export default function DocumentoEditor({
                   {/* Descripción */}
                   <td>
                     {enEdicion ? (
-                      <input
-                        className="input input-sm"
-                        value={l.descripcion}
-                        autoFocus
-                        onChange={e => actualizarLinea(l._key, { descripcion: e.target.value })}
-                        onClick={e => e.stopPropagation()}
-                      />
+                      <>
+                        <input
+                          className="input input-sm"
+                          value={l.descripcion}
+                          autoFocus
+                          onChange={e => actualizarLinea(l._key, { descripcion: e.target.value })}
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <textarea
+                          className="input input-sm"
+                          value={l.detalle ?? ''}
+                          rows={2}
+                          placeholder="Detalle / descripción ampliada (opcional)"
+                          style={{ marginTop: 4, resize: 'vertical', width: '100%' }}
+                          onChange={e => actualizarLinea(l._key, { detalle: e.target.value || null })}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </>
                     ) : (
                       <span>{l.descripcion}</span>
                     )}
@@ -337,6 +370,11 @@ export default function DocumentoEditor({
                     >
                       {l.tipo === 'material' ? 'mat.' : l.tipo === 'manual' ? 'm.o.' : 'conc.'}
                     </span>
+                    {!enEdicion && l.detalle && l.detalle.trim() && (
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, whiteSpace: 'pre-wrap' }}>
+                        {l.detalle}
+                      </div>
+                    )}
                   </td>
 
                   {/* Cantidad con unidad fija */}
@@ -463,6 +501,18 @@ export default function DocumentoEditor({
           <span>TOTAL</span>
           <span>{fmt(total)} €</span>
         </div>
+        {tipo === 'factura' && (anticipoTotal ?? 0) > 0 && (
+          <>
+            <div className="totales-row" style={{ color: '#1f7a3d' }}>
+              <span>Anticipos entregados</span>
+              <span>-{fmt(anticipoTotal ?? 0)} €</span>
+            </div>
+            <div className="totales-row totales-total">
+              <span>RESTANTE A PAGAR</span>
+              <span>{fmt(total - (anticipoTotal ?? 0))} €</span>
+            </div>
+          </>
+        )}
       </div>
 
       {showModalManual && (

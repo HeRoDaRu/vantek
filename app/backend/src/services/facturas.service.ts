@@ -60,6 +60,7 @@ export interface LineaFactura {
   id: string;
   factura_id: string;
   descripcion: string;
+  detalle: string | null;
   cantidad: number;
   unidad: string | null;
   precio_unitario: number;
@@ -203,11 +204,22 @@ export async function obtenerFactura(id: string) {
     )
     .all(id);
 
+  const totales = calcularTotales(lineas, factura.iva_porcentaje as number);
+  const anticipoRow = db
+    .prepare(
+      `SELECT COALESCE(SUM(importe), 0) AS total FROM obra_pagos WHERE trabajo_id = ?`
+    )
+    .get(factura.trabajo_id) as { total: number };
+  const anticipo_total = anticipoRow.total;
+  const restante = totales.total - anticipo_total;
+
   return {
     ...factura,
     lineas,
     versiones,
-    totales: calcularTotales(lineas, factura.iva_porcentaje as number),
+    totales,
+    anticipo_total,
+    restante,
   };
 }
 
@@ -246,13 +258,13 @@ export async function crearFactura(data: {
     if (lineas?.length) {
       const stmt = db.prepare(
         `INSERT INTO factura_lineas
-         (id, factura_id, descripcion, cantidad, unidad, precio_unitario,
+         (id, factura_id, descripcion, detalle, cantidad, unidad, precio_unitario,
           coste_unitario, margen_porcentaje, tipo, es_libre, albaran_linea_id, orden)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       lineas.forEach((l, idx) => {
         stmt.run(
-          uuidv4(), id, l.descripcion, l.cantidad, l.unidad ?? null,
+          uuidv4(), id, l.descripcion, l.detalle ?? null, l.cantidad, l.unidad ?? null,
           l.precio_unitario, l.coste_unitario ?? null,
           l.margen_porcentaje ?? null, l.tipo,
           l.es_libre ? 1 : 0, l.albaran_linea_id ?? null, idx
@@ -277,13 +289,13 @@ export async function guardarLineas(
 
   const stmt = db.prepare(
     `INSERT INTO factura_lineas
-     (id, factura_id, descripcion, cantidad, unidad, precio_unitario,
+     (id, factura_id, descripcion, detalle, cantidad, unidad, precio_unitario,
       coste_unitario, margen_porcentaje, tipo, es_libre, albaran_linea_id, orden)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   lineas.forEach((l, idx) => {
     stmt.run(
-      uuidv4(), factura_id, l.descripcion, l.cantidad, l.unidad ?? null,
+      uuidv4(), factura_id, l.descripcion, l.detalle ?? null, l.cantidad, l.unidad ?? null,
       l.precio_unitario, l.coste_unitario ?? null,
       l.margen_porcentaje ?? null, l.tipo,
       l.es_libre ? 1 : 0, l.albaran_linea_id ?? null, idx
