@@ -25,9 +25,10 @@
 #   · Always review the diff and run the gate (tsc + tests) before pushing.
 #   · This runs on Linux, so the regenerated lock only records the LINUX
 #     platform-optional native bindings (e.g. Vite 8's rolldown binding). Due to
-#     npm bug npm/cli#4828 the win32/darwin bindings are NOT written to the lock,
-#     so the Windows release job uses `npm install` (not `npm ci`) to resolve its
-#     own native binding. See .github/workflows/release.yml.
+#     npm bug npm/cli#4828 the win32/darwin bindings are NOT written to the lock
+#     (and can't be added via --os/--cpu), so the Windows release job DELETES the
+#     lock and runs `npm install` to resolve its own native bindings. See
+#     .github/workflows/release.yml.
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
