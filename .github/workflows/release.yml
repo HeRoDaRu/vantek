@@ -79,16 +79,20 @@ jobs:
 
       - name: Instalar dependencias (incluye Chromium de Puppeteer)
         shell: pwsh
-        # Usamos `npm install` (NO `npm ci`) a propósito en el runner Windows.
         # El package-lock.json se regenera en Linux (make deps-update) y, por el
-        # bug de npm con dependencias opcionales por plataforma (npm/cli#4828),
-        # el binario nativo del bundler de Vite 8 (rolldown) para win32-x64 no
-        # queda registrado en el lock. `npm ci` lo seguiría al pie de la letra y
-        # NO instalaria ese binding → `vite build` falla con "Cannot find native
-        # binding". `npm install` respeta las versiones del lock (la integridad
-        # del lock ya la valida el job `test`/ci.yml en Ubuntu con `npm ci`) y
-        # ademas resuelve el binario nativo correcto para esta plataforma.
-        run: npm install --workspaces --include-workspace-root --no-audit --no-fund
+        # bug de npm con dependencias opcionales por plataforma (npm/cli#4828), NO
+        # registra los binarios nativos win32-x64 (el bundler rolldown de Vite 8,
+        # esbuild, lightningcss…). Con el lock incompleto presente, NI `npm ci` NI
+        # `npm install` los instalan → `vite build` muere con "Cannot find native
+        # binding". La solución (la que recomienda el propio error) es BORRAR el
+        # lock y reinstalar, para que npm resuelva los binarios de ESTA
+        # plataforma. La integridad de versiones ya la valida el job `test`
+        # (ci.yml en Ubuntu con `npm ci`) antes de llegar aquí.
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Remove-Item -Force package-lock.json -ErrorAction SilentlyContinue
+          npm install --workspaces --include-workspace-root --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw "npm install fallo (codigo $LASTEXITCODE)" }
 
       - name: Descargar Chromium de Puppeteer
         shell: pwsh
