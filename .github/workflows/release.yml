@@ -185,6 +185,19 @@ jobs:
             Copy-Tree 'app\backend\node_modules' "$rel\app\backend\node_modules"
           }
 
+          # Refuerzo: copiamos EXPLÍCITAMENTE el binario nativo de better-sqlite3
+          # por si el copiado masivo de node_modules lo omitiera (p. ej. por
+          # reintentos/atributos de robocopy). El binario lo dejó la etapa
+          # "Compilar better-sqlite3 desde fuente" en build/Release.
+          $sqliteSrc = 'node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+          if (Test-Path $sqliteSrc) {
+            $sqliteDstDir = "$rel\node_modules\better-sqlite3\build\Release"
+            New-Item -ItemType Directory -Force -Path $sqliteDstDir | Out-Null
+            Copy-Item $sqliteSrc (Join-Path $sqliteDstDir 'better_sqlite3.node') -Force
+          } else {
+            throw "No se encontro el binario de origen $sqliteSrc antes de ensamblar."
+          }
+
           # Launcher compilado + scripts de servicio
           Copy-Item 'launcher\launcher.js'           "$rel\launcher\launcher.js"
           Copy-Item 'launcher\install-service.bat'   "$rel\launcher\install-service.bat"
