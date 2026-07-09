@@ -206,6 +206,15 @@ jobs:
           Copy-Item 'install.ps1'  "$rel\README.md"
           Copy-Tree '.puppeteer-cache' "$rel\puppeteer"
 
+          # Verja final: el binario nativo de better-sqlite3 DEBE haber llegado al
+          # árbol empaquetado. Si no, abortamos (no se publica un ZIP que fallaría
+          # en el cliente con "Could not locate the bindings file").
+          $sqliteBin = "$rel\node_modules\better-sqlite3\build\Release\better_sqlite3.node"
+          if (-not (Test-Path $sqliteBin)) {
+            throw "El binario better_sqlite3.node NO llego al release ($sqliteBin). No se empaqueta un ZIP roto."
+          }
+          Write-Host "OK: better_sqlite3.node presente en el release ($((Get-Item $sqliteBin).Length) bytes)."
+
           Write-Host 'Contenido de release/:'
           Get-ChildItem $rel | Select-Object Name
 
