@@ -341,8 +341,13 @@ public class IdleTime {
 `.trim();
 
   try {
+    // -EncodedCommand (Base64 UTF-16LE) para pasar el script tal cual: preserva
+    // saltos de línea y comillas, de modo que el terminador de here-string ("@ al
+    // inicio de línea) se reconoce. Con -Command "..." las comillas escapadas
+    // rompían el here-string → ParserError "Falta la cadena en el terminador".
+    const encoded = Buffer.from(script, 'utf16le').toString('base64');
     const output = execSync(
-      `powershell.exe -NoProfile -NonInteractive -Command "${script.replace(/"/g, '\\"')}"`,
+      `powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encoded}`,
       { timeout: 5000, windowsHide: true }
     ).toString().trim();
 
